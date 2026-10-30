@@ -13,6 +13,8 @@
   trigger.textContent = "Search";
   trigger.setAttribute("aria-label", "Search documentation");
   trigger.setAttribute("aria-keyshortcuts", "Control+K Meta+K");
+  trigger.setAttribute("aria-haspopup", "dialog");
+  trigger.setAttribute("aria-expanded", "false");
   header.appendChild(trigger);
 
   let shell;
@@ -23,6 +25,7 @@
   let previousFocus;
   let loaded = null;
   let pending = null;
+  let loadError = false;
   let selected = 0;
   let currentResults = [];
 
@@ -38,6 +41,8 @@
     shell.hidden = true;
     shell.setAttribute("data-paglora-search", "");
     const modal = element("section", "paglora-search-dialog");
+    modal.id = "paglora-search-dialog";
+    trigger.setAttribute("aria-controls", modal.id);
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
     modal.setAttribute("aria-label", "Search documentation");
@@ -96,6 +101,7 @@
   function close() {
     if (!shell || shell.hidden) return;
     shell.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
     document.body.classList.remove("paglora-search-open");
     previousFocus?.focus?.();
   }
@@ -107,6 +113,7 @@
   async function load() {
     if (loaded) return loaded;
     if (!pending) {
+      loadError = false;
       pending = fetch("search-index.json", { cache: "force-cache" })
         .then(response => {
           if (!response.ok) throw new Error("Search index unavailable");
@@ -124,7 +131,7 @@
             titleSearch: normalize(page.title), bodySearch: normalize(page.text),
           }));
           return loaded;
-        }).catch(error => { pending = null; throw error; });
+        }).catch(error => { pending = null; loadError = true; throw error; });
     }
     return pending;
   }
@@ -171,6 +178,11 @@
     currentResults = find(query);
     selected = 0;
     results.replaceChildren();
+    if (!loaded) {
+      results.appendChild(element("p", "paglora-search-status", loadError
+        ? "Search index could not be loaded" : "Loading search index…"));
+      return;
+    }
     if (!query) {
       results.appendChild(element("p", "paglora-search-status", "Type to search documentation"));
       return;
@@ -199,6 +211,7 @@
     if (!shell.hidden) { input.focus(); return; }
     previousFocus = document.activeElement;
     shell.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
     document.body.classList.add("paglora-search-open");
     input.value = "";
     input.focus();
@@ -207,7 +220,7 @@
       await load();
       if (!shell.hidden) render();
     } catch {
-      if (!shell.hidden) results.replaceChildren(element("p", "paglora-search-status", "Search index could not be loaded"));
+      if (!shell.hidden) render();
     }
   }
 

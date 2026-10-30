@@ -5,7 +5,9 @@ import vm from "node:vm";
 
 const source = readFileSync(new URL("../src/search.js", import.meta.url), "utf8");
 
-function fixture(pages, { responseOk = true } = {}) {
+function fixture(pages, { responseOk = true, waitForIndex = false } = {}) {
+  let releaseFetch;
+  const gate = new Promise(resolve => { releaseFetch = resolve; });
   const docListeners = {};
   let requested = "";
   let navigated = "";
@@ -48,6 +50,7 @@ function fixture(pages, { responseOk = true } = {}) {
     },
     fetch: async url => {
       requested = url;
+      if (waitForIndex) await gate;
       return { ok: responseOk, json: async () => ({ version: 1, pages }) };
     },
   };
@@ -62,7 +65,7 @@ function fixture(pages, { responseOk = true } = {}) {
     const bar = modal.children[0];
     return { backdrop, modal, input: bar.children[0], results: modal.children[1] };
   }
-  return { button, open, document, docListeners, get requested() { return requested; }, get navigated() { return navigated; } };
+  return { button, open, document, docListeners, releaseFetch, get requested() { return requested; }, get navigated() { return navigated; } };
 }
 
 test("Ctrl+K search fetches only the local static index", async () => {
@@ -125,4 +128,27 @@ test("Tab reaches search results and wraps keyboard focus inside the dialog", as
   assert.equal(prevented, 2);
   // The close button remains part of the normal focus order.
   assert.ok(closeButton);
+});
+
+test("search preserves loading status while the index is in flight", async () => {
+  const app = fixture([{ title: "Guide", url: "guide.html", text: "Paglora documentation" }], { waitForIndex: true });
+  const { input, results } = await app.open();
+  assert.equal(app.button.attrs.get("aria-expanded"), "true");
+  input.value = "Paglora";
+  input.events.input();
+  assert.match(results.children[0].textContent, /Loading search index/);
+  app.releaseFetch();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(results.children[0].href, "guide.html");
+});
+
+test("search dialog exposes its state and restores focus on close", async () => {
+  const app = fixture([{ title: "Guide", url: "guide.html", text: "Search" }]);
+  const { backdrop } = await app.open();
+  assert.equal(app.button.attrs.get("aria-haspopup"), "dialog");
+  assert.equal(app.button.attrs.get("aria-controls"), "paglora-search-dialog");
+  assert.equal(app.button.attrs.get("aria-expanded"), "true");
+  app.docListeners.keydown({ key: "Escape", preventDefault() {} });
+  assert.equal(backdrop.hidden, true);
+  assert.equal(app.button.attrs.get("aria-expanded"), "false");
 });
