@@ -110,7 +110,7 @@ function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, can
           <DropdownMenuItem onSelect={() => onAction("duplicate", page.id)}><Copy /> Duplicate</DropdownMenuItem>
           {page.id !== "index" && <DropdownMenuItem onSelect={() => onAction("visibility", page.id, String(!page.isPublic))}>
             {page.isPublic ? <EyeOff /> : <Eye />} {page.isPublic ? "Make private" : "Make public"}
-          </DropdownMenuItem>
+          </DropdownMenuItem>}
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled={!canMoveUp || disabled} onSelect={() => onMove(page.id, "up")}><ArrowUp /> Move up</DropdownMenuItem>
           <DropdownMenuItem disabled={!canMoveDown || disabled} onSelect={() => onMove(page.id, "down")}><ArrowDown /> Move down</DropdownMenuItem>
@@ -129,7 +129,7 @@ function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, can
           <ContextMenuItem disabled={disabled} onSelect={() => onAction("duplicate", page.id)}><Copy /> Duplicate</ContextMenuItem>
           {page.id !== "index" && <ContextMenuItem disabled={disabled} onSelect={() => onAction("visibility", page.id, String(!page.isPublic))}>
             {page.isPublic ? <EyeOff /> : <Eye />} {page.isPublic ? "Make private" : "Make public"}
-          </ContextMenuItem>
+          </ContextMenuItem>}
           <ContextMenuSeparator />
           <ContextMenuItem disabled={!canMoveUp || disabled} onSelect={() => onMove(page.id, "up")}><ArrowUp /> Move up</ContextMenuItem>
           <ContextMenuItem disabled={!canMoveDown || disabled} onSelect={() => onMove(page.id, "down")}><ArrowDown /> Move down</ContextMenuItem>
