@@ -99,9 +99,9 @@ export function run(args, output = process.stdout, errors = process.stderr) {
   try {
     const details = inspectProject(folder);
     if (json) output.write(JSON.stringify(details, null, 2) + "\n");
-    else if (command === "validate") output.write(`Valid Pageo project: ${details.name} (${details.pageCount} pages)\n`);
+    else if (command === "validate") output.write(`Valid documentation project: ${details.name} (${details.pageCount} pages)\n`);
     else {
-      output.write(`Pageo project: ${details.name}\nDirectory: ${details.folder}\nWebsite: ${details.siteTitle}\nPages: ${details.pageCount} (${details.publicCount} public)\n`);
+      output.write(`Documentation project: ${details.name}\nDirectory: ${details.folder}\nWebsite: ${details.siteTitle}\nPages: ${details.pageCount} (${details.publicCount} public)\n`);
       for (const page of details.pages) {
         output.write(`  ${page.isPublic ? "[public] " : "[private]"} ${page.title} (${page.id}.md)\n`);
       }
