@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+import { readFileSync, existsSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const pkg = JSON.parse(readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8"));
+const ID = /^[a-z0-9-]{1,80}$/;
+
+function readJson(file) {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch (error) {
+    throw new Error(`Could not read ${file}: ${error.message}`);
+  }
+}
+
+export function inspectProject(folder) {
+  const directory = resolve(folder);
+  const configFile = join(directory, "pageo.json");
+  if (!existsSync(configFile)) throw new Error("No pageo.json found. Pass a Pageo project directory.");
+  const config = readJson(configFile);
+  if (config.formatVersion !== 1 || typeof config.id !== "string" || !ID.test(config.id) ||
+    config.id !== basename(directory) || typeof config.name !== "string" || !config.name.trim()) {
+    throw new Error("Invalid pageo.json: expected format version 1 and matching project identifier.");
+  }
+  const manifestFile = join(directory, "pages.json");
+  const pages = existsSync(manifestFile)
+    ? readJson(manifestFile).pages
+    : [{ id: "index", title: "Overview", isPublic: true }];
+
+  if (!Array.isArray(pages) || pages.length < 1 || pages.length > 500 || pages[0]?.id !== "index") {
+    throw new Error("Invalid page manifest: Overview must be the first page.");
+  }
+  const seen = new Set();
+  for (const page of pages) {
+    if (!page || typeof page.id !== "string" || !ID.test(page.id) || seen.has(page.id) ||
+      typeof page.title !== "string" || !page.title.trim() || page.title.length > 100) {
+      throw new Error("Invalid page identifier, title or duplicate entry in pages.json.");
+    }
+    if (page.isPublic !== undefined && typeof page.isPublic !== "boolean") {
+      throw new Error(`Invalid public/private flag for page ${page.id}.`);
+    }
+    if (page.id === "index" && page.isPublic === false) {
+      throw new Error("Overview must remain public.");
+    }
+    if (!existsSync(join(directory, "docs", `${page.id}.md`))) {
+      throw new Error(`Missing docs/${page.id}.md`);
+    }
+    seen.add(page.id);
+  }
+  const siteFile = join(directory, "site.json");
+  const site = existsSync(siteFile) ? readJson(siteFile) : null;
+  if (site !== null && (typeof site.title !== "string" || !site.title.trim())) {
+    throw new Error("Invalid site.json: site title must not be empty.");
+  }
+  return {
+    name: config.name,
+    id: config.id,
+    folder: directory,
+    pageCount: pages.length,
+    publicCount: pages.filter(page => page.isPublic !== false).length,
+    pages: pages.map(page => ({ id: page.id, title: page.title, isPublic: page.isPublic !== false })),
+    siteTitle: site?.title ?? config.name,
+  };
+}
+
+const HELP = `Pageo CLI (early alpha)
+
+Usage:
+  pageo inspect <project-folder> [--json]  Show project and page details
+  pageo validate <project-folder>         Check local project structure
+  pageo --version                         Print CLI version
+  pageo --help                            Show this help
+
+Static site builds currently run through Pageo Desktop.
+Documentation: https://github.com/m1nsook/pageo
+`;
+
+export function run(args, output = process.stdout, errors = process.stderr) {
+  const [command, ...rest] = args;
+  if (!command || command === "--help" || command === "-h" || command === "help") {
+    output.write(HELP);
+    return 0;
+  }
+  if (command === "--version" || command === "-v") {
+    output.write(pkg.version + "\n");
+    return 0;
+  }
+  if (command !== "inspect" && command !== "validate") {
+    errors.write(`Unknown command: ${command}\n\n${HELP}`);
+    return 1;
+  }
+  const json = rest.includes("--json");
+  const folder = rest.find(value => !value.startsWith("--"));
+  if (!folder) {
+    errors.write("Missing project directory. Example: pageo inspect ./projects/my-docs\n");
+    return 1;
+  }
+  try {
+    const details = inspectProject(folder);
+    if (json) output.write(JSON.stringify(details, null, 2) + "\n");
+    else if (command === "validate") output.write(`Valid Pageo project: ${details.name} (${details.pageCount} pages)\n`);
+    else {
+      output.write(`Pageo project: ${details.name}\nDirectory: ${details.folder}\nWebsite: ${details.siteTitle}\nPages: ${details.pageCount} (${details.publicCount} public)\n`);
+      for (const page of details.pages) {
+        output.write(`  ${page.isPublic ? "[public] " : "[private]"} ${page.title} (${page.id}.md)\n`);
+      }
+    }
+    return 0;
+  } catch (error) {
+    errors.write(`Pageo: ${error.message}\n`);
+    return 1;
+  }
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.exitCode = run(process.argv.slice(2));
+}

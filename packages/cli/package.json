@@ -1,0 +1,17 @@
+{
+  "name": "pageo",
+  "version": "0.0.1-alpha.0",
+  "description": "Pageo CLI — inspect and validate local-first Pageo documentation projects.",
+  "type": "module",
+  "license": "MIT",
+  "author": "m1nsook",
+  "homepage": "https://github.com/m1nsook/pageo#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/m1nsook/pageo.git", "directory": "packages/cli" },
+  "bugs": { "url": "https://github.com/m1nsook/pageo/issues" },
+  "keywords": ["pageo", "documentation", "docs", "cli", "static-site-generator", "markdown"],
+  "bin": { "pageo": "./bin/pageo.mjs" },
+  "files": ["bin", "README.md"],
+  "engines": { "node": ">=20" },
+  "publishConfig": { "access": "public" },
+  "scripts": { "test": "node --test ./test/*.test.mjs", "pack:check": "npm pack --dry-run" }
+}

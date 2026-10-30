@@ -1,0 +1,39 @@
+name: CLI npm package
+
+on:
+  pull_request:
+    paths:
+      - "packages/cli/**"
+      - ".github/workflows/cli.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/cli/**"
+      - ".github/workflows/cli.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cli:
+    name: Pageo CLI (Node ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test CLI
+        run: node --test packages/cli/test/cli.test.mjs
+      - name: Check package contents
+        run: npm pack --dry-run ./packages/cli
+      - name: Check npm name (informational only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          node -e 'fetch("https://registry.npmjs.org/pageo").then(r => console.log("Exact npm package pageo registry status:", r.status, r.status === 404 ? "(no public package found)" : r.status === 200 ? "(name already exists)" : "(unable to determine)")).catch(e => console.log("Registry check unavailable:", e.message))'
+
