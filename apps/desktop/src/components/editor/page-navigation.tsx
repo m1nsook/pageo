@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { Copy, FilePlus2, FileText, GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { ArrowDown, ArrowUp, Copy, FilePlus2, FileText, GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -56,12 +56,16 @@ function PageTitleDialog({ open, setOpen, initial = "", mode, onSubmit }: {
   );
 }
 
-function PageRow({ page, selected, disabled, onNavigate, onAction, onDrag, onDrop }: {
+function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, canMoveDown, onNavigate, onAction, onStartDrag, onMove }: {
   page: Page; selected: boolean; disabled: boolean;
   onNavigate: () => void;
   onAction: (action: PageAction, id: string, title?: string) => void;
-  onDrag: (id: string | null) => void;
-  onDrop: (id: string) => void;
+  dragged: boolean;
+  dropTarget: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onStartDrag: (event: ReactPointerEvent<HTMLSpanElement>, id: string) => void;
+  onMove: (id: string, direction: "up" | "down") => void;
 }) {
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -69,13 +73,24 @@ function PageRow({ page, selected, disabled, onNavigate, onAction, onDrag, onDro
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>
-    <div className={cn("group flex min-w-0 items-center gap-0.5 rounded-lg pr-1 transition-colors duration-150", selected ? "bg-accent text-accent-foreground" : "hover:bg-muted/70")}
-      onDragOver={(event) => { if (page.id !== "index") event.preventDefault(); }}
-      onDrop={(event) => { event.preventDefault(); onDrop(page.id); }}
+    <div
+      data-page-id={page.id}
+      className={cn(
+        "group relative flex min-w-0 items-center gap-0.5 rounded-lg pr-1 transition-[background-color,opacity,box-shadow] duration-150",
+        selected ? "bg-accent text-accent-foreground" : "hover:bg-muted/70",
+        dragged && "opacity-50",
+        dropTarget && "bg-primary/10 ring-2 ring-primary/60",
+      )}
     >
-      <span draggable={!disabled && page.id !== "index"} onDragStart={() => onDrag(page.id)} onDragEnd={() => onDrag(null)}
-        title={page.id === "index" ? "Overview stays first" : "Drag to reorder"}
-        className={cn("flex size-7 shrink-0 items-center justify-center text-muted-foreground/50", page.id !== "index" && !disabled ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-40")}>
+      <span
+        role="button" tabIndex={-1}
+        aria-label={`Drag to reorder ${page.title}`}
+        onPointerDown={(event) => onStartDrag(event, page.id)}
+        title={page.id === "index" ? "Overview stays first" : "Hold and drag to reorder"}
+        className={cn(
+          "flex size-7 shrink-0 items-center justify-center text-muted-foreground/50 touch-none select-none",
+          page.id !== "index" && !disabled ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-40",
+        )}>
         <GripVertical className="size-3.5" />
       </span>
       <button type="button" disabled={disabled} aria-current={selected ? "page" : undefined} onClick={onNavigate}
@@ -93,6 +108,9 @@ function PageRow({ page, selected, disabled, onNavigate, onAction, onDrag, onDro
         <DropdownMenuContent align="end" side="right" className="w-44">
           <DropdownMenuItem onSelect={() => setRenameOpen(true)}><Pencil /> Rename</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onAction("duplicate", page.id)}><Copy /> Duplicate</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled={!canMoveUp || disabled} onSelect={() => onMove(page.id, "up")}><ArrowUp /> Move up</DropdownMenuItem>
+          <DropdownMenuItem disabled={!canMoveDown || disabled} onSelect={() => onMove(page.id, "down")}><ArrowDown /> Move down</DropdownMenuItem>
           {page.id !== "index" && <>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}><Trash2 /> Delete</DropdownMenuItem>
@@ -106,6 +124,9 @@ function PageRow({ page, selected, disabled, onNavigate, onAction, onDrag, onDro
           <ContextMenuSeparator />
           <ContextMenuItem disabled={disabled} onSelect={() => setRenameOpen(true)}><Pencil /> Rename</ContextMenuItem>
           <ContextMenuItem disabled={disabled} onSelect={() => onAction("duplicate", page.id)}><Copy /> Duplicate</ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem disabled={!canMoveUp || disabled} onSelect={() => onMove(page.id, "up")}><ArrowUp /> Move up</ContextMenuItem>
+          <ContextMenuItem disabled={!canMoveDown || disabled} onSelect={() => onMove(page.id, "down")}><ArrowDown /> Move down</ContextMenuItem>
           {page.id !== "index" && <>
             <ContextMenuSeparator />
             <ContextMenuItem disabled={disabled} variant="destructive" onSelect={() => setDeleteOpen(true)}><Trash2 /> Delete</ContextMenuItem>
@@ -136,11 +157,56 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
   onAction: (action: PageAction, id?: string, target?: string) => void;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
-  const [dragging, setDragging] = useState<string | null>(null);
-  const drop = (target: string) => {
-    if (dragging && dragging !== target && target !== "index") onAction("reorder", dragging, target);
-    setDragging(null);
-  };
+  const [dragged, setDragged] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  // Pointer capture works in the Tauri WebView more reliably than the
+  // native HTML5 draggable/drop events inside Radix ContextMenu + ScrollArea.
+  const pointer = useRef<{ id: string; x: number; y: number; active: boolean } | null>(null);
+  const target = useRef<string | null>(null);
+
+  function resetDrag() {
+    pointer.current = null;
+    target.current = null;
+    setDragged(null);
+    setDropTarget(null);
+  }
+  function startDrag(event: ReactPointerEvent<HTMLSpanElement>, id: string) {
+    if (busy || id === "index" || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    pointer.current = { id, x: event.clientX, y: event.clientY, active: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  function movePointer(event: ReactPointerEvent<HTMLElement>) {
+    const current = pointer.current;
+    if (!current || busy) return;
+    if (!current.active && Math.hypot(event.clientX - current.x, event.clientY - current.y) < 6) return;
+    if (!current.active) {
+      current.active = true;
+      setDragged(current.id);
+    }
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    const id = hit instanceof Element ? hit.closest<HTMLElement>("[data-page-id]")?.dataset.pageId : undefined;
+    const candidate = id && id !== "index" && id !== current.id ? id : null;
+    if (target.current !== candidate) {
+      target.current = candidate;
+      setDropTarget(candidate);
+    }
+  }
+  function finishDrag() {
+    const current = pointer.current;
+    const targetId = target.current;
+    resetDrag();
+    if (current?.active && targetId && current.id !== targetId) {
+      onAction("reorder", current.id, targetId);
+    }
+  }
+  function movePage(id: string, direction: "up" | "down") {
+    const index = pages.findIndex((page) => page.id === id);
+    const adjacent = direction === "up" ? index - 1 : index + 1;
+    if (index <= 0 || adjacent <= 0 || adjacent >= pages.length || busy) return;
+    onAction("reorder", id, pages[adjacent].id);
+  }
   return (
     <aside aria-label="Page navigation" className="flex h-full w-[246px] shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 shrink-0 items-center justify-between px-4">
@@ -154,13 +220,22 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
       </div>
       <Separator />
       <ScrollArea className="min-h-0 flex-1">
-        <nav className="space-y-1 px-2 py-3" aria-label="Documentation pages">
-          {pages.map((page) => <PageRow key={page.id} page={page} selected={page.id === currentId} disabled={busy}
-            onNavigate={() => onNavigate(page.id)} onAction={onAction}
-            onDrag={setDragging} onDrop={drop} />)}
+        <nav
+          className="space-y-1 px-2 py-3" aria-label="Documentation pages"
+          onPointerMove={movePointer}
+          onPointerUp={finishDrag}
+          onPointerCancel={resetDrag}
+        >
+          {pages.map((page, index) => (
+            <PageRow key={page.id} page={page} selected={page.id === currentId} disabled={busy}
+              dragged={dragged === page.id} dropTarget={dropTarget === page.id}
+              canMoveUp={index > 1} canMoveDown={index > 0 && index < pages.length - 1}
+              onNavigate={() => onNavigate(page.id)} onAction={onAction}
+              onStartDrag={startDrag} onMove={movePage} />
+          ))}
         </nav>
       </ScrollArea>
-      <div className="border-t border-border p-3 text-[11px] text-muted-foreground">Drag pages to reorder.</div>
+      <div className="border-t border-border p-3 text-[11px] text-muted-foreground">Hold the grip to drag a page, or use Move up / Move down in its menu.</div>
       <PageTitleDialog key={`create-${createOpen}`} open={createOpen} setOpen={setCreateOpen} mode="create" onSubmit={(title) => onAction("create", undefined, title)} />
     </aside>
   );
