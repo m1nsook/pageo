@@ -7,7 +7,8 @@ const EXPORTS: &str = "site-exports";
 const SITE_CSS: &str = r#"
 @font-face{font-family:"Geist Website";src:url("fonts/geist-latin.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
 :root{color-scheme:light;--bg:#ffffff;--fg:#151a24;--muted:#626b7c;--line:#e6eaf0;--subtle:#f6f8fb;--hover:#edf3fa;--brand:#2196f3;--brand-light:#eaf5ff;--code-bg:#101828;--code-fg:#e9eef8;--header-bg:rgba(255,255,255,.96)}
-@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#11151d;--fg:#f1f4f9;--muted:#a5aec0;--line:#2a3342;--subtle:#191f2b;--hover:#222d40;--brand:#72baff;--brand-light:#152e48;--code-bg:#080d14;--code-fg:#e9eef8;--header-bg:rgba(17,21,29,.96)}}
+:root[data-color-mode="dark"]{color-scheme:dark;--bg:#11151d;--fg:#f1f4f9;--muted:#a5aec0;--line:#2a3342;--subtle:#191f2b;--hover:#222d40;--brand:#72baff;--brand-light:#152e48;--code-bg:#080d14;--code-fg:#e9eef8;--header-bg:rgba(17,21,29,.96)}
+@media(prefers-color-scheme:dark){:root:not([data-color-mode="light"]){color-scheme:dark;--bg:#11151d;--fg:#f1f4f9;--muted:#a5aec0;--line:#2a3342;--subtle:#191f2b;--hover:#222d40;--brand:#72baff;--brand-light:#152e48;--code-bg:#080d14;--code-fg:#e9eef8;--header-bg:rgba(17,21,29,.96)}}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;scroll-padding-top:105px}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:"Geist Website",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
@@ -156,6 +157,8 @@ fn nav_default() -> String { "left".into() }
 fn align_default() -> String { "left".into() }
 fn true_default() -> bool { true }
 fn width_default() -> u16 { 790 }
+fn theme_default() -> String { "system".into() }
+fn accent_default() -> String { "#2196f3".into() }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -179,6 +182,10 @@ pub struct SiteSettings {
     header_links: Vec<SiteLink>,
     #[serde(default)]
     footer_links: Vec<SiteLink>,
+    #[serde(default = "theme_default")]
+    theme_mode: String,
+    #[serde(default = "accent_default")]
+    accent_color: String,
 }
 
 #[derive(Deserialize)]
@@ -234,6 +241,8 @@ fn default_settings(name: &str) -> SiteSettings {
         logo_url: String::new(),
         header_links: Vec::new(),
         footer_links: Vec::new(),
+        theme_mode: theme_default(),
+        accent_color: accent_default(),
     }
 }
 
@@ -259,6 +268,13 @@ fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
     }
     if !["left", "center"].contains(&settings.header_alignment.as_str()) {
         return Err("Unsupported header alignment".into());
+    }
+    if !["system", "light", "dark"].contains(&settings.theme_mode.as_str()) {
+        return Err("Unsupported website color mode".into());
+    }
+    let accent = settings.accent_color.as_bytes();
+    if accent.len() != 7 || accent[0] != b'#' || !accent[1..].iter().all(|value| value.is_ascii_hexdigit()) {
+        return Err("Accent color must use a six-digit hexadecimal code".into());
     }
     if !(640..=1100).contains(&settings.content_width) {
         return Err("Content width must be between 640 and 1100 pixels".into());
@@ -399,6 +415,9 @@ fn render_site_page(
             escape(&settings.footer_text), link_html(&settings.footer_links, "footer-links"))
     } else { String::new() };
     let description = escape(&settings.description);
+    let theme_mode = &settings.theme_mode;
+    // Hex color was checked by validate_settings for both preview and build.
+    let accent_style = format!("<style>:root{{--brand:{};--brand-light:color-mix(in srgb,var(--brand) 13%,var(--bg))}}</style>", settings.accent_color);
     let page_title = escape(&page_title);
     let brand_title = escape(&settings.title);
     let breadcrumb_title = escape(&page.title);
@@ -407,7 +426,7 @@ fn render_site_page(
     let content_width = settings.content_width;
     let layout = &page.layout;
     format!(r##"<!doctype html>
-<html lang="en">
+<html lang="en" data-color-mode="{theme_mode}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -415,6 +434,7 @@ fn render_site_page(
 <meta name="theme-color" content="#ffffff">
 <title>{page_title}</title>
 <link rel="stylesheet" href="styles.css">
+{accent_style}
 </head>
 <body class="page-layout-{layout}">
 <a class="skip-link" href="#content">Skip to content</a>
@@ -469,14 +489,15 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
         let escaped = css.replace('<', "\\3c ");
         format!("<style>{escaped}</style>")
     }).unwrap_or_default();
-    Ok(doc.replace(
+    let site_with_font = SITE_CSS.replace("fonts/geist-latin.woff2", &format!(
+        "data:font/woff2;base64,{}", include_str!("../assets/geist-latin.b64")
+    ));
+    let doc = doc.replace(
         "<link rel=\"stylesheet\" href=\"styles.css\">",
-        &format!("<style>{}</style>{override_css}",
-            SITE_CSS.replace("fonts/geist-latin.woff2", &format!(
-                "data:font/woff2;base64,{}", include_str!("../assets/geist-latin.b64")
-            ))
-        ),
-    ))
+        &format!("<style>{site_with_font}</style>"),
+    );
+    // Project-owned CSS always comes last, overriding designer presets.
+    Ok(doc.replace("</head>", &format!("{override_css}</head>")))
 }
 
 #[tauri::command]

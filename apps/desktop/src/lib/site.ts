@@ -16,6 +16,8 @@ export type SiteSettings = {
   logoUrl: string;
   headerLinks: SiteLink[];
   footerLinks: SiteLink[];
+  themeMode: "system" | "light" | "dark";
+  accentColor: string;
 };
 
 export const loadSiteSettings = (projectId: string) =>
