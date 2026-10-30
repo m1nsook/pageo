@@ -31,14 +31,21 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .site-body{max-width:1500px;margin:0 auto;display:grid;grid-template-columns:minmax(230px,260px) minmax(0,1fr) minmax(190px,235px);min-height:calc(100vh - 165px)}
 .site-nav{grid-column:1;min-width:0;min-height:0;border-right:1px solid var(--line);padding:32px 16px 40px clamp(18px,2.5vw,42px)}
 .site-nav-inner{position:sticky;top:100px;max-height:calc(100vh - 115px);overflow:auto;scrollbar-width:thin}
-.site-nav h2{padding:0 13px;margin:0 0 12px;font-size:11px;line-height:1.5;letter-spacing:.095em;text-transform:uppercase;color:var(--muted);font-weight:750}
-.site-nav .nav-group{margin-bottom:26px}
+.site-nav .nav-group{margin-bottom:23px}
 .site-nav .nav-group:last-child{margin-bottom:0}
+.site-nav .nav-group>summary,.mobile-nav .nav-group>summary{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:6px 13px;margin:0 0 7px;border-radius:7px;color:var(--muted);font-size:11px;font-weight:750;line-height:1.5;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;list-style:none;user-select:none}
+.site-nav .nav-group>summary::-webkit-details-marker,.mobile-nav .nav-group>summary::-webkit-details-marker{display:none}
+.site-nav .nav-group>summary::after,.mobile-nav .nav-group>summary::after{content:"";width:6px;height:6px;flex-shrink:0;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);transition:transform .16s ease}
+.site-nav .nav-group:not([open])>summary::after,.mobile-nav .nav-group:not([open])>summary::after{transform:rotate(-45deg)}
+.site-nav .nav-group>summary:hover,.mobile-nav .nav-group>summary:hover{background:var(--hover);color:var(--fg)}
+.site-nav .nav-group>summary:focus-visible,.mobile-nav .nav-group>summary:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .mobile-nav .nav-group{min-width:0}
-.mobile-nav .nav-group h2{margin:9px 10px 5px;font-size:11px;letter-spacing:.05em;color:var(--muted)}
+.mobile-nav .nav-group>summary{margin:9px 0 5px}
 .mobile-nav .nav-group-links{display:grid;gap:3px}
 .site-body.nav-top .site-nav .nav-group{display:flex;align-items:center;gap:8px;margin:0}
+.site-body.nav-top .site-nav .nav-group>summary{margin:0}
 .site-body.nav-top .site-nav .nav-group-links{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+@media(prefers-reduced-motion:reduce){.site-nav .nav-group>summary::after,.mobile-nav .nav-group>summary::after{transition:none}}
 .site-nav a{display:block;padding:8px 13px;margin:2px 0;border-radius:9px;text-decoration:none;font-size:13px;font-weight:500;line-height:1.55;color:var(--muted);overflow-wrap:anywhere;transition:background-color .13s,color .13s}
 .site-nav a:hover{background:var(--hover);color:var(--fg)}
 .site-nav a[aria-current=page]{background:var(--brand-light);color:var(--brand);font-weight:700}
@@ -393,9 +400,9 @@ fn render_site_page(
     for item in &public_pages {
         let group = item.nav_group.as_str();
         if previous_group != Some(group) {
-            if previous_group.is_some() { links.push_str("</div></section>"); }
+            if previous_group.is_some() { links.push_str("</div></details>"); }
             links.push_str(&format!(
-                "<section class=\"nav-group\"><h2>{}</h2><div class=\"nav-group-links\">",
+                "<details class=\"nav-group\" open><summary>{}</summary><div class=\"nav-group-links\">",
                 escape(group)
             ));
             previous_group = Some(group);
@@ -406,7 +413,7 @@ fn render_site_page(
             filename(&item.id), current, escape(&item.title)
         ));
     }
-    if previous_group.is_some() { links.push_str("</div></section>"); }
+    if previous_group.is_some() { links.push_str("</div></details>"); }
     let mut toc_links = String::new();
     for heading in toc.iter().take(100) {
         // All heading metadata comes from the frontend's sanitized Markdown DOM.
@@ -626,11 +633,13 @@ mod website_font_tests {
             crate::pages::Page { id: "private".into(), title: "Draft".into(), is_public: false, layout: "docs".into(), nav_group: "Secret".into() },
         ];
         let output = render_site_page(&settings, &pages, &pages[0], "<p>Docs</p>", &[]);
-        assert!(output.contains("<h2>Getting Started</h2>"));
-        assert!(output.contains("<h2>API Reference</h2>"));
+        assert!(output.contains("<details class=\"nav-group\" open><summary>Getting Started</summary>"));
+        assert!(output.contains("<details class=\"nav-group\" open><summary>API Reference</summary>"));
         assert!(output.contains("api.html"));
         assert!(!output.contains("Secret"));
         assert!(!output.contains("private.html"));
+        assert!(output.contains("</div></details>"));
+        assert!(output.contains("aria-current=\"page\""));
     }
 
     #[test]
