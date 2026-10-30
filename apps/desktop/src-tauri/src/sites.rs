@@ -171,6 +171,24 @@ pub fn save_site_settings(app: AppHandle, project_id: String, settings: SiteSett
     ).map_err(|e| e.to_string())
 }
 
+/// Preview uses the exact same HTML and CSS renderer as static export.
+/// The caller supplies already sanitized HTML; no files are written.
+#[tauri::command]
+pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedPage) -> Result<String, String> {
+    let (dir, project_name) = project_folder(&app, &project_id)?;
+    let settings = read_settings(&dir, &project_name)?;
+    validate_settings(&settings)?;
+    let pages = read_pages(&dir)?;
+    let page = pages.iter().find(|p| p.id == rendered.id && p.is_public)
+        .ok_or("Page is private or not in this project")?;
+    if rendered.html.len() > 15_000_000 { return Err("Page HTML is too large".into()); }
+    let doc = render_site_page(&settings, &pages, page, &rendered.html);
+    Ok(doc.replace(
+        "<link rel=\"stylesheet\" href=\"styles.css\">",
+        &format!("<style>{SITE_CSS}</style>"),
+    ))
+}
+
 #[tauri::command]
 pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage>) -> Result<String, String> {
     let (dir, project_name) = project_folder(&app, &project_id)?;

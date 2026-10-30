@@ -90,3 +90,15 @@ export async function buildPublicSite(projectId: string): Promise<string> {
   }));
   return invoke<string>("build_site", { projectId, rendered });
 }
+
+/** Render a public page with the same sanitized markup as static export.
+ * Unlike buildPublicSite, this writes no files to disk.
+ */
+export async function previewPublicPage(projectId: string, pageId: string): Promise<string> {
+  const document = await loadPage(projectId, pageId);
+  const html = await marked.parse(document.markdown);
+  return invoke<string>("preview_site_page", {
+    projectId,
+    rendered: { id: pageId, html: renderSafeMarkdown(html) },
+  });
+}
