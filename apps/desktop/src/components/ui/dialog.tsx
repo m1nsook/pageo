@@ -10,9 +10,9 @@ const DialogClose = DialogPrimitive.Close;
 function DialogContent({ className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-zinc-950/45 backdrop-blur-[2px] data-[state=open]:animate-in" />
+      <DialogPrimitive.Overlay data-slot="dialog-overlay" className="fixed inset-0 z-50 bg-zinc-950/40 backdrop-blur-[2px]" />
       <DialogPrimitive.Content
-        className={cn("fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-zinc-200 bg-white p-7 shadow-2xl outline-none", className)}
+        data-slot="dialog-content" className={cn("fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-zinc-200 bg-white p-6 shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-indigo-500", className)}
         {...props}
       >
         {children}
