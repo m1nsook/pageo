@@ -559,6 +559,11 @@ fn render_site_page(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{description}">
+<meta property="og:type" content="article">
+<meta property="og:title" content="{page_title}">
+<meta property="og:description" content="{description}">
+<meta property="og:site_name" content="{brand_title}">
+<meta name="twitter:card" content="summary">
 <meta name="theme-color" content="#ffffff">
 <title>{page_title}</title>
 <link rel="stylesheet" href="styles.css">
@@ -730,6 +735,27 @@ mod website_font_tests {
         }
         assert!(SITE_RUNTIME_ASSETS[1].source.contains("search-index.json"));
         assert!(SITE_RUNTIME_ASSETS[0].source.contains("paglora:theme:"));
+    }
+
+    #[test]
+    fn public_pages_include_escaped_social_preview_metadata() {
+        let mut settings = default_settings("Docs & Friends");
+        settings.title = "Docs & Friends".into();
+        settings.description = "Guides <for> everyone".into();
+        let pages = vec![crate::pages::Page {
+            id: "index".into(),
+            title: "Overview & Setup".into(),
+            is_public: true,
+            layout: "docs".into(),
+            nav_group: "Documentation".into(),
+        }];
+        let html = render_site_page(&settings, &pages, &pages[0], "<p>Welcome</p>", &[]);
+        assert!(html.contains("<meta property=\"og:type\" content=\"article\">"));
+        assert!(html.contains("<meta property=\"og:title\" content=\"Overview &amp; Setup | Docs &amp; Friends\">"));
+        assert!(html.contains("<meta property=\"og:description\" content=\"Guides &lt;for&gt; everyone\">"));
+        assert!(html.contains("<meta property=\"og:site_name\" content=\"Docs &amp; Friends\">"));
+        assert!(html.contains("<meta name=\"twitter:card\" content=\"summary\">"));
+        assert!(!html.contains("content=\"Guides <for> everyone\""));
     }
 
     #[test]
