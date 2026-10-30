@@ -52,6 +52,22 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs li::marker{color:var(--muted)}
 .docs blockquote{margin:24px 0;border-left:3px solid var(--brand);padding:13px 20px;color:var(--muted);background:var(--subtle);border-radius:0 10px 10px 0}
 .docs blockquote p:last-child{margin-bottom:0}
+
+/* Markdown callouts — sanitized in the shared preview/build pipeline. */
+.docs .paglora-callout{--callout-accent:var(--brand);position:relative;display:block;margin:25px 0;padding:16px 19px 17px;border:1px solid color-mix(in srgb,var(--callout-accent) 38%,var(--line));border-left:3px solid var(--callout-accent);border-radius:11px;background:color-mix(in srgb,var(--callout-accent) 7%,var(--bg));box-shadow:0 1px 2px rgba(0,0,0,.025)}
+.docs .paglora-callout-title{display:flex;align-items:center;gap:9px;margin:0 0 6px;color:var(--fg);font-size:13px;font-weight:730;line-height:1.5}
+.docs .paglora-callout-title::before{content:"i";display:grid;place-items:center;flex:0 0 18px;width:18px;height:18px;border-radius:50%;background:var(--callout-accent);color:#fff;font-size:12px;font-family:system-ui,sans-serif;font-style:normal;font-weight:750}
+.docs .paglora-callout > :last-child{margin-bottom:0}
+.docs .paglora-callout p{margin:0 0 10px}
+.docs .paglora-callout ul,.docs .paglora-callout ol{margin:5px 0 10px}
+.docs .paglora-callout-tip{--callout-accent:#168950}
+.docs .paglora-callout-important{--callout-accent:#805bd4}
+.docs .paglora-callout-warning{--callout-accent:#b67909}
+.docs .paglora-callout-caution{--callout-accent:#c14454}
+.docs .paglora-callout-tip .paglora-callout-title::before{content:"✓"}
+.docs .paglora-callout-important .paglora-callout-title::before{content:"!"}
+.docs .paglora-callout-warning .paglora-callout-title::before,.docs .paglora-callout-caution .paglora-callout-title::before{content:"!"}
+
 .docs pre{position:relative;overflow:auto;border-radius:12px;background:var(--code-bg);color:var(--code-fg);padding:22px 23px;line-height:1.65;font-size:13px;border:1px solid var(--line);tab-size:2}
 .docs code{font-family:"Cascadia Code","JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace}
 .docs :not(pre)>code{background:var(--subtle);border:1px solid var(--line);color:var(--fg);padding:2px 5px;border-radius:5px;font-size:.86em}
