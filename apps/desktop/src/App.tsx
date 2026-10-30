@@ -4,7 +4,7 @@ import { validateProjectName } from "@pageo/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
-import { ArrowLeft, BookOpen, Check, LoaderCircle, Plus, Upload, WandSparkles } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, LoaderCircle, PanelRightClose, PanelRightOpen, Plus, Upload, WandSparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { PageNavigation, type PageAction } from "@/components/editor/page-navigation";
 import { FormatToolbar } from "@/components/editor/format-toolbar";
+import { BlockPalette } from "@/components/editor/block-palette";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { createProject, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
@@ -66,6 +67,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving" | "error">("saved");
   const [saveError, setSaveError] = useState("");
   const [preview, setPreview] = useState(false);
+  const [showBlockTools, setShowBlockTools] = useState(true);
   const [leaving, setLeaving] = useState(false);
 
   const persist = useCallback(async () => {
@@ -143,6 +145,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
             {saveState === "saving" ? "Saving" : saveState === "saved" ? "Saved locally" : saveState === "error" ? "Save failed" : "Unsaved"}
           </Badge>
           <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block"/>
+          <Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} title={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button>
           <Button variant="outline" size="sm" onClick={() => setPreview(!preview)}><WandSparkles />{preview ? "Edit" : "Preview"}</Button>
           <Button size="sm" disabled title="Static publishing is planned for a later release"><Upload /> Publish</Button>
         </div>
@@ -153,7 +156,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           onAction={modify}/>
         <section className="min-w-0 flex-1 overflow-y-auto" aria-label="Documentation editor">
           {!preview && <FormatToolbar editor={editor} />}
-          <div className="mx-auto max-w-3xl animate-in fade-in-0 px-7 py-9 duration-200 lg:px-12 lg:py-12">
+          <div data-editor-drop-zone className="mx-auto min-h-[calc(100%-3rem)] max-w-3xl animate-in fade-in-0 px-7 py-9 duration-200 lg:px-12 lg:py-12">
             {saveError && <p role="alert" className="mb-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">Couldn't save: {saveError}. Check disk permissions before leaving.</p>}
             <div onKeyDown={(event) => {
               // ProseMirror handles Ctrl/Cmd+B inside the editor. Keep it from
@@ -167,6 +170,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
             </div>
           </div>
         </section>
+        {showBlockTools && !preview && <BlockPalette editor={editor} disabled={leaving} />}
       </div>
     </main>
   );
