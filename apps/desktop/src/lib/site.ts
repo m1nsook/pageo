@@ -108,7 +108,7 @@ function enhanceCallouts(container: HTMLElement) {
     const marker = first.firstChild;
     if (!marker || marker.nodeType !== Node.TEXT_NODE) continue;
     const text = marker.textContent ?? "";
-    const match = /^\\s*\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\\](?:\\s|$)/i.exec(text);
+    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s|$)/i.exec(text);
     if (!match) continue;
     const type = match[1].toUpperCase();
     const callout = document.createElement("aside");
