@@ -1,4 +1,6 @@
-export const PAGEO_PROJECT_FORMAT_VERSION = 1 as const;
+export const PAGLORA_PROJECT_FORMAT_VERSION = 1 as const;
+// Legacy alias: do not break consumers of the original internal shared package.
+export const PAGEO_PROJECT_FORMAT_VERSION = PAGLORA_PROJECT_FORMAT_VERSION;
 
 export type ProjectSummary = {
   id: string;

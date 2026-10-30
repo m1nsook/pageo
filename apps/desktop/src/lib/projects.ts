@@ -1,10 +1,10 @@
-import type { ProjectDocument, ProjectSummary } from "@pageo/core";
+import type { ProjectDocument, ProjectSummary } from "@paglora/core";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 
 export { isTauri };
 
 function requireDesktop() {
-  if (!isTauri()) throw new Error("Local projects require Pageo Desktop. Run 'bun run desktop' to launch it.");
+  if (!isTauri()) throw new Error("Local projects require Paglora Desktop. Run 'bun run desktop' to launch it.");
 }
 
 export async function listProjects(): Promise<ProjectSummary[]> {

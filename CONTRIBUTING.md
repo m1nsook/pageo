@@ -1,10 +1,10 @@
-# Contributing to Pageo
+# Contributing to Paglora
 
-Thanks for helping make Pageo better.
+Thanks for helping make Paglora better.
 
 ## Before submitting work
 
-- Search [Issues](https://github.com/m1nsook/pageo/issues) and [Discussions](https://github.com/m1nsook/pageo/discussions) first.
+- Search [Issues](https://github.com/m1nsook/paglora/issues) and [Discussions](https://github.com/m1nsook/paglora/discussions) first.
 - For large changes or architectural decisions, open a discussion or feature request before implementation.
 - Use a descriptive branch name, such as `feat/editor-toolbar` or `fix/export-paths`.
 - Keep pull requests focused and describe how to reproduce or test your changes.
@@ -12,7 +12,9 @@ Thanks for helping make Pageo better.
 
 ## Development
 
-Pageo is still being scaffolded. Development setup commands will be added once the application and npm package are implemented. Bun, TypeScript, React, Tauri, and shadcn/ui are the intended foundations.
+The active stack is Bun, React 19, TypeScript, Vite, Tailwind 4, official shadcn/ui, Tiptap Markdown and Tauri 2/Rust. Run `bun install`, `bun run check` and `bun run build` at the root. For the desktop backend, Rust/Tauri checks run in CI on Windows. For the npm CLI, run `cd packages/cli && bun run test` and `npm pack --dry-run`.
+
+Keep the internal legacy Tauri identifier `com.m1nsook.pageo` and the `pageo.json` project manifest filename unchanged until a separately tested compatibility migration is ready. See [REBRANDING.md](docs/REBRANDING.md).
 
 ## Pull requests
 

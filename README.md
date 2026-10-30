@@ -1,82 +1,98 @@
-# Pageo
+# Paglora
 
 **Beautiful docs, built your way.**
 
-Pageo is an open-source, local-first documentation studio. Create documentation visually on your desktop, keep the editable source in your own files, and (in a later milestone) export a static website ready to publish anywhere.
+Paglora is an open-source, local-first desktop documentation studio. Write and organize documentation, visually customize the public website, and export a static site you can host anywhere.
 
-> **Early development — v0.1.0 foundation, not a published release.** The editor is intentionally limited to a single Markdown page. Static publishing, `.pageo` project archives, multi-page navigation, and the public npm CLI are **not implemented yet**.
+> **Early development · 0.1 desktop preview.** There is no stable desktop release yet. The public npm package `paglora` is an early-alpha project inspection CLI, **not** a desktop app installer or static site generator yet.
 
-## Currently implemented
+## What works today
 
-- Desktop app foundation with **Tauri 2**, **React**, **TypeScript**, **Vite**, **Tailwind CSS 4** and **shadcn/ui-compatible components**.
-- Local project dashboard, project creation and reopening.
-- Visual Markdown editor (basic headings, lists, inline formatting and code blocks).
-- Debounced autosave, stored in Pageo's application data directory.
-- Browser-only UI preview (local file operations require the desktop app).
-- Shared `@pageo/core` package for common project types.
+- **Tauri 2 desktop application**, React 19, Vite, TypeScript, Tailwind CSS 4, and official shadcn/ui components.
+- **Local project dashboard** with create, reopen and metadata management. Projects require no account, database, telemetry, or cloud service.
+- **Multi-page documentation editor** with Markdown persistence, create/rename/duplicate/delete/reorder page actions, formatting toolbar and initial drag-and-drop Markdown block tools.
+- **Public/private pages**, with Overview remaining public.
+- **Static website publishing**: real multi-page HTML with shared responsive CSS, public-page navigation, header, footer and sanitized Markdown.
+- **Live public-site preview** with desktop/tablet/mobile widths.
+- **Website layout designer** for header alignment, external logo URL, header/footer links, navigation placement and article width.
+- **Paglora CLI** (`paglora@alpha` on npm) for inspecting and validating local project folders.
 
-## Development on Windows
+Not implemented yet: fully freeform website design and component property editing; interactive shadcn blocks in published output; local asset packaging; portable project backups; built-in search; automated deployment; production-ready theme presets.
 
-Install:
+## Development
 
-- [Bun](https://bun.sh/) (supported project tooling).
-- [Rust via rustup](https://rustup.rs/).
-- Visual Studio 2022 C++ build tools / **Desktop development with C++** workload and Microsoft Edge WebView2 runtime, if not already available. See [Tauri's Windows prerequisites](https://v2.tauri.app/start/prerequisites/).
+Use Windows 11 with [Bun](https://bun.sh/) and [Rust](https://rustup.rs/). Tauri also requires the Windows C++ build tools and WebView2; see the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
-In the repository root, open a terminal and run:
+In the repository root:
 
 ```powershell
 bun install
 bun run desktop
 ```
 
-Tauri compiles the Rust desktop backend on first launch. This is a development build, not a Windows installer.
-
-To preview the frontend without launching Tauri:
+Frontend-only development:
 
 ```powershell
 bun run dev
 ```
 
-The browser preview cannot create or edit real projects. It deliberately displays a notice explaining that local filesystem operations need the desktop app.
+The frontend browser preview cannot open real local projects: filesystem operations require Paglora Desktop.
 
-For checks and a frontend build:
+Checks and frontend build:
 
 ```powershell
 bun run check
 bun run build
 ```
 
-After a successful run, commit the generated `bun.lock` and (if produced) `apps/desktop/src-tauri/Cargo.lock` using GitHub Desktop. **Do not** commit `node_modules`, `dist`, or Rust's `target` directory.
+CLI tests and package preview:
 
-## Workspace layout
-
-```text
-apps/desktop/       Tauri desktop shell and React visual editor
-packages/core/      Shared project types and helpers
+```powershell
+cd packages/cli
+bun run test
+npm pack --dry-run
 ```
 
-Projects are stored under Pageo's application data directory in `projects/<project-id>/`:
+## Project structure
 
 ```text
-pageo.json          Project metadata and format version
-docs/index.md       Editable Markdown document
+apps/desktop/          Paglora desktop application and Rust Tauri backend
+packages/core/         Internal shared types and format helpers
+packages/cli/          Published `paglora` npm CLI (early alpha)
+docs/                  Architecture, compatibility and publishing instructions
 ```
 
-The actual location is shown in **Settings → Local project storage** inside Pageo Desktop. No account, database, or external service is used.
+## Existing Pageo projects remain supported
 
-## Roadmap
+Paglora was previously called **Pageo**. This rename **does not relocate projects, overwrite files, or change the project format**:
 
-- v0.1.x: Stabilize desktop foundation and project saving.
-- v0.2: Multi-page visual editor and navigation.
-- v0.3: Import/export portable `.pageo` project backups.
-- v0.4: Static site generation and publishing wizard.
-- v0.5: Published npm package and CLI.
+```text
+pageo.json             Legacy v1 project metadata filename (retained)
+pages.json             Page IDs, titles, order and public/private visibility
+site.json              Public website configuration (when saved)
+docs/index.md          Overview Markdown file
+docs/<page-id>.md      Additional pages
+```
 
-## Development status
+The Tauri identifier stays `com.m1nsook.pageo` to preserve existing Windows application-data storage; this is an internal compatibility setting, **not** a visual brand. In Paglora Desktop, go to **Settings → Local project storage** for the exact folder. Do **not** rename `pageo.json` or move existing project directories manually.
 
-This repository is in active early development. The Tiptap Markdown extension used for the editor is currently marked **beta** upstream, so the starter deliberately supports only basic Markdown. Avoid editing complex imported Markdown files until round-trip tests are in place.
+See [Compatibility and rebranding](docs/REBRANDING.md), [architecture](docs/ARCHITECTURE.md), and [static site publishing](docs/static-site-publishing.md).
+
+## Static site workflow
+
+Open a project → choose which pages are public → **Design site** → **Preview site** → **Website → Build static site**. Upload the generated directory contents to a static host. No server runtime or account is needed for the published site.
+
+## CLI
+
+The `paglora` npm package is published as an early alpha. The initial release was `0.0.1-alpha.0`; the CLI in this repository may represent a later prerelease until published.
+
+```powershell
+bunx --bun paglora@alpha --help
+bunx --bun paglora@alpha inspect "C:\path\to\projects\my-docs"
+```
+
+CLI support for generating sites is planned but not available in the published alpha.
 
 ## License
 
-[MIT](LICENSE) · Created by [m1nsook](https://github.com/m1nsook).
+[MIT](LICENSE) · Created by [m1nsook](https://github.com/m1nsook). Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).

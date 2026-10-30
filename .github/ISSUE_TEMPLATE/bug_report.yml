@@ -1,5 +1,5 @@
 name: Bug report
-description: Report something that isn't working in Pageo.
+description: Report something that isn't working in Paglora.
 title: "[Bug]: "
 labels: ["bug", "status:needs-triage"]
 body:
@@ -50,7 +50,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Pageo version
+      label: Paglora version
       placeholder: "e.g. 0.1.0 or a commit hash; use not released if applicable"
   - type: textarea
     id: logs

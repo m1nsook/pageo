@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an improvement to Pageo.
+description: Suggest an improvement to Paglora.
 title: "[Feature]: "
 labels: ["enhancement", "status:needs-triage"]
 body:
@@ -14,7 +14,7 @@ body:
     id: proposal
     attributes:
       label: Proposed solution
-      description: What should Pageo do?
+      description: What should Paglora do?
     validations:
       required: true
   - type: dropdown

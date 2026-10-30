@@ -1,29 +1,40 @@
-# Pageo architecture (v0.1 foundation)
+# Paglora architecture
 
-## Local-first and offline
+Paglora is a local-first documentation studio with a Tauri 2 desktop shell, React + TypeScript frontend, Rust file I/O and static website publishing.
 
-The desktop frontend talks to a small Rust backend using Tauri commands. Only the Rust backend manages project files, and only inside the per-user Pageo application-data directory. Projects are not stored in browser localStorage.
+## Workspace
 
-## Packages
+- `apps/desktop`: desktop UI with project dashboard, Tiptap Markdown editor, pages sidebar, visual block tools, site designer and live site preview.
+- `apps/desktop/src-tauri`: scoped Rust commands for project storage, page operations, site settings and generation of static HTML.
+- `packages/core`: internal `@paglora/core` package with shared project types and validation.
+- `packages/cli`: public npm package `paglora`, currently implementing read-only `inspect` and `validate` commands. Its static build command is not implemented yet.
 
-- `apps/desktop`: React and Tauri 2 desktop shell; `src/App.tsx` currently includes the starter dashboard and basic single-page editor.
-- `packages/core`: Shared TypeScript definitions, format version, and project name validation. No public npm package is being published at v0.1.
+## Local persistence and backwards compatibility
 
-## Project format
+The previous application was called Pageo. For v1 project format compatibility, existing directories still contain:
 
-A directory with `pageo.json` (format v1) and `docs/index.md`. Project IDs are sanitized and validated before being joined into local filesystem paths. In later milestones, a `.pageo` archive will package this directory, but there is no custom archive format yet.
+```text
+pageo.json
+pages.json
+site.json
+docs/index.md
+docs/<page-id>.md
+```
 
-## Persistence
+The unchanged Tauri app identifier `com.m1nsook.pageo` controls its per-user application-data path on Windows. Changing that identifier without a careful migration would hide existing user projects under a different folder. The visible desktop title, Rust crate, npm package and UI brand are Paglora; the storage key and project manifest filename remain intentionally legacy.
 
-- New projects are created by `create_project` and include a Markdown home page.
-- `load_project` reads metadata and Markdown into the visual editor.
-- The editor debounces updates before calling `save_document`; leaving via its own back arrow also saves.
-- To avoid discarding pending changes, the normal sidebar navigation is disabled while editing.
+The project format version is still 1. All existing page IDs, Markdown contents, and site settings are retained. Do not change the on-disk filename or app identifier in routine brand edits. See [REBRANDING.md](REBRANDING.md).
 
-## Not yet included
+## Editor and backend
 
-Static website generation, a full block editor, file import, backups, Markdown/MDX extension compatibility, code snippets beyond basic code blocks, images, file conflict detection, and multi-user editing.
+Tiptap with the Markdown extension edits a selected Markdown file. The React editor debounces updates and uses an ordered save queue before navigating, exporting or previewing. The pages manifest tracks titles and publication flags. Rust validates project/page identifiers before opening files.
 
-## Security notes
+## Publishing
 
-The desktop backend does not accept unrestricted filesystem paths from the UI. Local data is not sent to a server. For v0.1, project files are directly written; durable atomic writes and backup/version history must be implemented before public release.
+`build_site` reads public page metadata, validates the content set and settings, and produces a static HTML/CSS folder under application data. The frontend uses Marked plus a restricted sanitization allowlist before passing rendered page markup to Rust. `preview_site_page` uses the **same Rust site renderer and CSS** but returns an HTML string instead of writing to disk. The site designer previews unsaved settings using that command; only Save persists them.
+
+Private pages are excluded from the HTML output; privacy is not an access-control policy for manually uploaded source files. No publishing service is contacted.
+
+## Current limits
+
+The public site layout offers configurable header/footer/nav and limited links; it is not yet a fully freeform React/shadcn builder. Local assets are not copied during export, and interactive shadcn components do not currently survive conversion to plain Markdown static HTML. A future structured document format will be required, with backward compatibility.

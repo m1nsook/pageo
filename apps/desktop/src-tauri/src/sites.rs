@@ -38,7 +38,7 @@ a{color:inherit}a:hover{color:#52525b}a:focus-visible{outline:2px solid var(--br
 .site-body.nav-top .site-nav h2{margin:0 12px 0 0}.site-body.nav-top .site-nav a{white-space:nowrap}
 .site-footer-inner{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
 .footer-links{display:flex;align-items:center;flex-wrap:wrap;gap:16px}.footer-links a{font-size:12px;text-decoration:none}
-.docs{max-width:var(--pageo-content-width,790px)}
+.docs{max-width:var(--paglora-content-width,790px)}
 @media(max-width:800px){.site-body.nav-right{display:flex;flex-direction:column}.site-body.nav-right .site-nav{order:0;border-left:0;border-bottom:1px solid var(--line)}.site-body.nav-right .site-main{order:1}.header-links{gap:10px}.header-links a{font-size:12px}.site-body.nav-top .site-nav{padding:16px 18px}}
 "#;
 
@@ -112,7 +112,7 @@ fn default_settings(name: &str) -> SiteSettings {
     SiteSettings {
         title: name.into(),
         description: format!("Documentation for {name}"),
-        footer_text: format!("{name} · Built with Pageo"),
+        footer_text: format!("{name} · Built with Paglora"),
         navigation_position: nav_default(),
         header_alignment: align_default(),
         sticky_header: true,
@@ -256,7 +256,7 @@ fn render_site_page(settings: &SiteSettings, pages: &[crate::pages::Page], page:
 <header class="site-header {}"><div class="top-bar"><a class="brand brand-wrap" href="index.html">{}{}</a>{}</div></header>
 <div class="site-body nav-{}">
 <nav class="site-nav" aria-label="Documentation navigation"><h2>Pages</h2>{}</nav>
-<main class="site-main" id="content" style="--pageo-content-width:{}px"><div class="page-heading">{}</div><article class="docs">{}</article></main>
+<main class="site-main" id="content" style="--paglora-content-width:{}px"><div class="page-heading">{}</div><article class="docs">{}</article></main>
 </div>
 {}
 </body>

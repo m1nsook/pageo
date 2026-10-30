@@ -4,6 +4,7 @@ use tauri::{AppHandle, Manager};
 
 const FORMAT_VERSION: u8 = 1;
 const DOC_FILE: &str = "docs/index.md";
+// Keep the original v1 filename so existing projects open without migration.
 const CONFIG_FILE: &str = "pageo.json";
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -58,7 +59,7 @@ fn check_id(id: &str) -> Result<(), String> {
 fn read_config(path: &Path) -> Result<ProjectConfig, String> {
     let json = fs::read_to_string(path.join(CONFIG_FILE)).map_err(|e| e.to_string())?;
     let config: ProjectConfig = serde_json::from_str(&json).map_err(|e| e.to_string())?;
-    if config.format_version != FORMAT_VERSION { return Err("Unsupported Pageo project format.".into()); }
+    if config.format_version != FORMAT_VERSION { return Err("Unsupported Paglora project format.".into()); }
     Ok(config)
 }
 

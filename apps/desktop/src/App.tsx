@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import type { ProjectDocument, ProjectSummary } from "@pageo/core";
-import { validateProjectName } from "@pageo/core";
+import type { ProjectDocument, ProjectSummary } from "@paglora/core";
+import { validateProjectName } from "@paglora/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
@@ -37,7 +37,7 @@ function CreateProjectDialog({ open, onOpenChange, onCreate, disabled }: {
     event.preventDefault();
     const validation = validateProjectName(name);
     if (validation) { setError(validation); return; }
-    if (disabled) { setError("Run Pageo Desktop to create local projects."); return; }
+    if (disabled) { setError("Run Paglora Desktop to create local projects."); return; }
     setBusy(true); setError("");
     try { await onCreate(name.trim()); onOpenChange(false); }
     catch (cause) { setError(friendlyError(cause)); }
@@ -52,7 +52,7 @@ function CreateProjectDialog({ open, onOpenChange, onCreate, disabled }: {
           <DialogDescription>Projects are saved locally and can be edited anytime.</DialogDescription>
         </DialogHeader>
         <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-4">
-          <div className="grid gap-2"><Label htmlFor="pageo-project-name">Project name</Label><Input id="pageo-project-name" autoFocus placeholder="My Project Docs" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} required /></div>
+          <div className="grid gap-2"><Label htmlFor="paglora-project-name">Project name</Label><Input id="paglora-project-name" autoFocus placeholder="My Project Docs" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} required /></div>
           {error && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">{error}</p>}
           <DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" disabled={busy || disabled}>{busy ? <LoaderCircle className="animate-spin"/> : <Plus/>} Create project</Button></DialogFooter>
           {disabled && <p className="text-xs text-amber-700">Browser preview only. Launch the Tauri desktop app to use local projects.</p>}
@@ -233,7 +233,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [location, setLocation] = useState("");
 
-  // Pageo is a desktop editor, not a web page. Prevent browser-only
+  // Paglora is a desktop editor, not a web page. Prevent browser-only
   // print/save/reload/open shortcuts (and F5) in the Tauri WebView.
   // Do not block copy/paste/undo, or text formatting inside Tiptap.
   useEffect(() => {

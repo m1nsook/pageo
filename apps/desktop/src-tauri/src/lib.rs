@@ -17,5 +17,5 @@ pub fn run() {
             sites::preview_site_page
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Pageo");
+        .expect("error while running Paglora");
 }

@@ -17,7 +17,7 @@ function readJson(file) {
 export function inspectProject(folder) {
   const directory = resolve(folder);
   const configFile = join(directory, "pageo.json");
-  if (!existsSync(configFile)) throw new Error("No pageo.json found. Pass a Pageo project directory.");
+  if (!existsSync(configFile)) throw new Error("No pageo.json found. Pass a Paglora project directory.");
   const config = readJson(configFile);
   if (config.formatVersion !== 1 || typeof config.id !== "string" || !ID.test(config.id) ||
     config.id !== basename(directory) || typeof config.name !== "string" || !config.name.trim()) {
@@ -72,8 +72,8 @@ Usage:
   paglora --version                         Print CLI version
   paglora --help                            Show this help
 
-Static site builds currently run through Pageo Desktop.
-Documentation: https://github.com/m1nsook/pageo
+Static site builds currently run through Paglora Desktop.
+Documentation: https://github.com/m1nsook/paglora
 `;
 
 export function run(args, output = process.stdout, errors = process.stderr) {

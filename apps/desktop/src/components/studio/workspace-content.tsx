@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { ProjectSummary } from "@pageo/core";
+import type { ProjectSummary } from "@paglora/core";
 import { ArrowRight, BookOpen, ChevronRight, Clock3, Copy, FolderOpen, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
@@ -117,7 +117,7 @@ export function Dashboard({ projects, openCreate, openProject, view, loading, se
               {!search && <EmptyContent><Button onClick={openCreate}><Plus /> Create project</Button></EmptyContent>}
             </Empty>
           )}
-          <div className="mt-8 flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4" /> Pageo works without a cloud account.</div>
+          <div className="mt-8 flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4" /> Paglora works without a cloud account.</div>
         </div>
       </div>
     </main>
@@ -131,10 +131,10 @@ export function Settings({ location, desktop }: { location: string; desktop: boo
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-4xl animate-in fade-in-0 space-y-5 px-5 py-10 duration-200 lg:px-10">
           <div className="mb-8"><h1 className="text-2xl font-semibold tracking-tight">Settings</h1><p className="mt-1 text-sm text-muted-foreground">Everything is stored locally. No login or cloud service required.</p></div>
-          <Card><CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="size-4" /> Local project storage</CardTitle><CardDescription>Pageo saves documentation inside its application data folder.</CardDescription></CardHeader>
-            <CardContent><div className="break-all rounded-md bg-muted p-3 font-mono text-xs text-foreground">{desktop ? location || "Loading location..." : "Available in the desktop app only"}</div><p className="mt-4 text-xs text-muted-foreground">Custom locations and .pageo backups are planned for later releases.</p></CardContent>
+          <Card><CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="size-4" /> Local project storage</CardTitle><CardDescription>Paglora saves documentation inside its application data folder.</CardDescription></CardHeader>
+            <CardContent><div className="break-all rounded-md bg-muted p-3 font-mono text-xs text-foreground">{desktop ? location || "Loading location..." : "Available in the desktop app only"}</div><p className="mt-4 text-xs text-muted-foreground">Custom locations and .paglora backups are planned for later releases.</p></CardContent>
           </Card>
-          <Card><CardHeader><CardTitle>About Pageo</CardTitle><CardDescription>Open-source local-first documentation studio · MIT License</CardDescription></CardHeader></Card>
+          <Card><CardHeader><CardTitle>About Paglora</CardTitle><CardDescription>Open-source local-first documentation studio · MIT License</CardDescription></CardHeader></Card>
         </div>
       </div>
     </main>

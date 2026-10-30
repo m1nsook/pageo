@@ -26,7 +26,7 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
             <BookOpen className="size-5" />
           </span>
-          <span className="truncate text-lg font-semibold tracking-tight group-data-[collapsible=icon]:hidden">pageo<span className="text-muted-foreground">.</span></span>
+          <span className="truncate text-lg font-semibold tracking-tight group-data-[collapsible=icon]:hidden">paglora<span className="text-muted-foreground">.</span></span>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -71,7 +71,7 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Stored on this computer. No account or cloud required.</p>
         </div>
         <div className="flex items-center justify-between px-2 text-[11px] text-muted-foreground group-data-[collapsible=icon]:hidden">
-          <span>Pageo Studio</span><span>Local preview</span>
+          <span>Paglora Studio</span><span>Local preview</span>
         </div>
       </SidebarFooter>
     </Sidebar>
