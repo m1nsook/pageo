@@ -15,7 +15,7 @@ Paglora is an open-source, local-first desktop documentation studio. Write and o
 - **Multi-page documentation editor** with Markdown persistence, create/rename/duplicate/delete/reorder page actions, formatting toolbar and initial drag-and-drop Markdown block tools.
 - **Public/private pages**, with Overview remaining public.
 - **Navigation groups** for organizing published sidebar sections, configurable per page in Studio.
-- **Static website publishing**: real multi-page HTML with shared responsive CSS, public-page navigation, header, footer and sanitized Markdown.
+- **Static website publishing**: real multi-page HTML with responsive CSS, public-page navigation, header, footer, sanitized Markdown, and a first-party JavaScript runtime for theme switching and active heading tracking.
 - **Live public-site preview** with desktop/tablet/mobile widths.
 - **Website layout designer** for header alignment, external logo URL, header/footer links, navigation placement and article width.
 - **Paglora CLI** (`paglora@alpha` on npm) for inspecting and validating local project folders.
