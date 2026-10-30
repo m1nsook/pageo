@@ -30,7 +30,7 @@ test("Rust export embeds minified browser bundles, not unbundled source", () => 
   assert.doesNotMatch(rust, /include_str!\("[^"]*packages\/site-runtime\/src\//);
   assert.match(buildScript, /Command::new\("bun"\)/);
   assert.match(buildScript, /tauri_build::build\(\)/);
-  const rustJob = ci.split("\n  rust:\n")[1];
+  const rustJob = ci.split(/\r?\n  rust:\r?\n/)[1];
   assert.ok(rustJob, "CI must include the Rust job");
   assert.match(rustJob, /Set up Bun for embedded site runtime/);
 });
