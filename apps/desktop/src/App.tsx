@@ -114,6 +114,9 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   useEffect(() => {
     function saveShortcut(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        // Monaco owns the Source modal's Ctrl+S. Do not save Markdown from a
+        // different editor, or race against the custom CSS save.
+        if (event.target instanceof Element && event.target.closest("[data-paglora-source-editor]")) return;
         event.preventDefault();
         void persist().catch(() => undefined);
       }
