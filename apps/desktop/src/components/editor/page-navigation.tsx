@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowDown, ArrowUp, Copy, FilePlus2, FileText, GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, FilePlus2, FileText, GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,7 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import type { Page } from "@/lib/pages";
 
-export type PageAction = "create" | "rename" | "duplicate" | "delete" | "reorder";
+export type PageAction = "create" | "rename" | "duplicate" | "delete" | "reorder" | "visibility";
 
 function PageTitleDialog({ open, setOpen, initial = "", mode, onSubmit }: {
   open: boolean; setOpen: (value: boolean) => void; initial?: string;
@@ -96,7 +96,7 @@ function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, can
       <button type="button" disabled={disabled} aria-current={selected ? "page" : undefined} onClick={onNavigate}
         className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
         <FileText className="size-4 shrink-0 text-muted-foreground" />
-        <span className="truncate">{page.title}</span>
+        <span className="truncate">{page.title}</span>{page.isPublic ? null : <EyeOff className="size-3 shrink-0 text-muted-foreground" aria-label="Private page" />}
       </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -108,6 +108,9 @@ function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, can
         <DropdownMenuContent align="end" side="right" className="w-44">
           <DropdownMenuItem onSelect={() => setRenameOpen(true)}><Pencil /> Rename</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onAction("duplicate", page.id)}><Copy /> Duplicate</DropdownMenuItem>
+          {page.id !== "index" && <DropdownMenuItem onSelect={() => onAction("visibility", page.id, String(!page.isPublic))}>
+            {page.isPublic ? <EyeOff /> : <Eye />} {page.isPublic ? "Make private" : "Make public"}
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled={!canMoveUp || disabled} onSelect={() => onMove(page.id, "up")}><ArrowUp /> Move up</DropdownMenuItem>
           <DropdownMenuItem disabled={!canMoveDown || disabled} onSelect={() => onMove(page.id, "down")}><ArrowDown /> Move down</DropdownMenuItem>
@@ -124,6 +127,9 @@ function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, can
           <ContextMenuSeparator />
           <ContextMenuItem disabled={disabled} onSelect={() => setRenameOpen(true)}><Pencil /> Rename</ContextMenuItem>
           <ContextMenuItem disabled={disabled} onSelect={() => onAction("duplicate", page.id)}><Copy /> Duplicate</ContextMenuItem>
+          {page.id !== "index" && <ContextMenuItem disabled={disabled} onSelect={() => onAction("visibility", page.id, String(!page.isPublic))}>
+            {page.isPublic ? <EyeOff /> : <Eye />} {page.isPublic ? "Make private" : "Make public"}
+          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem disabled={!canMoveUp || disabled} onSelect={() => onMove(page.id, "up")}><ArrowUp /> Move up</ContextMenuItem>
           <ContextMenuItem disabled={!canMoveDown || disabled} onSelect={() => onMove(page.id, "down")}><ArrowDown /> Move down</ContextMenuItem>
@@ -210,7 +216,7 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
   return (
     <aside aria-label="Page navigation" className="flex h-full w-[246px] shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 shrink-0 items-center justify-between px-4">
-        <div className="flex items-center gap-2 text-xs font-semibold">Pages <Badge variant="secondary">{pages.length}</Badge></div>
+        <div className="flex items-center gap-2 text-xs font-semibold">Pages <Badge variant="secondary">{pages.filter(page => page.isPublic).length} public / {pages.length}</Badge></div>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon-sm" disabled={busy} aria-label="Create page" onClick={() => setCreateOpen(true)}><FilePlus2 /></Button>
