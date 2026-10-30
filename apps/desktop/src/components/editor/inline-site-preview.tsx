@@ -195,6 +195,9 @@ export function InlineSitePreview({
       }
       function onBlur() { finish(true); }
       function onKey(e: KeyboardEvent) {
+        // Enter/Escape may confirm or dismiss an IME candidate. Never save or
+        // cancel the inline edit while Korean/Japanese/Chinese composition is active.
+        if (e.isComposing || e.keyCode === 229) return;
         if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(false); block.blur(); }
         if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); finish(true); block.blur(); }
       }
