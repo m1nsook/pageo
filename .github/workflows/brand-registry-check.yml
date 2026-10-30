@@ -1,0 +1,21 @@
+name: Brand-name npm registry check
+
+on:
+  pull_request:
+    paths:
+      - scripts/brand-registry-check.mjs
+      - .github/workflows/brand-registry-check.yml
+
+permissions:
+  contents: read
+
+jobs:
+  check-names:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check unscoped package names and lookalikes
+        run: node scripts/brand-registry-check.mjs
