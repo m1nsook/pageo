@@ -18,6 +18,7 @@ export type SiteSettings = {
   footerLinks: SiteLink[];
   themeMode: "system" | "light" | "dark";
   accentColor: string;
+  googleFontFamily: string;
 };
 
 export const loadSiteSettings = (projectId: string) =>
