@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 
-const source = readFileSync(new URL("../src/search.js", import.meta.url), "utf8");
+// Run after the Bun build: tests exercise the exact browser bundle shipped by Rust.
+const source = readFileSync(new URL("../dist/search.js", import.meta.url), "utf8");
 
 function fixture(pages, { responseOk = true, waitForIndex = false, failFirstFetch = false } = {}) {
   let releaseFetch;
@@ -285,4 +286,38 @@ test("failed index retry stays inside the dialog keyboard focus trap", async () 
   backdrop.events.keydown({ key: "Tab", shiftKey: false, preventDefault() { prevented++; } });
   assert.equal(app.document.activeElement, input);
   assert.equal(prevented, 2);
+});
+
+test("MiniSearch supports word prefixes and typo-tolerant fallback", async () => {
+  const app = fixture([
+    { title: "Installation", url: "install.html", text: "Configure Paglora projects" },
+    { title: "Reference", url: "reference.html", text: "A separate guide" },
+  ]);
+  const { input, results } = await app.open();
+  input.value = "instal";
+  input.events.input();
+  assert.equal(results.children[0].href, "install.html");
+  input.value = "instalation";
+  input.events.input();
+  assert.equal(results.children[0].href, "install.html");
+});
+
+test("CJK substring search remains available without word boundaries", async () => {
+  const app = fixture([
+    { title: "한국어 사용 설명서", url: "korean.html", text: "문서 검색 안내" },
+    { title: "Unrelated", url: "other.html", text: "English documentation" },
+  ]);
+  const { input, results } = await app.open();
+  input.value = "사용";
+  input.events.input();
+  assert.equal(results.children[0].href, "korean.html");
+});
+
+test("invalid entries cannot displace the first 500 valid public pages", async () => {
+  const invalid = Array.from({ length: 501 }, (_, i) => ({ title: "Unsafe", url: "../" + i, text: "docs" }));
+  const app = fixture([...invalid, { title: "Valid", url: "valid.html", text: "docs" }]);
+  const { input, results } = await app.open();
+  input.value = "docs";
+  input.events.input();
+  assert.equal(results.children[0].href, "valid.html");
 });

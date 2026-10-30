@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Progressive enhancements bundled with static Paglora exports",
+  "dependencies": {
+    "minisearch": "7.2.0"
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "build": "bun run build.mjs",
