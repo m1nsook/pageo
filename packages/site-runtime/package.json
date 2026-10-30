@@ -5,6 +5,8 @@
   "type": "module",
   "description": "Progressive enhancements bundled with static Paglora exports",
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "build": "bun run build.mjs",
+    "test:bundle": "node --test test/bundle.test.mjs"
   }
 }
