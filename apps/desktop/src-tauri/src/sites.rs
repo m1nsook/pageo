@@ -479,6 +479,17 @@ fn escape(value: &str) -> String {
 }
 
 fn filename(id: &str) -> String { format!("{id}.html") }
+
+// Open Graph uses language_region identifiers, unlike HTML's BCP 47 lang.
+fn social_locale(language: &str) -> &'static str {
+    match language {
+        "ko" => "ko_KR", "pl" => "pl_PL", "de" => "de_DE", "fr" => "fr_FR",
+        "es" => "es_ES", "ja" => "ja_JP", "zh-CN" => "zh_CN", "zh-TW" => "zh_TW",
+        "pt-BR" => "pt_BR", "ru" => "ru_RU", "uk" => "uk_UA", "ar" => "ar_SA",
+        "tr" => "tr_TR", "it" => "it_IT", "cs" => "cs_CZ", "hu" => "hu_HU",
+        "th" => "th_TH", _ => "en_US",
+    }
+}
 fn public_search_index(
     public_pages: &[&crate::pages::Page],
     html_by_id: &HashMap<&str, &RenderedPage>,
@@ -606,6 +617,7 @@ fn render_site_page_with_description(
     let description = escape(&page_meta_description(&settings.description, search_text));
     let theme_mode = &settings.theme_mode;
     let language = &settings.language;
+    let og_locale = social_locale(language);
     let direction = if language == "ar" { "rtl" } else { "ltr" };
     let google_font = google_font_markup(&settings.google_font_family);
     // Hex color was checked by validate_settings for both preview and build.
@@ -625,10 +637,13 @@ fn render_site_page_with_description(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{description}">
 <meta property="og:type" content="article">
+<meta property="og:locale" content="{og_locale}">
 <meta property="og:title" content="{page_title}">
 <meta property="og:description" content="{description}">
 <meta property="og:site_name" content="{brand_title}">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{page_title}">
+<meta name="twitter:description" content="{description}">
 <meta name="theme-color" content="#ffffff">
 <title>{page_title}</title>
 <link rel="stylesheet" href="styles.css">
@@ -933,6 +948,28 @@ mod website_font_tests {
         let json = serde_json::to_string(&index).unwrap();
         assert!(!json.contains("Secret"));
         assert!(!json.contains("Private content"));
+    }
+
+    #[test]
+    fn social_preview_metadata_uses_localized_and_escaped_values() {
+        let mut settings = default_settings("Docs & Guides");
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Overview <Setup>".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Documentation".into(),
+        };
+        for (language, locale) in [
+            ("en", "en_US"), ("ko", "ko_KR"), ("pl", "pl_PL"),
+            ("zh-CN", "zh_CN"), ("zh-TW", "zh_TW"), ("ar", "ar_SA"),
+        ] {
+            settings.language = language.into();
+            let html = render_site_page_with_description(
+                &settings, &[page.clone()], &page, "<p>Docs</p>", &[], Some("Hello & <friends>")
+            );
+            assert!(html.contains(&format!(r#"<meta property="og:locale" content="{locale}">"#)));
+            assert!(html.contains(r#"<meta name="twitter:title" content="Overview &lt;Setup&gt; | Docs &amp; Guides">"#));
+            assert!(html.contains(r#"<meta name="twitter:description" content="Hello &amp; &lt;friends&gt;">"#));
+            assert!(!html.contains(r#"<meta name="twitter:title" content="Overview <Setup>"#));
+        }
     }
 
     #[test]
