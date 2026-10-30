@@ -10,6 +10,7 @@ import { previewPublicPage } from "@/lib/site";
 
 type Device = "desktop" | "tablet" | "phone";
 const deviceWidths: Record<Device, number> = { desktop: 1280, tablet: 768, phone: 390 };
+const deviceHeights: Record<Device, number> = { desktop: 900, tablet: 1024, phone: 844 };
 const deviceNames: Record<Device, string> = { desktop: "Desktop", tablet: "Tablet", phone: "Phone" };
 
 const selectable = new Set(["h1","h2","h3","h4","h5","h6","p","ul","ol","blockquote","pre","table","hr"]);
@@ -65,6 +66,8 @@ export function InlineSitePreview({
   const [zoom, setZoom] = useState(100);
   const viewportRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const wheelZoomRef = useRef<(delta: number) => void>(() => {});
+  const zoomValueRef = useRef(100);
   const selectedRef = useRef(selectedBlock);
   selectedRef.current = selectedBlock;
   // DOM listeners attached to an existing iframe must always call current
@@ -84,6 +87,21 @@ export function InlineSitePreview({
     const observer = new ResizeObserver(measure);
     observer.observe(viewport);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const wheel = (event: WheelEvent) => {
+      // The real site must retain normal vertical scrolling. Wheel over blank
+      // canvas zooms; Ctrl/Cmd+wheel also zooms when panning the canvas.
+      if (!(event.ctrlKey || event.metaKey) &&
+          event.target instanceof Element && event.target.closest("[data-canvas-artboard]")) return;
+      event.preventDefault();
+      wheelZoomRef.current(event.deltaY);
+    };
+    viewport.addEventListener("wheel", wheel, { passive: false });
+    return () => viewport.removeEventListener("wheel", wheel);
   }, []);
 
   useEffect(() => {
@@ -125,6 +143,13 @@ export function InlineSitePreview({
       doc.head.appendChild(decorations);
     }
     paintSelection(doc, selectedRef.current);
+    // Wheel events inside an iframe do not bubble to the parent app. Let
+    // ordinary wheel scroll the site, and only intercept Ctrl/Cmd+wheel.
+    doc.addEventListener("wheel", event => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      wheelZoomRef.current(event.deltaY);
+    }, { passive: false });
 
     let editing: HTMLElement | null = null;
     const beginInlineText = (block: HTMLElement, selected: CanvasBlockSelection) => {
@@ -239,15 +264,20 @@ export function InlineSitePreview({
   }, [onNavigate, pages, page.id, page.isPublic, onBlockSelect, onBlockEdit, canInlineTextEdit, onApplyInlineText]);
 
   const frameWidth = deviceWidths[device];
-  const fitScale = Math.min(1, Math.max(0.25, (space.width - 48) / frameWidth));
+  const frameHeight = deviceHeights[device];
+  // Fit considers both dimensions: the site itself scrolls inside its iframe,
+  // while the outer Studio stays at the size of its allocated canvas.
+  const fitScale = Math.max(0.1, Math.min(1, (space.width - 48) / frameWidth, (space.height - 48) / frameHeight));
   const scale = fit ? fitScale : zoom / 100;
   const percentage = Math.round(scale * 100);
-  const frameHeight = Math.max(650, Math.round(Math.max(450, space.height - 48) / scale));
-
+  zoomValueRef.current = percentage;
   function changeZoom(delta: number) {
-    setZoom(Math.min(200, Math.max(25, percentage + delta)));
+    const next = Math.min(200, Math.max(25, zoomValueRef.current + delta));
+    zoomValueRef.current = next;
+    setZoom(next);
     setFit(false);
   }
+  wheelZoomRef.current = delta => { if (delta !== 0) changeZoom(delta > 0 ? -10 : 10); };
 
   return (
     <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-muted/30" aria-label="Website design canvas">
@@ -300,7 +330,7 @@ export function InlineSitePreview({
         style={{ backgroundImage: "radial-gradient(circle, var(--border) 1px, transparent 1px)", backgroundSize: "22px 22px" }}
       >
         {html ? (
-          <div className="mx-auto shrink-0" style={{ width: frameWidth * scale, height: frameHeight * scale }}>
+          <div data-canvas-artboard className="relative mx-auto shrink-0" style={{ width: frameWidth * scale, height: frameHeight * scale }}>
             <iframe
               ref={iframeRef}
               title={`Paglora ${deviceNames[device].toLowerCase()} website preview`}
@@ -308,7 +338,7 @@ export function InlineSitePreview({
               srcDoc={html}
               onLoad={onFrameLoad}
               style={{ width: frameWidth, height: frameHeight, transform: `scale(${scale})`, transformOrigin: "top left" }}
-              className="block rounded-md border border-border bg-white shadow-xl"
+              className="absolute left-0 top-0 block rounded-md border border-border bg-white shadow-xl"
             />
           </div>
         ) : !error && <div className="flex h-full min-h-64 items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -316,7 +346,7 @@ export function InlineSitePreview({
         </div>}
       </div>
       <p className="shrink-0 border-t border-border bg-card px-4 py-2 text-[11px] text-muted-foreground">
-        {deviceNames[device]} · {frameWidth} px · Click to select · Double-click plain text to edit in place · Enter to apply · Esc to cancel
+        {deviceNames[device]} · {frameWidth} px · Wheel on canvas or Ctrl+wheel over page to zoom · Double-click plain text to edit · Esc to cancel
       </p>
     </section>
   );
