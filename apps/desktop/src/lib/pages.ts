@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { ProjectSummary } from "@pageo/core";
-export type Page = { id: string; title: string };
+export type Page = { id: string; title: string; isPublic: boolean };
 export type PageDocument = { page: Page; markdown: string };
 export const listPages = (projectId: string) => invoke<Page[]>("list_pages", { projectId });
 export const loadPage = (projectId: string, pageId: string) => invoke<PageDocument>("load_page", { projectId, pageId });
@@ -10,3 +10,5 @@ export const duplicatePage = (projectId: string, pageId: string) => invoke<PageD
 export const deletePage = (projectId: string, pageId: string) => invoke<void>("delete_page", { projectId, pageId });
 export const reorderPages = (projectId: string, ids: string[]) => invoke<Page[]>("reorder_pages", { projectId, ids });
 export const savePage = (projectId: string, pageId: string, markdown: string) => invoke<ProjectSummary>("save_page", { projectId, pageId, markdown });
+
+export const setPageVisibility = (projectId: string, pageId: string, isPublic: boolean) => invoke<Page>("set_page_visibility", { projectId, pageId, isPublic });
