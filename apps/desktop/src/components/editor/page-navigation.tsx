@@ -269,7 +269,6 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
                 <button
                   type="button"
                   aria-expanded={!collapsedGroups.has(page.navGroup)}
-                  aria-controls={`studio-page-group-${page.id}`}
                   onClick={() => toggleGroup(page.navGroup)}
                   className="flex w-full items-center gap-2 rounded-md px-2 pb-1 pt-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   title={collapsedGroups.has(page.navGroup) ? `Expand ${page.navGroup}` : `Collapse ${page.navGroup}`}
@@ -280,7 +279,7 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
                 </button>
               )}
               {!collapsedGroups.has(page.navGroup) && (
-                <div id={index === 0 || pages[index - 1].navGroup !== page.navGroup ? `studio-page-group-${page.id}` : undefined}>
+                <div>
                   <PageRow page={page} selected={page.id === currentId} disabled={busy}
                     dragged={dragged === page.id} dropTarget={dropTarget === page.id}
                     canMoveUp={index > 1} canMoveDown={index > 0 && index < pages.length - 1}
