@@ -20,6 +20,7 @@ import { SitePreview } from "@/components/editor/site-preview";
 import { SiteDesigner } from "@/components/editor/site-designer";
 import { ThemeSourceEditor } from "@/components/editor/theme-source-editor";
 import { InlineSitePreview } from "@/components/editor/inline-site-preview";
+import { findCanvasSourcePosition, type CanvasBlockSelection } from "@/lib/canvas-blocks";
 import { PageInspector } from "@/components/editor/page-inspector";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
@@ -78,6 +79,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   const [showBlockTools, setShowBlockTools] = useState(true);
   const [showPages, setShowPages] = useState(true);
   const [showInspector, setShowInspector] = useState(true);
+  const [selectedBlock, setSelectedBlock] = useState<CanvasBlockSelection | null>(null);
+  const [pendingBlock, setPendingBlock] = useState<CanvasBlockSelection | null>(null);
   const [leaving, setLeaving] = useState(false);
 
   const persist = useCallback(async () => {
@@ -129,6 +132,16 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   }, [persist]);
 
   useEffect(() => { editor?.setEditable(viewMode !== "site"); }, [editor, viewMode]);
+  useEffect(() => {
+    if (viewMode !== "edit" || !pendingBlock || !editor) return;
+    const position = pendingBlock.pageId === current.page.id
+      ? findCanvasSourcePosition(editor, pendingBlock) : null;
+    // Never edit an element based only on a potentially mismatched DOM index.
+    // When a position is not confidently matched, safely open the page editor.
+    if (position !== null) editor.commands.focus(position);
+    else editor.commands.focus();
+    setPendingBlock(null);
+  }, [viewMode, pendingBlock, editor, current.page.id]);
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   async function runAfterSave(action: () => Promise<void>) {
@@ -154,6 +167,13 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
       setSwitchingView(false);
     }
   }
+  function editCanvasBlock(block: CanvasBlockSelection) {
+    if (block.pageId !== current.page.id || leaving || switchingView) return;
+    setSelectedBlock(block);
+    setPendingBlock(block);
+    setViewMode("edit");
+  }
+
   async function back() { await runAfterSave(async () => onBack()); }
   const modify = (action: PageAction, id?: string, target?: string) => {
     void runAfterSave(() => onModify(action, id, target));
@@ -216,11 +236,17 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           pages={pages}
           savedVersion={siteRevision}
           onBeforeRefresh={persist}
+          selectedBlock={selectedBlock}
+          onBlockSelect={(block) => { setSelectedBlock(block); if (block) setShowInspector(true); }}
+          onBlockEdit={editCanvasBlock}
           onNavigate={(pageId) => {
             if (pageId !== current.page.id) void runAfterSave(() => onChange(pageId));
           }}
         />}
         {viewMode === "site" && showInspector && <PageInspector page={current.page} busy={leaving || switchingView}
+          selectedBlock={selectedBlock}
+          onEditBlock={() => { if (selectedBlock) editCanvasBlock(selectedBlock); }}
+          onClearBlock={() => setSelectedBlock(null)}
           onChange={(action, id, value) => modify(action, id, value)}
           onEditContent={() => void selectView("edit")} />}
         {showBlockTools && viewMode === "edit" && <BlockPalette editor={editor} disabled={leaving} />}
