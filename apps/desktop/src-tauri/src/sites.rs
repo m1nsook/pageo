@@ -486,12 +486,32 @@ fn public_search_index(
 }
 
 
+// Use the sanitized public-page text for unique search/social descriptions.
+// Fallback to the site description for empty or legacy pages.
+fn page_meta_description(site_description: &str, search_text: Option<&str>) -> String {
+    let normalized = search_text.unwrap_or("").split_whitespace()
+        .collect::<Vec<_>>().join(" ");
+    let excerpt: String = normalized.chars().filter(|ch| !ch.is_control()).take(160).collect();
+    if excerpt.is_empty() { site_description.to_string() } else { excerpt }
+}
+
 fn render_site_page(
     settings: &SiteSettings,
     pages: &[crate::pages::Page],
     page: &crate::pages::Page,
     body: &str,
     toc: &[TocHeading],
+) -> String {
+    render_site_page_with_description(settings, pages, page, body, toc, None)
+}
+
+fn render_site_page_with_description(
+    settings: &SiteSettings,
+    pages: &[crate::pages::Page],
+    page: &crate::pages::Page,
+    body: &str,
+    toc: &[TocHeading],
+    search_text: Option<&str>,
 ) -> String {
     let public_pages: Vec<_> = pages.iter().filter(|p| p.is_public).collect();
     let mut links = String::new();
@@ -574,7 +594,7 @@ fn render_site_page(
         format!("<footer class=\"site-footer\"><div class=\"site-footer-inner\"><span>{}</span>{}</div></footer>",
             escape(&settings.footer_text), link_html(&settings.footer_links, "footer-links"))
     } else { String::new() };
-    let description = escape(&settings.description);
+    let description = escape(&page_meta_description(&settings.description, search_text));
     let theme_mode = &settings.theme_mode;
     let language = &settings.language;
     let direction = if language == "ar" { "rtl" } else { "ltr" };
@@ -653,7 +673,7 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
         .ok_or("Page is private or not in this project")?;
     if rendered.html.len() > 15_000_000 { return Err("Page HTML is too large".into()); }
     let theme = crate::source::site_css(&dir)?;
-    let doc = render_site_page(&settings, &pages, page, &rendered.html, &rendered.toc);
+    let doc = render_site_page_with_description(&settings, &pages, page, &rendered.html, &rendered.toc, Some(&rendered.search_text));
     // CSS is user-authored project source. Embed in this script-disabled iframe
     // without letting a literal closing style tag break out of the CSS element.
     let override_css = theme.map(|css| {
@@ -725,7 +745,7 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
             .map_err(|error| error.to_string())?;
         for page in &public_pages {
             let rendered_page = html_by_id.get(page.id.as_str()).ok_or("Missing public page")?;
-            let mut output = render_site_page(&settings, &pages, page, &rendered_page.html, &rendered_page.toc);
+            let mut output = render_site_page_with_description(&settings, &pages, page, &rendered_page.html, &rendered_page.toc, Some(&rendered_page.search_text));
             if theme.is_some() {
                 output = output.replace("</head>", "<link rel=\"stylesheet\" href=\"custom.css\">\n</head>");
             }
@@ -857,6 +877,27 @@ mod website_font_tests {
         let unsafe_toc = vec![TocHeading { id: "bad\" onclick=\"alert-1".into(), title: "Bad".into(), level: 2 }];
         let safe_html = render_site_page(&settings, &[page.clone()], &page, "<p>Safe</p>", &unsafe_toc);
         assert!(!safe_html.contains("onclick="));
+    }
+
+    #[test]
+    fn public_page_descriptions_use_sanitized_excerpts_with_safe_fallback() {
+        let mut settings = default_settings("Docs");
+        settings.description = "Site-wide fallback".into();
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Documentation".into(),
+        };
+        let content = "  Unique   page <notes> & details. ";
+        let html = render_site_page_with_description(&settings, &[page.clone()], &page,
+            "<p>Welcome</p>", &[], Some(content));
+        assert!(html.contains("<meta name=\"description\" content=\"Unique page &lt;notes&gt; &amp; details.\">"));
+        assert!(html.contains("<meta property=\"og:description\" content=\"Unique page &lt;notes&gt; &amp; details.\">"));
+        assert!(!html.contains("content=\"Site-wide fallback\""));
+        let legacy = render_site_page_with_description(&settings, &[page.clone()], &page,
+            "<p>Welcome</p>", &[], Some("  "));
+        assert!(legacy.contains("<meta name=\"description\" content=\"Site-wide fallback\">"));
+        let long = "x".repeat(500);
+        assert_eq!(page_meta_description("fallback", Some(&long)).chars().count(), 160);
     }
 
     #[test]
