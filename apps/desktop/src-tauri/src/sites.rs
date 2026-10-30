@@ -519,7 +519,7 @@ fn render_site_page(
         // Validate it again before placing it into an HTML attribute.
         if !matches!(heading.level, 2 | 3) || heading.title.trim().is_empty() ||
             heading.title.len() > 640 || heading.id.len() > 160 ||
-            heading.id.is_empty() || !heading.id.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-') {
+            heading.id.is_empty() || !heading.id.chars().all(|ch| ch.is_alphanumeric() || ch == '-') {
             continue;
         }
         toc_links.push_str(&format!(
@@ -841,6 +841,22 @@ mod website_font_tests {
         assert!(html.contains("<meta property=\"og:site_name\" content=\"Docs &amp; Friends\">"));
         assert!(html.contains("<meta name=\"twitter:card\" content=\"summary\">"));
         assert!(!html.contains("content=\"Guides <for> everyone\""));
+    }
+
+    #[test]
+    fn unicode_heading_anchors_are_safe_in_public_toc() {
+        let settings = default_settings("Docs");
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Documentation".into(),
+        };
+        let toc = vec![TocHeading { id: "설치-방법".into(), title: "설치 방법".into(), level: 2 }];
+        let html = render_site_page(&settings, &[page.clone()], &page, "<h2 id=\"설치-방법\">설치 방법</h2>", &toc);
+        assert!(html.contains("href=\"#설치-방법\""));
+        assert!(html.contains("설치 방법</a>"));
+        let unsafe_toc = vec![TocHeading { id: "bad\" onclick=\"alert-1".into(), title: "Bad".into(), level: 2 }];
+        let safe_html = render_site_page(&settings, &[page.clone()], &page, "<p>Safe</p>", &unsafe_toc);
+        assert!(!safe_html.contains("onclick="));
     }
 
     #[test]

@@ -19,11 +19,14 @@ test("Markdown links to local pages resolve to static HTML", () => {
     ["guide.html", "guide.html"],
     ["guide#section-2", "guide.html#section-2"],
     ["#overview", "#overview"],
+    ["#설치", "#설치"],
+    ["guide.md#사용-방법", "guide.html#사용-방법"],
+    ["guide#日本語", "guide.html#日本語"],
   ]) assert.equal(safeLink(input), expected, input);
 });
 
 test("Markdown links never export filesystem or executable URLs", () => {
-  for (const link of ["../secret", "/etc/passwd", "javascript:alert(1)", "data:text/html,hi", "file:///tmp/a", "guide/other"]) {
+  for (const link of ["../secret", "/etc/passwd", "javascript:alert(1)", "data:text/html,hi", "file:///tmp/a", "guide/other", "guide#bad\"onclick", "#bad<script>"]) {
     assert.equal(safeLink(link), null, link);
   }
   assert.equal(safeLink("https://example.test/guide"), "https://example.test/guide");
