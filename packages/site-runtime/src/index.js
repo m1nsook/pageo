@@ -133,8 +133,19 @@
   function markActiveHeading() {
     scheduled = false;
     let activeHeading = items[0].heading;
+    let closestPassed = -Infinity;
+    let closestUpcoming = Infinity;
+    // Desktop and mobile TOCs duplicate headings and may be ordered differently.
+    // Select by actual viewport position, not whichever duplicate appears last.
     for (const item of items) {
-      if (item.heading.getBoundingClientRect().top <= 140) activeHeading = item.heading;
+      const top = item.heading.getBoundingClientRect().top;
+      if (top <= 140 && top > closestPassed) {
+        closestPassed = top;
+        activeHeading = item.heading;
+      } else if (closestPassed === -Infinity && top > 140 && top < closestUpcoming) {
+        closestUpcoming = top;
+        activeHeading = item.heading;
+      }
     }
     for (const item of items) {
       if (item.heading === activeHeading) item.link.setAttribute("aria-current", "location");
