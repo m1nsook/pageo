@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ProjectSummary } from "@pageo/core";
+import type { ProjectSummary } from "@paglora/core";
 export type Page = { id: string; title: string; isPublic: boolean };
 export type PageDocument = { page: Page; markdown: string };
 export const listPages = (projectId: string) => invoke<Page[]>("list_pages", { projectId });

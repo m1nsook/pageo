@@ -43,8 +43,8 @@ function PageTitleDialog({ open, setOpen, initial = "", mode, onSubmit }: {
         </DialogHeader>
         <form onSubmit={submit} className="space-y-5">
           <div className="grid gap-2">
-            <Label htmlFor="pageo-page-title">Page title</Label>
-            <Input id="pageo-page-title" autoFocus required maxLength={100} placeholder="Getting started" value={value} onChange={(e) => setValue(e.target.value)} />
+            <Label htmlFor="paglora-page-title">Page title</Label>
+            <Input id="paglora-page-title" autoFocus required maxLength={100} placeholder="Getting started" value={value} onChange={(e) => setValue(e.target.value)} />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Minimal Pageo desktop window capabilities. Local file operations use scoped Rust commands.",
+  "description": "Minimal Paglora desktop window capabilities. Local file operations use scoped Rust commands.",
   "windows": ["main"],
   "permissions": ["core:default"]
 }

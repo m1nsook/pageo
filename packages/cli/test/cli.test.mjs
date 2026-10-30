@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { inspectProject, run } from "../bin/paglora.mjs";
 
 function fixture(fn) {
-  const root = mkdtempSync(join(tmpdir(), "pageo-cli-"));
+  const root = mkdtempSync(join(tmpdir(), "paglora-cli-"));
   const project = join(root, "my-docs");
   mkdirSync(join(project, "docs"), { recursive: true });
   writeFileSync(join(project, "pageo.json"), JSON.stringify({

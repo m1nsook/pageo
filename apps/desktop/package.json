@@ -1,5 +1,5 @@
 {
-  "name": "@pageo/desktop",
+  "name": "@paglora/desktop",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -13,7 +13,7 @@
   "dependencies": {
     "@base-ui/react": "^1.9.0",
     "@fontsource-variable/geist": "^5.3.0",
-    "@pageo/core": "workspace:*",
+    "@paglora/core": "workspace:*",
     "@radix-ui/react-dialog": "^1.1.0",
     "@radix-ui/react-slot": "^1.2.0",
     "@shadcn/react": "^0.3.1",

@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Pageo is in early development and has no supported stable releases yet.
+Paglora is in early development and has no supported stable releases yet.
 
 ## Reporting a vulnerability
 

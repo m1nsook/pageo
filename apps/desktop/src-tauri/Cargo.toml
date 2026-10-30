@@ -1,13 +1,13 @@
 [package]
-name = "pageo"
+name = "paglora"
 version = "0.1.0"
-description = "Pageo, a local-first documentation studio"
+description = "Paglora, a local-first documentation studio"
 authors = ["m1nsook"]
 license = "MIT"
 edition = "2021"
 
 [lib]
-name = "pageo_lib"
+name = "paglora_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
