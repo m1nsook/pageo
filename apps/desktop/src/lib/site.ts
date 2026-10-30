@@ -90,13 +90,39 @@ export function renderSafeMarkdown(html: string): string {
   return sanitized.innerHTML;
 }
 
+export type TocHeading = { id: string; title: string; level: 2 | 3 };
+
+/** Use the final sanitized DOM as the source of heading anchors and the TOC.
+ * Explicit IDs are generated after sanitization so neither raw HTML nor an
+ * unsanitized Markdown heading can inject attributes into the exported site.
+ */
+function renderPageContent(markdownHtml: string): { html: string; toc: TocHeading[] } {
+  const container = document.createElement("div");
+  container.innerHTML = renderSafeMarkdown(markdownHtml);
+  const seen = new Set<string>();
+  const toc: TocHeading[] = [];
+  for (const heading of Array.from(container.querySelectorAll("h2, h3"))) {
+    const title = (heading.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 160);
+    if (!title) continue;
+    const slug = title.toLowerCase().normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "section";
+    let id = slug;
+    for (let n = 2; seen.has(id); n += 1) id = `${slug}-${n}`;
+    seen.add(id);
+    heading.setAttribute("id", id);
+    toc.push({ id, title, level: heading.tagName === "H2" ? 2 : 3 });
+  }
+  return { html: container.innerHTML, toc: toc.slice(0, 100) };
+}
+
 export async function buildPublicSite(projectId: string): Promise<string> {
   const pages = await listPages(projectId);
   const publicPages = pages.filter(page => page.isPublic);
   const rendered = await Promise.all(publicPages.map(async page => {
     const document = await loadPage(projectId, page.id);
     const html = await marked.parse(document.markdown);
-    return { id: page.id, html: renderSafeMarkdown(html) };
+    return { id: page.id, ...renderPageContent(html) };
   }));
   return invoke<string>("build_site", { projectId, rendered });
 }
@@ -109,7 +135,7 @@ export async function previewPublicPage(projectId: string, pageId: string, setti
   const html = await marked.parse(document.markdown);
   return invoke<string>("preview_site_page", {
     projectId,
-    rendered: { id: pageId, html: renderSafeMarkdown(html) },
+    rendered: { id: pageId, ...renderPageContent(html) },
     settingsOverride,
   });
 }
