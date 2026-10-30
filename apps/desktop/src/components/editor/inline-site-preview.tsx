@@ -5,12 +5,33 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Page } from "@/lib/pages";
+import { normalizeCanvasText, type CanvasBlockSelection } from "@/lib/canvas-blocks";
 import { previewPublicPage } from "@/lib/site";
 
 type Device = "desktop" | "tablet" | "phone";
 const deviceWidths: Record<Device, number> = { desktop: 1280, tablet: 768, phone: 390 };
 const deviceNames: Record<Device, string> = { desktop: "Desktop", tablet: "Tablet", phone: "Phone" };
 
+const selectable = new Set(["h1","h2","h3","h4","h5","h6","p","ul","ol","blockquote","pre","table","hr"]);
+function selectedSourceBlock(article: Element | null, target: EventTarget | null): { index: number; block: Element } | null {
+  // iframe elements belong to its own realm, so parent-window instanceof Element fails.
+  if (!article || !target || (target as Node).nodeType !== 1) return null;
+  let node: Element | null = target as Element;
+  while (node && node.parentElement !== article) node = node.parentElement;
+  if (!node || node.parentElement !== article || !selectable.has(node.tagName.toLowerCase())) return null;
+  const index = Array.from(article.children).indexOf(node);
+  return index >= 0 ? { index, block: node } : null;
+}
+function paintSelection(doc: Document, selected: CanvasBlockSelection | null): void {
+  const article = doc.querySelector("article.docs");
+  article?.querySelector(".paglora-studio-selected")?.classList.remove("paglora-studio-selected");
+  if (!article || !selected) return;
+  const node = article.children.item(selected.index);
+  if (node?.tagName.toLowerCase() === selected.tagName &&
+      normalizeCanvasText(node.textContent ?? "") === selected.text) {
+    node.classList.add("paglora-studio-selected");
+  }
+}
 function describeError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -21,6 +42,7 @@ function describeError(error: unknown) {
  */
 export function InlineSitePreview({
   projectId, page, pages, savedVersion, onNavigate, onBeforeRefresh,
+  selectedBlock, onBlockSelect, onBlockEdit,
 }: {
   projectId: string;
   page: Page;
@@ -28,6 +50,9 @@ export function InlineSitePreview({
   savedVersion: number;
   onNavigate: (pageId: string) => void;
   onBeforeRefresh: () => Promise<void>;
+  selectedBlock: CanvasBlockSelection | null;
+  onBlockSelect: (selected: CanvasBlockSelection | null) => void;
+  onBlockEdit: (selected: CanvasBlockSelection) => void;
 }) {
   const [html, setHtml] = useState("");
   const [busy, setBusy] = useState(false);
@@ -37,6 +62,9 @@ export function InlineSitePreview({
   const [fit, setFit] = useState(true);
   const [zoom, setZoom] = useState(100);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const selectedRef = useRef(selectedBlock);
+  selectedRef.current = selectedBlock;
   const [space, setSpace] = useState({ width: 1000, height: 700 });
   const previewPageId = page.isPublic ? page.id : "index";
 
@@ -73,12 +101,36 @@ export function InlineSitePreview({
     }
   }, [onBeforeRefresh]);
 
+  useEffect(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (doc) paintSelection(doc, selectedBlock);
+  }, [selectedBlock, html]);
+
   const onFrameLoad = useCallback((event: SyntheticEvent<HTMLIFrameElement>) => {
     const doc = event.currentTarget.contentDocument;
     if (!doc) return;
+    const article = doc.querySelector("article.docs");
+    if (article && page.isPublic) {
+      const decorations = doc.createElement("style");
+      decorations.textContent = '.docs > :is(h1,h2,h3,h4,h5,h6,p,ul,ol,blockquote,pre,table,hr){cursor:pointer}.docs > :is(h1,h2,h3,h4,h5,h6,p,ul,ol,blockquote,pre,table,hr):hover{outline:1px dashed #4299ff;outline-offset:4px}.docs > .paglora-studio-selected,.docs > .paglora-studio-selected:hover{outline:2px solid #2684ff!important;outline-offset:5px!important}';
+      doc.head.appendChild(decorations);
+    }
+    paintSelection(doc, selectedRef.current);
     doc.addEventListener("click", (click: MouseEvent) => {
+      const source = page.isPublic ? selectedSourceBlock(article, click.target) : null;
+      if (source && !click.ctrlKey && !click.metaKey) {
+        click.preventDefault();
+        const selected: CanvasBlockSelection = {
+          pageId: page.id, index: source.index,
+          tagName: source.block.tagName.toLowerCase(),
+          text: normalizeCanvasText(source.block.textContent ?? ""),
+        };
+        onBlockSelect(selected);
+        paintSelection(doc, selected);
+        return;
+      }
       const anchor = (click.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
-      if (!anchor) return;
+      if (!anchor) { onBlockSelect(null); paintSelection(doc, null); return; }
       const href = anchor.getAttribute("href") ?? "";
       if (href.startsWith("#")) return;
       click.preventDefault();
@@ -87,7 +139,18 @@ export function InlineSitePreview({
         onNavigate(match[1]);
       }
     });
-  }, [onNavigate, pages]);
+    doc.addEventListener("dblclick", (click: MouseEvent) => {
+      if (!page.isPublic) return;
+      const source = selectedSourceBlock(article, click.target);
+      if (!source) return;
+      click.preventDefault();
+      onBlockEdit({
+        pageId: page.id, index: source.index,
+        tagName: source.block.tagName.toLowerCase(),
+        text: normalizeCanvasText(source.block.textContent ?? ""),
+      });
+    });
+  }, [onNavigate, pages, page.id, page.isPublic, onBlockSelect, onBlockEdit]);
 
   const frameWidth = deviceWidths[device];
   const fitScale = Math.min(1, Math.max(0.25, (space.width - 48) / frameWidth));
@@ -153,6 +216,7 @@ export function InlineSitePreview({
         {html ? (
           <div className="mx-auto shrink-0" style={{ width: frameWidth * scale, height: frameHeight * scale }}>
             <iframe
+              ref={iframeRef}
               title={`Paglora ${deviceNames[device].toLowerCase()} website preview`}
               sandbox="allow-same-origin"
               srcDoc={html}
@@ -166,7 +230,7 @@ export function InlineSitePreview({
         </div>}
       </div>
       <p className="shrink-0 border-t border-border bg-card px-4 py-2 text-[11px] text-muted-foreground">
-        {deviceNames[device]} · {frameWidth} px · Real static-site renderer · Select Edit to modify page content
+        {deviceNames[device]} · {frameWidth} px · Click a block to select · Double-click to edit
       </p>
     </section>
   );

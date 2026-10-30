@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Check, FileCode2, FilePenLine, LayoutTemplate, LockKeyhole, PanelRight, Save } from "lucide-react";
+import { Check, FileCode2, FilePenLine, LayoutTemplate, LockKeyhole, MousePointer2, PanelRight, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import type { Page } from "@/lib/pages";
+import { canvasBlockName, type CanvasBlockSelection } from "@/lib/canvas-blocks";
 
 type ChangeAction = "rename" | "layout" | "visibility";
 
@@ -19,12 +20,15 @@ const layouts: { value: Page["layout"]; name: string; description: string }[] = 
  * stable content model, not mutations to the generated HTML iframe.
  */
 export function PageInspector({
-  page, busy, onChange, onEditContent,
+  page, busy, onChange, onEditContent, selectedBlock, onEditBlock, onClearBlock,
 }: {
   page: Page;
   busy: boolean;
   onChange: (action: ChangeAction, id: string, next: string) => void;
   onEditContent: () => void;
+  selectedBlock: CanvasBlockSelection | null;
+  onEditBlock: () => void;
+  onClearBlock: () => void;
 }) {
   const [title, setTitle] = useState(page.title);
   useEffect(() => setTitle(page.title), [page.id, page.title]);
@@ -42,9 +46,34 @@ export function PageInspector({
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
         <PanelRight className="size-4 text-muted-foreground" />
         <span className="text-sm font-semibold">Properties</span>
-        <span className="ml-auto text-[11px] text-muted-foreground">Page</span>
+        <span className="ml-auto text-[11px] text-muted-foreground">{selectedBlock ? "Block" : "Page"}</span>
       </div>
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
+        {selectedBlock && (
+          <>
+            <section aria-label="Selected canvas block" className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <MousePointer2 className="size-4 text-primary" />
+                  {canvasBlockName(selectedBlock.tagName)}
+                </div>
+                <Button size="icon-xs" variant="ghost" aria-label="Clear block selection" title="Clear selection"
+                  onClick={onClearBlock}><X className="size-3.5" /></Button>
+              </div>
+              <p className="line-clamp-4 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                {selectedBlock.text || "Empty block"}
+              </p>
+              <Button className="w-full" onClick={onEditBlock} disabled={busy}>
+                <FilePenLine className="size-4" /> Edit selected block
+              </Button>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Double-click a block on the canvas to open its source in the visual editor.
+                Unsupported block types open the page without changing content.
+              </p>
+            </section>
+            <Separator />
+          </>
+        )}
         <div className="space-y-2">
           <Label htmlFor="studio-page-title">Name</Label>
           <form onSubmit={saveTitle} className="flex gap-2">
