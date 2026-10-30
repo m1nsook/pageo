@@ -10,6 +10,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -65,6 +66,9 @@ function PageRow({ page, selected, disabled, onNavigate, onAction, onDrag, onDro
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   return (
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
     <div className={cn("group flex min-w-0 items-center gap-0.5 rounded-lg pr-1 transition-colors duration-150", selected ? "bg-accent text-accent-foreground" : "hover:bg-muted/70")}
       onDragOver={(event) => { if (page.id !== "index") event.preventDefault(); }}
       onDrop={(event) => { event.preventDefault(); onDrop(page.id); }}
@@ -95,6 +99,19 @@ function PageRow({ page, selected, disabled, onNavigate, onAction, onDrag, onDro
           </>}
         </DropdownMenuContent>
       </DropdownMenu>
+    </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="min-w-44">
+          <ContextMenuItem disabled={disabled} onSelect={onNavigate}><FileText /> Open page</ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem disabled={disabled} onSelect={() => setRenameOpen(true)}><Pencil /> Rename</ContextMenuItem>
+          <ContextMenuItem disabled={disabled} onSelect={() => onAction("duplicate", page.id)}><Copy /> Duplicate</ContextMenuItem>
+          {page.id !== "index" && <>
+            <ContextMenuSeparator />
+            <ContextMenuItem disabled={disabled} variant="destructive" onSelect={() => setDeleteOpen(true)}><Trash2 /> Delete</ContextMenuItem>
+          </>}
+        </ContextMenuContent>
+      </ContextMenu>
       <PageTitleDialog key={`${page.id}-${page.title}-${renameOpen}`} open={renameOpen} setOpen={setRenameOpen} initial={page.title} mode="rename" onSubmit={(title) => onAction("rename", page.id, title)} />
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
@@ -108,7 +125,8 @@ function PageRow({ page, selected, disabled, onNavigate, onAction, onDrag, onDro
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+
+    </>
   );
 }
 
