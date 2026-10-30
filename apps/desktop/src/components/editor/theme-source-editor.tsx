@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Check, Code2, LoaderCircle, RefreshCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader,
   DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { loadThemeCss, saveThemeCss } from "@/lib/source";
 import { previewPublicPage } from "@/lib/site";
+
+const MonacoCodeEditor = lazy(() => import("./monaco-code-editor").then(module => ({ default: module.MonacoCodeEditor })));
 
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
@@ -83,26 +84,6 @@ export function ThemeSourceEditor({
     if (!saving) setOpen(next);
   }
 
-  function onCodeKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-      event.preventDefault();
-      event.stopPropagation();
-      void save();
-    }
-    // Insert spaces rather than moving focus while editing source code.
-    if (event.key === "Tab" && !event.shiftKey) {
-      event.preventDefault();
-      const field = event.currentTarget;
-      const start = field.selectionStart;
-      const end = field.selectionEnd;
-      const next = value.slice(0, start) + "  " + value.slice(end);
-      setValue(next);
-      requestAnimationFrame(() => {
-        field.selectionStart = start + 2;
-        field.selectionEnd = start + 2;
-      });
-    }
-  }
 
   return (
     <Dialog open={open} onOpenChange={setDialogOpen}>
@@ -131,14 +112,17 @@ export function ThemeSourceEditor({
             </div>
             {loading
               ? <div className="flex items-center gap-2 p-5 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Loading source files...</div>
-              : <Textarea
-                  aria-label="Edit project custom CSS"
-                  spellCheck={false}
-                  value={value}
-                  onChange={event => { setValue(event.target.value); setMessage(""); }}
-                  onKeyDown={onCodeKeyDown}
-                  className="min-h-0 flex-1 resize-none rounded-none border-0 bg-background p-4 font-mono text-xs leading-relaxed shadow-none focus-visible:ring-0"
-                />
+              : <div className="min-h-0 flex-1 bg-background">
+                  <Suspense fallback={<div className="flex items-center gap-2 p-5 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Loading code editor...</div>}>
+                    <MonacoCodeEditor
+                      ariaLabel="Edit project custom CSS"
+                      language="css"
+                      value={value}
+                      onChange={next => { setValue(next); setMessage(""); }}
+                      onSave={() => { void save(); }}
+                    />
+                  </Suspense>
+                </div>
             }
             <div className="shrink-0 border-t border-border p-3 text-xs text-muted-foreground">
               Real local file · Ctrl+S to save · 256 KB maximum
