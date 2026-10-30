@@ -189,3 +189,26 @@ test("search rejects malformed, oversized and duplicate index entries", async ()
   assert.equal(results.children[0].href, "guide.html");
   assert.equal(app.requestOptions.cache, "no-cache");
 });
+
+
+test("exact titles and contiguous phrases outrank scattered body mentions", async () => {
+  const app = fixture([
+    { title: "Reference", url: "reference.html", text: "A guide with setup and several examples of install" },
+    { title: "Setup install", url: "setup.html", text: "Install instructions for a new project" },
+    { title: "Other", url: "other.html", text: "setup install details" },
+  ]);
+  const { input, results } = await app.open();
+  input.value = "setup install";
+  input.events.input();
+  assert.equal(results.children[0].href, "setup.html");
+  assert.equal(results.children[1].href, "other.html");
+});
+
+test("search snippets align with NFKC compatibility-expanded text", async () => {
+  const app = fixture([{ title: "Ligatures", url: "ligatures.html", text: "ﬃ".repeat(100) + " needle appears here" }]);
+  const { input, results } = await app.open();
+  input.value = "needle";
+  input.events.input();
+  assert.equal(results.children[0].href, "ligatures.html");
+  assert.match(results.children[0].children[1].textContent, /needle appears here/);
+});
