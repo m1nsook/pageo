@@ -30,6 +30,8 @@ jobs:
           bun-version: "1.4.0"
       - name: Install dependencies from lockfile
         run: bun install --frozen-lockfile
+      - name: Desktop HTML shell regression tests
+        run: node --test apps/desktop/test/*.test.mjs
       - name: Type check
         run: bun run check
       - name: Production web build
