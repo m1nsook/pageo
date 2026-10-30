@@ -32,6 +32,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Desktop HTML shell regression tests
         run: node --test apps/desktop/test/*.test.mjs
+      - name: Bundle site runtime (minified browser scripts)
+        run: bun run --cwd packages/site-runtime build
       - name: Website runtime regression tests
         run: node --test packages/site-runtime/test/*.test.mjs
       - name: Type check
