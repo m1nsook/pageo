@@ -142,7 +142,16 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           {!preview && <FormatToolbar editor={editor} />}
           <div className="mx-auto max-w-3xl animate-in fade-in-0 px-7 py-9 duration-200 lg:px-12 lg:py-12">
             {saveError && <p role="alert" className="mb-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">Couldn't save: {saveError}. Check disk permissions before leaving.</p>}
-            <EditorContent editor={editor}/>
+            <div onKeyDown={(event) => {
+              // ProseMirror handles Ctrl/Cmd+B inside the editor. Keep it from
+              // bubbling to shadcn Sidebar's global collapse shortcut.
+              if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b" &&
+                  event.target instanceof HTMLElement && event.target.isContentEditable) {
+                event.stopPropagation();
+              }
+            }}>
+              <EditorContent editor={editor}/>
+            </div>
           </div>
         </section>
       </div>
