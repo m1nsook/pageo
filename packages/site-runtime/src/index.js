@@ -66,16 +66,25 @@
         resetTimer = undefined;
       }, 2000);
     }
+    let copying = false;
     copy.addEventListener("click", async () => {
+      if (copying) return;
       if (!navigator.clipboard?.writeText) {
         showFeedback("Unavailable", "Clipboard unavailable");
         return;
       }
+      copying = true;
+      copy.disabled = true;
+      copy.setAttribute("aria-busy", "true");
       try {
         await navigator.clipboard.writeText(code.textContent ?? "");
         showFeedback("Copied", "Code copied to clipboard");
       } catch {
         showFeedback("Unavailable", "Clipboard unavailable");
+      } finally {
+        copying = false;
+        copy.disabled = false;
+        copy.removeAttribute("aria-busy");
       }
     });
   }

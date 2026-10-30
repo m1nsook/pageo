@@ -5,7 +5,8 @@ import vm from "node:vm";
 
 const source = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
 
-function createDom({ clipboardAvailable = true, headingLevel = 2 } = {}) {
+function createDom({ clipboardAvailable = true, headingLevel = 2, waitForClipboard = false } = {}) {
+  let releaseClipboard;
   const attributes = new Map();
   const pre = { children: [], classList: { add(name) { assert.equal(name, "paglora-has-copy"); } }, appendChild(child) { this.children.push(child); } };
   const code = { parentElement: pre, textContent: "curl https://example.test\n" };
@@ -30,6 +31,7 @@ function createDom({ clipboardAvailable = true, headingLevel = 2 } = {}) {
         tag, className: "", type: "", textContent: "",
         attributes: new Map(), listeners: {},
         setAttribute(name, value) { this.attributes.set(name, value); },
+        removeAttribute(name) { this.attributes.delete(name); },
         addEventListener(name, fn) { this.listeners[name] = fn; },
       };
     },
@@ -42,10 +44,14 @@ function createDom({ clipboardAvailable = true, headingLevel = 2 } = {}) {
     setTimeout(fn, delay) { assert.equal(delay, 2000); const id = ++nextTimer; timers.set(id, fn); return id; },
     clearTimeout(id) { timers.delete(id); },
     localStorage: { getItem() { return null; }, setItem() {} },
-    navigator: { clipboard: clipboardAvailable ? { async writeText(value) { clipboard.push(value); } } : undefined },
+    navigator: { clipboard: clipboardAvailable ? { async writeText(value) {
+      clipboard.push(value);
+      if (waitForClipboard) await new Promise(resolve => { releaseClipboard = resolve; });
+    } } : undefined },
   };
   vm.runInNewContext(source, context);
   return { pre, code, heading, controls, clipboard, attributes,
+    releaseClipboard() { releaseClipboard?.(); },
     flushTimers() { const pending = [...timers.values()]; timers.clear(); for (const fn of pending) fn(); },
     get pendingTimers() { return timers.size; },
   };
@@ -102,4 +108,20 @@ test("fourth-level headings receive shareable anchors without entering the TOC",
   assert.equal(heading.children[0].href, "#getting-started");
   assert.equal(heading.children[0].attributes.get("aria-label"), "Link to Getting Started");
   assert.equal(createDom({ headingLevel: 1 }).heading.children.length, 0);
+});
+
+
+test("copy button prevents overlapping clipboard writes and clears busy state", async () => {
+  const app = createDom({ waitForClipboard: true });
+  const button = app.pre.children[0];
+  const first = button.listeners.click();
+  assert.equal(button.disabled, true);
+  assert.equal(button.attributes.get("aria-busy"), "true");
+  await button.listeners.click();
+  assert.deepEqual(app.clipboard, [app.code.textContent], "second click must not start a second write");
+  app.releaseClipboard();
+  await first;
+  assert.equal(button.disabled, false);
+  assert.equal(button.attributes.has("aria-busy"), false);
+  assert.equal(button.textContent, "Copied");
 });
