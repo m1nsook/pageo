@@ -1,6 +1,7 @@
 mod projects;
 mod pages;
 mod sites;
+mod source;
 
 pub fn run() {
     tauri::Builder::default()
@@ -14,7 +15,8 @@ pub fn run() {
             pages::rename_page, pages::duplicate_page, pages::delete_page,
             pages::reorder_pages, pages::save_page, pages::set_page_visibility,
             sites::load_site_settings, sites::save_site_settings, sites::build_site,
-            sites::preview_site_page
+            sites::preview_site_page,
+            source::load_theme_css, source::save_theme_css
         ])
         .run(tauri::generate_context!())
         .expect("error while running Paglora");
