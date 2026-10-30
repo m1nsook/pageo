@@ -42,7 +42,7 @@ function describeError(error: unknown) {
  */
 export function InlineSitePreview({
   projectId, page, pages, savedVersion, onNavigate, onBeforeRefresh,
-  selectedBlock, onBlockSelect, onBlockEdit,
+  selectedBlock, onBlockSelect, onBlockEdit, canInlineTextEdit, onApplyInlineText,
 }: {
   projectId: string;
   page: Page;
@@ -53,6 +53,8 @@ export function InlineSitePreview({
   selectedBlock: CanvasBlockSelection | null;
   onBlockSelect: (selected: CanvasBlockSelection | null) => void;
   onBlockEdit: (selected: CanvasBlockSelection) => void;
+  canInlineTextEdit: (selected: CanvasBlockSelection) => boolean;
+  onApplyInlineText: (selected: CanvasBlockSelection, text: string) => boolean;
 }) {
   const [html, setHtml] = useState("");
   const [busy, setBusy] = useState(false);
@@ -65,6 +67,12 @@ export function InlineSitePreview({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const selectedRef = useRef(selectedBlock);
   selectedRef.current = selectedBlock;
+  // DOM listeners attached to an existing iframe must always call current
+  // source-editor callbacks, even if Tiptap initialized after iframe load.
+  const canInlineRef = useRef(canInlineTextEdit);
+  canInlineRef.current = canInlineTextEdit;
+  const applyInlineRef = useRef(onApplyInlineText);
+  applyInlineRef.current = onApplyInlineText;
   const [space, setSpace] = useState({ width: 1000, height: 700 });
   const previewPageId = page.isPublic ? page.id : "index";
 
@@ -109,14 +117,91 @@ export function InlineSitePreview({
   const onFrameLoad = useCallback((event: SyntheticEvent<HTMLIFrameElement>) => {
     const doc = event.currentTarget.contentDocument;
     if (!doc) return;
-    const article = doc.querySelector("article.docs");
+    const canvasDoc: Document = doc;
+    const article = canvasDoc.querySelector("article.docs");
     if (article && page.isPublic) {
       const decorations = doc.createElement("style");
       decorations.textContent = '.docs > :is(h1,h2,h3,h4,h5,h6,p,ul,ol,blockquote,pre,table,hr){cursor:pointer}.docs > :is(h1,h2,h3,h4,h5,h6,p,ul,ol,blockquote,pre,table,hr):hover{outline:1px dashed #4299ff;outline-offset:4px}.docs > .paglora-studio-selected,.docs > .paglora-studio-selected:hover{outline:2px solid #2684ff!important;outline-offset:5px!important}';
       doc.head.appendChild(decorations);
     }
     paintSelection(doc, selectedRef.current);
+
+    let editing: HTMLElement | null = null;
+    const beginInlineText = (block: HTMLElement, selected: CanvasBlockSelection) => {
+      if (editing || !canInlineRef.current(selected)) return false;
+      // Only direct text nodes may be made contenteditable. Links, code and
+      // nested markup must never be flattened by the temporary DOM editor.
+      if (block.childNodes.length !== 1 || block.firstChild?.nodeType !== 3 ||
+          !(/^(h[1-6]|p)$/.test(selected.tagName))) return false;
+      editing = block;
+      const previous = block.textContent ?? "";
+      const originalTabIndex = block.getAttribute("tabindex");
+      let finished = false;
+      block.setAttribute("contenteditable", "plaintext-only");
+      block.setAttribute("spellcheck", "true");
+      block.setAttribute("tabindex", "-1");
+      block.style.cursor = "text";
+
+      function finish(save: boolean) {
+        if (finished) return;
+        finished = true;
+        block.removeEventListener("blur", onBlur);
+        block.removeEventListener("keydown", onKey);
+        block.removeEventListener("paste", onPaste);
+        const next = block.textContent ?? "";
+        editing = null;
+        block.removeAttribute("contenteditable");
+        block.removeAttribute("spellcheck");
+        block.style.removeProperty("cursor");
+        if (originalTabIndex === null) block.removeAttribute("tabindex");
+        else block.setAttribute("tabindex", originalTabIndex);
+        if (!save) {
+          block.textContent = previous;
+        } else if (next !== previous) {
+          if (applyInlineRef.current(selected, next)) {
+            onBlockSelect(null);
+            paintSelection(canvasDoc, null);
+          } else {
+            // A changed or ambiguous source node is never overwritten.
+            block.textContent = previous;
+            onBlockEdit(selected);
+          }
+        }
+      }
+      function onBlur() { finish(true); }
+      function onKey(e: KeyboardEvent) {
+        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(false); block.blur(); }
+        if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); finish(true); block.blur(); }
+      }
+      function onPaste(e: ClipboardEvent) {
+        e.preventDefault();
+        const raw = e.clipboardData?.getData("text/plain") ?? "";
+        const text = raw.replace(/[\r\n]+/g, " ");
+        const selection = canvasDoc.getSelection();
+        if (!selection?.rangeCount) return;
+        const range = selection.getRangeAt(0);
+        if (!block.contains(range.commonAncestorContainer)) return;
+        range.deleteContents();
+        range.insertNode(canvasDoc.createTextNode(text));
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      block.addEventListener("blur", onBlur);
+      block.addEventListener("keydown", onKey);
+      block.addEventListener("paste", onPaste);
+      block.focus();
+      const range = doc.createRange();
+      range.selectNodeContents(block);
+      range.collapse(false);
+      const selection = doc.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      return true;
+    };
+
     doc.addEventListener("click", (click: MouseEvent) => {
+      if (editing) return;
       const source = page.isPublic ? selectedSourceBlock(article, click.target) : null;
       if (source && !click.ctrlKey && !click.metaKey) {
         click.preventDefault();
@@ -144,13 +229,14 @@ export function InlineSitePreview({
       const source = selectedSourceBlock(article, click.target);
       if (!source) return;
       click.preventDefault();
-      onBlockEdit({
+      const selected: CanvasBlockSelection = {
         pageId: page.id, index: source.index,
         tagName: source.block.tagName.toLowerCase(),
         text: normalizeCanvasText(source.block.textContent ?? ""),
-      });
+      };
+      if (!beginInlineText(source.block as HTMLElement, selected)) onBlockEdit(selected);
     });
-  }, [onNavigate, pages, page.id, page.isPublic, onBlockSelect, onBlockEdit]);
+  }, [onNavigate, pages, page.id, page.isPublic, onBlockSelect, onBlockEdit, canInlineTextEdit, onApplyInlineText]);
 
   const frameWidth = deviceWidths[device];
   const fitScale = Math.min(1, Math.max(0.25, (space.width - 48) / frameWidth));
@@ -230,7 +316,7 @@ export function InlineSitePreview({
         </div>}
       </div>
       <p className="shrink-0 border-t border-border bg-card px-4 py-2 text-[11px] text-muted-foreground">
-        {deviceNames[device]} · {frameWidth} px · Click a block to select · Double-click to edit
+        {deviceNames[device]} · {frameWidth} px · Click to select · Double-click plain text to edit in place · Enter to apply · Esc to cancel
       </p>
     </section>
   );

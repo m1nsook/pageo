@@ -239,6 +239,11 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           selectedBlock={selectedBlock}
           onBlockSelect={(block) => { setSelectedBlock(block); if (block) setShowInspector(true); }}
           onBlockEdit={editCanvasBlock}
+          canInlineTextEdit={(block) => Boolean(editor && block.pageId === current.page.id && editableCanvasText(editor, block))}
+          onApplyInlineText={(block, text) => {
+            if (!editor || block.pageId !== current.page.id || leaving || switchingView) return false;
+            return replacePlainCanvasText(editor, block, text);
+          }}
           onNavigate={(pageId) => {
             if (pageId !== current.page.id) void runAfterSave(() => onChange(pageId));
           }}
