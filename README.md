@@ -64,6 +64,10 @@ packages/cli/          Published `paglora` npm CLI (early alpha)
 docs/                  Architecture, compatibility and publishing instructions
 ```
 
+## Project source customization
+
+Each project can edit its own `theme/custom.css` through **Source** in the editor. This is a real local stylesheet applied after the built-in styles in both site preview and static export. TSX component and layout compilation is not yet implemented. See [source workspace](docs/source-workspace.md).
+
 ## Existing Pageo projects remain supported
 
 Paglora was previously called **Pageo**. This rename **does not relocate projects, overwrite files, or change the project format**:
