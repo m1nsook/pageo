@@ -1,16 +1,23 @@
-import { useCallback, useEffect, useState, type SyntheticEvent } from "react";
-import { AlertCircle, Globe2, LoaderCircle, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from "react";
+import {
+  AlertCircle, Globe2, LoaderCircle, Maximize2, Minus, Monitor,
+  Plus, RefreshCw, Smartphone, Tablet,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Page } from "@/lib/pages";
 import { previewPublicPage } from "@/lib/site";
+
+type Device = "desktop" | "tablet" | "phone";
+const deviceWidths: Record<Device, number> = { desktop: 1280, tablet: 768, phone: 390 };
+const deviceNames: Record<Device, string> = { desktop: "Desktop", tablet: "Tablet", phone: "Phone" };
 
 function describeError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** Uses the SAME Rust renderer as static export; srcDoc is script-disabled.
- * Internal page links select a page in the studio rather than navigating the
- * iframe to Tauri's application origin. External links are inert in the editor.
+/** The actual static-site renderer in a sized, zoomable design canvas.
+ * Only the studio chrome changes: scripts are still disabled inside the frame.
+ * Page content is never rewritten by manipulating this generated DOM.
  */
 export function InlineSitePreview({
   projectId, page, pages, savedVersion, onNavigate, onBeforeRefresh,
@@ -26,7 +33,22 @@ export function InlineSitePreview({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
+  const [device, setDevice] = useState<Device>("desktop");
+  const [fit, setFit] = useState(true);
+  const [zoom, setZoom] = useState(100);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [space, setSpace] = useState({ width: 1000, height: 700 });
   const previewPageId = page.isPublic ? page.id : "index";
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const measure = () => setSpace({ width: viewport.clientWidth, height: viewport.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -37,7 +59,7 @@ export function InlineSitePreview({
       .catch(cause => { if (active) { setError(describeError(cause)); setHtml(""); } })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [projectId, previewPageId, savedVersion, reload]);
+  }, [projectId, previewPageId, savedVersion, reload, page.layout, page.title, page.isPublic]);
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -52,15 +74,13 @@ export function InlineSitePreview({
   }, [onBeforeRefresh]);
 
   const onFrameLoad = useCallback((event: SyntheticEvent<HTMLIFrameElement>) => {
-    const frame = event.currentTarget;
-    const doc = frame.contentDocument;
+    const doc = event.currentTarget.contentDocument;
     if (!doc) return;
     doc.addEventListener("click", (click: MouseEvent) => {
-      const target = click.target;
-      const anchor = (target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      const anchor = (click.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
       if (!anchor) return;
       const href = anchor.getAttribute("href") ?? "";
-      if (href.startsWith("#")) return; // Heading anchors still work inside the frame.
+      if (href.startsWith("#")) return;
       click.preventDefault();
       const match = /^(?:\.\/)?([a-z0-9-]+)\.html(?:#[a-z0-9_-]+)?$/i.exec(href);
       if (match && pages.some(item => item.id === match[1] && item.isPublic)) {
@@ -69,17 +89,52 @@ export function InlineSitePreview({
     });
   }, [onNavigate, pages]);
 
+  const frameWidth = deviceWidths[device];
+  const fitScale = Math.min(1, Math.max(0.25, (space.width - 48) / frameWidth));
+  const scale = fit ? fitScale : zoom / 100;
+  const percentage = Math.round(scale * 100);
+  const frameHeight = Math.max(650, Math.round(Math.max(450, space.height - 48) / scale));
+
+  function changeZoom(delta: number) {
+    setZoom(Math.min(200, Math.max(25, percentage + delta)));
+    setFit(false);
+  }
+
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-muted/30" aria-label="Live public website preview">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-2.5">
-        <div className="flex min-w-0 items-center gap-2">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-muted/30" aria-label="Website design canvas">
+      <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2">
+        <div className="mr-auto flex min-w-0 items-center gap-2">
           <Globe2 className="size-4 shrink-0 text-muted-foreground" />
-          <span className="truncate text-xs font-medium">Published website</span>
+          <span className="truncate text-xs font-semibold">Website canvas</span>
           {busy && <LoaderCircle className="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-label="Rendering preview" />}
         </div>
-        <Button variant="ghost" size="icon-sm" onClick={() => void refresh()} disabled={busy}
+        <div role="group" aria-label="Canvas device width" className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
+          {(["desktop", "tablet", "phone"] as const).map(option => {
+            const Icon = option === "desktop" ? Monitor : option === "tablet" ? Tablet : Smartphone;
+            return (
+              <Button key={option} variant={device === option ? "secondary" : "ghost"} size="icon-xs"
+                title={`${deviceNames[option]} · ${deviceWidths[option]} px`}
+                aria-label={`${deviceNames[option]} canvas · ${deviceWidths[option]} pixels`}
+                aria-pressed={device === option}
+                onClick={() => { setDevice(option); setFit(true); }}>
+                <Icon className="size-3.5" />
+              </Button>
+            );
+          })}
+        </div>
+        <div role="group" aria-label="Canvas zoom" className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
+          <Button variant="ghost" size="icon-xs" title="Zoom out" aria-label="Zoom out"
+            disabled={percentage <= 25} onClick={() => changeZoom(-10)}><Minus className="size-3.5" /></Button>
+          <span aria-live="polite" className="min-w-10 text-center font-mono text-[11px] tabular-nums">{percentage}%</span>
+          <Button variant="ghost" size="icon-xs" title="Zoom in" aria-label="Zoom in"
+            disabled={percentage >= 200} onClick={() => changeZoom(10)}><Plus className="size-3.5" /></Button>
+          <Button variant={fit ? "secondary" : "ghost"} size="icon-xs"
+            title="Fit canvas to window" aria-label="Fit canvas to window" aria-pressed={fit}
+            onClick={() => setFit(true)}><Maximize2 className="size-3.5" /></Button>
+        </div>
+        <Button variant="ghost" size="icon-xs" onClick={() => void refresh()} disabled={busy}
           title="Save and refresh site" aria-label="Save and refresh site preview">
-          <RefreshCw className="size-4" />
+          <RefreshCw className="size-3.5" />
         </Button>
       </div>
       {!page.isPublic && (
@@ -90,19 +145,28 @@ export function InlineSitePreview({
       {error && <p role="alert" className="m-3 flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-xs text-destructive">
         <AlertCircle className="size-4 shrink-0" /> {error}
       </p>}
-      <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
-        {html ? <iframe
-          title="Paglora published website"
-          sandbox="allow-same-origin"
-          srcDoc={html}
-          onLoad={onFrameLoad}
-          className="h-full min-h-80 w-full rounded-md border border-border bg-white shadow-sm"
-        /> : !error && <div className="flex h-full min-h-64 items-center justify-center gap-2 text-sm text-muted-foreground">
+      <div
+        ref={viewportRef}
+        className="min-h-0 flex-1 overflow-auto bg-muted/40 p-6"
+        style={{ backgroundImage: "radial-gradient(circle, var(--border) 1px, transparent 1px)", backgroundSize: "22px 22px" }}
+      >
+        {html ? (
+          <div className="mx-auto shrink-0" style={{ width: frameWidth * scale, height: frameHeight * scale }}>
+            <iframe
+              title={`Paglora ${deviceNames[device].toLowerCase()} website preview`}
+              sandbox="allow-same-origin"
+              srcDoc={html}
+              onLoad={onFrameLoad}
+              style={{ width: frameWidth, height: frameHeight, transform: `scale(${scale})`, transformOrigin: "top left" }}
+              className="block rounded-md border border-border bg-white shadow-xl"
+            />
+          </div>
+        ) : !error && <div className="flex h-full min-h-64 items-center justify-center gap-2 text-sm text-muted-foreground">
           <LoaderCircle className="size-4 animate-spin" /> Rendering website…
         </div>}
       </div>
-      <p className="shrink-0 border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-        Same HTML and CSS as static export · autosaved edits refresh automatically
+      <p className="shrink-0 border-t border-border bg-card px-4 py-2 text-[11px] text-muted-foreground">
+        {deviceNames[device]} · {frameWidth} px · Real static-site renderer · Select Edit to modify page content
       </p>
     </section>
   );
