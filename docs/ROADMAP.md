@@ -48,7 +48,7 @@ Open Paglora, create a site, choose a polished template, and immediately see **a
 - Users can override themes and React components in TSX and CSS **before** compilation, similar to VitePress theme customization.
 - Isolated Vite/React project compiler for preview and static output. Custom project code never runs with privileged Tauri filesystem access.
 - CLI parity: `paglora dev`, `paglora build`, `paglora preview`; project can be built without opening the desktop GUI.
-- Maintain backwards compatibility with existing `pageo.json`, `pages.json`, `site.json` and Markdown projects.
+- Use `paglora.json`, `pages.json`, `site.json` and Markdown as the canonical format; test future format upgrades explicitly.
 
 ### P4 — Documentation completeness and easy publishing
 - Local full-text search using a static index, doc versioning, localized navigation, redirects, sitemap, metadata, custom links.
