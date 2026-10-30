@@ -78,8 +78,13 @@
     });
     shell.addEventListener("keydown", event => {
       if (event.key !== "Tab") return;
-      const first = input;
-      const last = closeButton;
+      // Include the result links in the dialog's keyboard focus cycle.
+      // Merely trapping focus between the input and close button would make
+      // links unreachable with Tab (screen readers and keyboard users).
+      const controls = [input, closeButton,
+        ...results.querySelectorAll(".paglora-search-result")];
+      const first = controls[0];
+      const last = controls[controls.length - 1];
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault(); last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
