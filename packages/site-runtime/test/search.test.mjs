@@ -321,3 +321,29 @@ test("invalid entries cannot displace the first 500 valid public pages", async (
   input.events.input();
   assert.equal(results.children[0].href, "valid.html");
 });
+
+test("failed retry restores keyboard focus to the new retry control", async () => {
+  const app = fixture([], { responseOk: false });
+  const { results } = await app.open();
+  const first = results.children[1];
+  first.focus();
+  first.events.click();
+  assert.equal(first.disabled, true);
+  assert.equal(first.attrs.get("aria-busy"), "true");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.notEqual(results.children[1], first);
+  assert.equal(app.document.activeElement, results.children[1]);
+});
+
+test("successful retry returns keyboard focus to search input", async () => {
+  const app = fixture([{ title: "Guide", url: "guide.html", text: "Paglora" }], { failFirstFetch: true });
+  const { input, results } = await app.open();
+  const retry = results.children[1];
+  retry.focus();
+  retry.events.click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(app.document.activeElement, input);
+  input.value = "Paglora";
+  input.events.input();
+  assert.equal(results.children[0].href, "guide.html");
+});
