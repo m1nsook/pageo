@@ -262,7 +262,7 @@ mod tests {
         assert!(!valid_navigation_group("Bad\\nGroup"));
         let updated = Page { nav_group: "Examples".into(), ..page };
         let json = serde_json::to_string(&updated).unwrap();
-        assert!(json.contains("\\"navGroup\\":\\"Examples\\""));
+        assert!(json.contains(r#""navGroup":"Examples""#));
     }
     #[test]
     fn explicit_layout_round_trip() {
