@@ -18,8 +18,11 @@ test("desktop entry HTML contains no escaped newline visible above the app", () 
 test("desktop React mount is the only non-script body element", () => {
   const body = /<body>([\s\S]*?)<\/body>/i.exec(source)?.[1];
   assert.ok(body, "desktop entry HTML must have a body");
-  const withoutRootAndScript = body
-    .replace(/<div\s+id="root"\s*><\/div>/i, "")
-    .replace(/<script\b[^>]*src="\/src\/main\.tsx"[^>]*><\/script>/i, "");
-  assert.equal(withoutRootAndScript.trim(), "", "unexpected text nodes outside the React root");
+  // Validate the complete body, rather than stripping tags out of HTML:
+  // multi-character replacements may reveal new tags and are not sanitizers.
+  assert.match(
+    body,
+    /^\s*<div\s+id="root"\s*><\/div>\s*<script\b(?=[^>]*\btype="module")(?=[^>]*\bsrc="\/src\/main\.tsx")[^>]*><\/script>\s*$/i,
+    "only the React root and entry module are allowed in the desktop body",
+  );
 });
