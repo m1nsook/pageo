@@ -376,7 +376,7 @@ fn render_site_page(
     let header_links = link_html(&settings.header_links, "header-links");
     let nav_position = &settings.navigation_position;
     let content_width = settings.content_width;
-    format!(r#"<!doctype html>
+    format!(r##"<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -403,7 +403,7 @@ fn render_site_page(
 </div>
 {footer}
 </body>
-</html>"#)
+</html>"##)
 }
 #[tauri::command]
 pub fn load_site_settings(app: AppHandle, project_id: String) -> Result<SiteSettings, String> {
