@@ -107,6 +107,15 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs li{padding-left:3px;margin:.32em 0}
 .docs li::marker{color:var(--muted)}
 .docs li.paglora-task-item{list-style:none;padding-left:0}
+.docs details.paglora-disclosure{margin:20px 0;border:1px solid var(--line);border-radius:10px;background:var(--subtle);padding:0 16px}
+.docs details.paglora-disclosure>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;font-weight:650;cursor:pointer;list-style:none}
+.docs details.paglora-disclosure>summary::-webkit-details-marker{display:none}
+.docs details.paglora-disclosure>summary::after{content:"+";font-size:18px;color:var(--muted);font-weight:500}
+.docs details.paglora-disclosure[open]>summary::after{content:"−"}
+.docs details.paglora-disclosure>summary:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+.docs details.paglora-disclosure>:last-child:not(summary){margin-bottom:15px}
+.docs details.paglora-disclosure>details.paglora-disclosure{background:var(--bg)}
+
 .docs .paglora-task-checkbox{margin:0 .55em 0 -1.5em;vertical-align:middle;accent-color:var(--brand);opacity:1;pointer-events:none}
 .docs blockquote{margin:24px 0;border-left:3px solid var(--brand);padding:13px 20px;color:var(--muted);background:var(--subtle);border-radius:0 10px 10px 0}
 .docs blockquote p:last-child{margin-bottom:0}
