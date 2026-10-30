@@ -118,9 +118,9 @@ test("Tab reaches search results and wraps keyboard focus inside the dialog", as
   const closeButton = modal.children[0].children[1];
   let prevented = 0;
   input.focus();
-  modal.events.keydown({ key: "Tab", shiftKey: true, preventDefault() { prevented++; } });
+  backdrop.events.keydown({ key: "Tab", shiftKey: true, preventDefault() { prevented++; } });
   assert.equal(app.document.activeElement, link);
-  modal.events.keydown({ key: "Tab", shiftKey: false, preventDefault() { prevented++; } });
+  backdrop.events.keydown({ key: "Tab", shiftKey: false, preventDefault() { prevented++; } });
   assert.equal(app.document.activeElement, input);
   assert.equal(prevented, 2);
   // The close button remains part of the normal focus order.
