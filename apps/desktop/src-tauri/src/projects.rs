@@ -130,6 +130,8 @@ pub fn create_project(app: AppHandle, name: String) -> Result<ProjectDocument, S
     let markdown = format!("# {name}\n\nWelcome to your documentation. Start writing here.\n");
     let result = (|| -> Result<(), String> {
         fs::create_dir_all(folder.join("docs")).map_err(|e| e.to_string())?;
+        fs::create_dir_all(folder.join("theme")).map_err(|e| e.to_string())?;
+        fs::write(folder.join("theme/custom.css"), crate::source::STARTER_CSS).map_err(|e| e.to_string())?;
         fs::write(folder.join(DOC_FILE), &markdown).map_err(|e| e.to_string())?;
         write_config(&folder, &config)?;
         Ok(())
