@@ -602,6 +602,22 @@ mod website_font_tests {
     use super::*;
 
     #[test]
+    fn page_navigation_groups_appear_in_generated_html() {
+        let settings = default_settings("Docs");
+        let pages = vec![
+            crate::pages::Page { id: "index".into(), title: "Overview".into(), is_public: true, layout: "docs".into(), nav_group: "Getting Started".into() },
+            crate::pages::Page { id: "api".into(), title: "API Guide".into(), is_public: true, layout: "docs".into(), nav_group: "API Reference".into() },
+            crate::pages::Page { id: "private".into(), title: "Draft".into(), is_public: false, layout: "docs".into(), nav_group: "Secret".into() },
+        ];
+        let output = render_site_page(&settings, &pages, &pages[0], "<p>Docs</p>", &[]);
+        assert!(output.contains("<h2>Getting Started</h2>"));
+        assert!(output.contains("<h2>API Reference</h2>"));
+        assert!(output.contains("api.html"));
+        assert!(!output.contains("Secret"));
+        assert!(!output.contains("private.html"));
+    }
+
+    #[test]
     fn google_fonts_are_opt_in_and_default_projects_keep_geist() {
         let settings = default_settings("Test Project");
         assert_eq!(settings.google_font_family, "");

@@ -14,6 +14,7 @@ Paglora is an open-source, local-first desktop documentation studio. Write and o
 - **Local project dashboard** with create, reopen and metadata management. Projects require no account, database, telemetry, or cloud service.
 - **Multi-page documentation editor** with Markdown persistence, create/rename/duplicate/delete/reorder page actions, formatting toolbar and initial drag-and-drop Markdown block tools.
 - **Public/private pages**, with Overview remaining public.
+- **Navigation groups** for organizing published sidebar sections, configurable per page in Studio.
 - **Static website publishing**: real multi-page HTML with shared responsive CSS, public-page navigation, header, footer and sanitized Markdown.
 - **Live public-site preview** with desktop/tablet/mobile widths.
 - **Website layout designer** for header alignment, external logo URL, header/footer links, navigation placement and article width.

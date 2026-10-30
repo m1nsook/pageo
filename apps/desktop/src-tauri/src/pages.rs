@@ -252,6 +252,19 @@ mod tests {
         assert!(serde_json::from_str::<Page>(r#"{"id":"index","title":"Overview"}"#).is_err());
     }
     #[test]
+    fn navigation_group_defaults_and_validation() {
+        let page: Page = serde_json::from_str(r#"{"id":"index","title":"Overview","isPublic":true,"layout":"docs"}"#).unwrap();
+        assert_eq!(page.nav_group, "Documentation");
+        assert!(valid_navigation_group("Getting Started"));
+        assert!(valid_navigation_group("API Reference"));
+        assert!(!valid_navigation_group(""));
+        assert!(!valid_navigation_group(" Leading"));
+        assert!(!valid_navigation_group("Bad\\nGroup"));
+        let updated = Page { nav_group: "Examples".into(), ..page };
+        let json = serde_json::to_string(&updated).unwrap();
+        assert!(json.contains("\\"navGroup\\":\\"Examples\\""));
+    }
+    #[test]
     fn explicit_layout_round_trip() {
         let page: Page = serde_json::from_str(r#"{"id":"intro","title":"Hello","isPublic":true,"layout":"landing"}"#).unwrap();
         assert_eq!(page.layout, "landing");
