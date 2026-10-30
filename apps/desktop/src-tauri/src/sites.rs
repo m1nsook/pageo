@@ -5,10 +5,19 @@ use tauri::{AppHandle, Manager};
 const CONFIG: &str = "site.json";
 const EXPORTS: &str = "site-exports";
 // First-party, browser-only runtime. The Studio preview deliberately removes it.
-const SITE_RUNTIME_JS: &str = include_str!("../../../../packages/site-runtime/src/index.js");
-const SITE_RUNTIME_SCRIPT: &str = "<script defer src=\"paglora.js\"></script>";
-const SITE_SEARCH_JS: &str = include_str!("../../../../packages/site-runtime/src/search.js");
-const SITE_SEARCH_SCRIPT: &str = "<script defer src=\"paglora-search.js\"></script>";
+struct SiteRuntimeAsset {
+    filename: &'static str,
+    source: &'static str,
+}
+const SITE_RUNTIME_ASSETS: &[SiteRuntimeAsset] = &[
+    SiteRuntimeAsset { filename: "paglora.js", source: include_str!("../../../../packages/site-runtime/src/index.js") },
+    SiteRuntimeAsset { filename: "paglora-search.js", source: include_str!("../../../../packages/site-runtime/src/search.js") },
+];
+fn site_runtime_script_tags() -> String {
+    SITE_RUNTIME_ASSETS.iter()
+        .map(|asset| format!("<script defer src=\"{}\"></script>\n", asset.filename))
+        .collect()
+}
 const SITE_CSS: &str = r#"
 @font-face{font-family:"Geist Website";src:url("fonts/geist-latin.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
 :root{color-scheme:light;--bg:#ffffff;--fg:#151a24;--muted:#626b7c;--line:#e6eaf0;--subtle:#f6f8fb;--hover:#edf3fa;--brand:#2196f3;--brand-light:#eaf5ff;--code-bg:#101828;--code-fg:#e9eef8;--header-bg:rgba(255,255,255,.96)}
@@ -543,6 +552,7 @@ fn render_site_page(
     let nav_position = &settings.navigation_position;
     let content_width = settings.content_width;
     let layout = &page.layout;
+    let runtime_scripts = site_runtime_script_tags();
     format!(r##"<!doctype html>
 <html lang="en" data-color-mode="{theme_mode}">
 <head>
@@ -571,8 +581,7 @@ fn render_site_page(
 <aside class="on-this-page" aria-label="Table of contents">{toc_aside}</aside>
 </div>
 {footer}
-<script defer src="paglora.js"></script>
-<script defer src="paglora-search.js"></script>
+{runtime_scripts}
 </body>
 </html>"##)
 }
@@ -619,7 +628,11 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
     );
     // Studio preview is intentionally script-disabled; remove the exported
     // runtime reference. Site interactions are tested in the built website.
-    let doc = doc.replace(SITE_RUNTIME_SCRIPT, "").replace(SITE_SEARCH_SCRIPT, "");
+    let mut doc = doc;
+    for asset in SITE_RUNTIME_ASSETS {
+        let tag = format!("<script defer src=\"{}\"></script>", asset.filename);
+        doc = doc.replace(&tag, "");
+    }
     // Project-owned CSS always comes last, overriding designer presets.
     Ok(doc.replace("</head>", &format!("{override_css}</head>")))
 }
@@ -650,8 +663,9 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
     fs::create_dir(&staged).map_err(|e| e.to_string())?;
     let write_result = (|| -> Result<(), String> {
         fs::write(staged.join("styles.css"), SITE_CSS).map_err(|e| e.to_string())?;
-        fs::write(staged.join("paglora.js"), SITE_RUNTIME_JS).map_err(|e| e.to_string())?;
-        fs::write(staged.join("paglora-search.js"), SITE_SEARCH_JS).map_err(|e| e.to_string())?;
+        for asset in SITE_RUNTIME_ASSETS {
+            fs::write(staged.join(asset.filename), asset.source).map_err(|e| e.to_string())?;
+        }
         // Bundle the default Geist font; optional hosted Google Fonts remain supported.
         fs::create_dir(staged.join("fonts")).map_err(|e| e.to_string())?;
         fs::write(staged.join("fonts/geist-latin.woff2"), include_bytes!("../assets/geist-latin.woff2"))
@@ -710,10 +724,12 @@ mod website_font_tests {
         assert!(!output.contains("private.html"));
         assert!(output.contains("</div></details>"));
         assert!(output.contains("aria-current=\"page\""));
-        assert!(output.contains(SITE_RUNTIME_SCRIPT));
-        assert!(output.contains(SITE_SEARCH_SCRIPT));
-        assert!(SITE_SEARCH_JS.contains("search-index.json"));
-        assert!(SITE_RUNTIME_JS.contains("paglora:theme:"));
+        for asset in SITE_RUNTIME_ASSETS {
+            assert!(output.contains(&format!("<script defer src=\"{}\"></script>", asset.filename)));
+            assert!(!asset.source.is_empty());
+        }
+        assert!(SITE_RUNTIME_ASSETS[1].source.contains("search-index.json"));
+        assert!(SITE_RUNTIME_ASSETS[0].source.contains("paglora:theme:"));
     }
 
     #[test]
