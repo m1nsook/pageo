@@ -1,5 +1,7 @@
 # Paglora
 
+![Paglora official logo](apps/desktop/public/paglora.svg)
+
 **Beautiful docs, built your way.**
 
 Paglora is an open-source, local-first desktop documentation studio. Write and organize documentation, visually customize the public website, and export a static site you can host anywhere.
