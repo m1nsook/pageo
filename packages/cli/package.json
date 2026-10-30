@@ -1,17 +1,41 @@
 {
   "name": "paglora",
-  "version": "0.0.1-alpha.1",
-  "description": "Paglora CLI — inspect and validate local-first documentation projects.",
+  "version": "0.0.1-alpha.2",
+  "description": "Paglora CLI — create, inspect and validate local-first documentation projects.",
   "type": "module",
   "license": "MIT",
   "author": "m1nsook",
   "homepage": "https://github.com/m1nsook/paglora#readme",
-  "repository": { "type": "git", "url": "git+https://github.com/m1nsook/paglora.git", "directory": "packages/cli" },
-  "bugs": { "url": "https://github.com/m1nsook/paglora/issues" },
-  "keywords": ["paglora", "documentation", "docs", "cli", "static-site-generator", "markdown"],
-  "bin": { "paglora": "./bin/paglora.mjs" },
-  "files": ["bin", "README.md"],
-  "engines": { "node": ">=20" },
-  "publishConfig": { "access": "public" },
-  "scripts": { "test": "node --test ./test/*.test.mjs", "pack:check": "npm pack --dry-run" }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/m1nsook/paglora.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/m1nsook/paglora/issues"
+  },
+  "keywords": [
+    "paglora",
+    "documentation",
+    "docs",
+    "cli",
+    "markdown"
+  ],
+  "bin": {
+    "paglora": "./bin/paglora.mjs"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node --test ./test/*.test.mjs",
+    "pack:check": "npm pack --dry-run"
+  }
 }
