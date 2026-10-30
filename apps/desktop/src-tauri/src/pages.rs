@@ -259,7 +259,7 @@ mod tests {
         assert!(valid_navigation_group("API Reference"));
         assert!(!valid_navigation_group(""));
         assert!(!valid_navigation_group(" Leading"));
-        assert!(!valid_navigation_group("Bad\\nGroup"));
+        assert!(!valid_navigation_group("Bad\nGroup"));
         let updated = Page { nav_group: "Examples".into(), ..page };
         let json = serde_json::to_string(&updated).unwrap();
         assert!(json.contains(r#""navGroup":"Examples""#));
