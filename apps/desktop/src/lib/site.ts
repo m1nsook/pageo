@@ -2,10 +2,20 @@ import { invoke } from "@tauri-apps/api/core";
 import { marked } from "marked";
 import { listPages, loadPage } from "@/lib/pages";
 
+export type SiteLink = { label: string; url: string };
+
 export type SiteSettings = {
   title: string;
   description: string;
   footerText: string;
+  navigationPosition: "left" | "right" | "top";
+  headerAlignment: "left" | "center";
+  stickyHeader: boolean;
+  showFooter: boolean;
+  contentWidth: number;
+  logoUrl: string;
+  headerLinks: SiteLink[];
+  footerLinks: SiteLink[];
 };
 
 export const loadSiteSettings = (projectId: string) =>
@@ -94,11 +104,12 @@ export async function buildPublicSite(projectId: string): Promise<string> {
 /** Render a public page with the same sanitized markup as static export.
  * Unlike buildPublicSite, this writes no files to disk.
  */
-export async function previewPublicPage(projectId: string, pageId: string): Promise<string> {
+export async function previewPublicPage(projectId: string, pageId: string, settingsOverride?: SiteSettings): Promise<string> {
   const document = await loadPage(projectId, pageId);
   const html = await marked.parse(document.markdown);
   return invoke<string>("preview_site_page", {
     projectId,
     rendered: { id: pageId, html: renderSafeMarkdown(html) },
+    settingsOverride,
   });
 }
