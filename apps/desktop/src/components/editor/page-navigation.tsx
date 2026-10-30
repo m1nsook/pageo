@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { Fragment, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, FilePlus2, FileText, GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import type { Page } from "@/lib/pages";
 
-export type PageAction = "create" | "rename" | "duplicate" | "delete" | "reorder" | "visibility" | "layout";
+export type PageAction = "create" | "rename" | "duplicate" | "delete" | "reorder" | "visibility" | "layout" | "group";
 
 function PageTitleDialog({ open, setOpen, initial = "", mode, onSubmit }: {
   open: boolean; setOpen: (value: boolean) => void; initial?: string;
@@ -242,11 +242,18 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
           onPointerCancel={resetDrag}
         >
           {pages.map((page, index) => (
-            <PageRow key={page.id} page={page} selected={page.id === currentId} disabled={busy}
-              dragged={dragged === page.id} dropTarget={dropTarget === page.id}
-              canMoveUp={index > 1} canMoveDown={index > 0 && index < pages.length - 1}
-              onNavigate={() => onNavigate(page.id)} onAction={onAction}
-              onStartDrag={startDrag} onMove={movePage} />
+            <Fragment key={page.id}>
+              {(index === 0 || pages[index - 1].navGroup !== page.navGroup) && (
+                <p className="px-2 pb-1 pt-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground first:pt-1">
+                  {page.navGroup}
+                </p>
+              )}
+              <PageRow page={page} selected={page.id === currentId} disabled={busy}
+                dragged={dragged === page.id} dropTarget={dropTarget === page.id}
+                canMoveUp={index > 1} canMoveDown={index > 0 && index < pages.length - 1}
+                onNavigate={() => onNavigate(page.id)} onAction={onAction}
+                onStartDrag={startDrag} onMove={movePage} />
+            </Fragment>
           ))}
         </nav>
       </ScrollArea>

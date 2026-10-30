@@ -95,7 +95,7 @@ export function InlineSitePreview({
       .catch(cause => { if (active) { setError(describeError(cause)); setHtml(""); } })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [projectId, previewPageId, savedVersion, reload, page.layout, page.title, page.isPublic]);
+  }, [projectId, previewPageId, savedVersion, reload, page.layout, page.title, page.isPublic, page.navGroup, pages]);
 
   const refresh = useCallback(async () => {
     setBusy(true);

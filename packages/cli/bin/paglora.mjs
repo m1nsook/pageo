@@ -47,6 +47,9 @@ export function inspectProject(folder) {
     if (!existsSync(join(directory, "docs", `${page.id}.md`))) {
       throw new Error(`Missing docs/${page.id}.md`);
     }
+    if (page.navGroup !== undefined && (typeof page.navGroup !== "string" ||
+      !page.navGroup.trim() || page.navGroup !== page.navGroup.trim() ||
+      page.navGroup.length > 60)) throw new Error(`Invalid navigation group for ${page.id}.`);
     if (!["docs", "wide", "landing"].includes(page.layout)) {
       throw new Error(`Unsupported page layout for ${page.id}.`);
     }

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Page } from "@/lib/pages";
 import { canvasBlockName, type CanvasBlockSelection } from "@/lib/canvas-blocks";
 
-type ChangeAction = "rename" | "layout" | "visibility";
+type ChangeAction = "rename" | "layout" | "visibility" | "group";
 
 const layouts: { value: Page["layout"]; name: string; description: string }[] = [
   { value: "docs", name: "Docs", description: "Navigation and table of contents" },
@@ -35,6 +35,7 @@ export function PageInspector({
   onSaveText: (nextText: string) => boolean;
 }) {
   const [title, setTitle] = useState(page.title);
+  const [navGroup, setNavGroup] = useState(page.navGroup);
   const [textDraft, setTextDraft] = useState(selectedBlock?.text ?? "");
   const [textSaveError, setTextSaveError] = useState(false);
   useEffect(() => {
@@ -42,6 +43,7 @@ export function PageInspector({
     setTextSaveError(false);
   }, [selectedBlock?.pageId, selectedBlock?.index, selectedBlock?.text]);
   useEffect(() => setTitle(page.title), [page.id, page.title]);
+  useEffect(() => setNavGroup(page.navGroup), [page.id, page.navGroup]);
   const trimmed = title.trim();
   const dirty = trimmed !== page.title;
 
@@ -127,6 +129,22 @@ export function PageInspector({
           <p className="break-all font-mono text-[11px] text-muted-foreground">
             docs/{page.id}.md
           </p>
+        </div>
+        <Separator />
+        <div className="space-y-2">
+          <Label htmlFor="studio-nav-group">Navigation group</Label>
+          <form className="flex gap-2" onSubmit={event => {
+            event.preventDefault();
+            const value = navGroup.trim();
+            if (value && value !== page.navGroup && !busy) onChange("group", page.id, value);
+          }}>
+            <Input id="studio-nav-group" aria-label="Navigation group" maxLength={60}
+              value={navGroup} disabled={busy} placeholder="Documentation"
+              onChange={event => setNavGroup(event.target.value)} />
+            <Button type="submit" size="icon" variant="outline" aria-label="Save navigation group"
+              disabled={busy || !navGroup.trim() || navGroup.trim() === page.navGroup}><Save className="size-4" /></Button>
+          </form>
+          <p className="text-[11px] text-muted-foreground">Group this page under a heading in the published sidebar.</p>
         </div>
         <Separator />
         <div className="space-y-3">
