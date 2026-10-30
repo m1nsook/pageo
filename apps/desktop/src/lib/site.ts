@@ -37,9 +37,9 @@ const allowed = new Set([
 
 function safeLink(raw: string): string | null {
   const link = raw.trim();
-  if (/^(https?:\/\/|mailto:)/i.test(link) || /^#[a-z\d_-]+$/i.test(link)) return link;
+  if (/^(https?:\/\/|mailto:)/i.test(link) || /^#[\p{L}\p{N}_-]+$/u.test(link)) return link;
   // Link to a published Paglora page. Do not export filesystem paths or JS URLs.
-  const page = /^(\.\/)?([a-z\d-]+)(?:\.(?:md|html))?(#[a-z\d_-]+)?$/i.exec(link);
+  const page = /^(\.\/)?([a-z\d-]+)(?:\.(?:md|html))?(#[\p{L}\p{N}_-]+)?$/u.exec(link);
   if (page) {
     // Extensionless Markdown links must resolve to generated .html files too.
     return `${page[1] ?? ""}${page[2]}.html${page[3] ?? ""}`;
@@ -157,17 +157,18 @@ function renderPageContent(markdownHtml: string): { html: string; toc: TocHeadin
   enhanceCallouts(container);
   const seen = new Set<string>();
   const toc: TocHeading[] = [];
-  for (const heading of Array.from(container.querySelectorAll("h2, h3"))) {
+  for (const heading of Array.from(container.querySelectorAll("h2, h3, h4"))) {
     const title = (heading.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 160);
     if (!title) continue;
-    const slug = title.toLowerCase().normalize("NFKD")
-      .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")
+    const slug = title.toLowerCase().normalize("NFKC")
+      .replace(/[^\p{L}\p{N}]+/gu, "-")
       .replace(/^-+|-+$/g, "") || "section";
     let id = slug;
     for (let n = 2; seen.has(id); n += 1) id = `${slug}-${n}`;
     seen.add(id);
     heading.setAttribute("id", id);
-    toc.push({ id, title, level: heading.tagName === "H2" ? 2 : 3 });
+    // h4 gets a permalink without crowding the two-level table of contents.
+    if (heading.tagName !== "H4") toc.push({ id, title, level: heading.tagName === "H2" ? 2 : 3 });
   }
   // The index contains plain text extracted AFTER HTML sanitization.
   // Private documents are never passed to build_site by buildPublicSite.
