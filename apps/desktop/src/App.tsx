@@ -18,6 +18,7 @@ import { BlockPalette } from "@/components/editor/block-palette";
 import { SiteBuilder } from "@/components/editor/site-builder";
 import { SitePreview } from "@/components/editor/site-preview";
 import { SiteDesigner } from "@/components/editor/site-designer";
+import { ThemeSourceEditor } from "@/components/editor/theme-source-editor";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { createProject, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
@@ -150,6 +151,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block"/>
           <Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} title={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button>
           <Button variant="outline" size="sm" onClick={() => setPreview(!preview)}><WandSparkles />{preview ? "Edit" : "Preview"}</Button>
+          <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.id} onBeforePreview={persist} />
           <SiteDesigner projectId={document.project.id} onBeforePreview={persist} />
           <SitePreview projectId={document.project.id} onBeforePreview={persist} />
           <SiteBuilder projectId={document.project.id} onBeforeBuild={persist} />
