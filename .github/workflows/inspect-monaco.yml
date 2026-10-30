@@ -1,4 +1,4 @@
-name: TEMP — inspect installed Monaco worker paths
+name: TEMP — inspect Monaco exports and resolution
 
 on:
   push:
@@ -17,14 +17,13 @@ jobs:
         with:
           bun-version: "1.4.0"
       - run: bun install --frozen-lockfile
-      - name: Inspect actual Monaco npm package layout
+      - name: Print Monaco package exports and resolution
         shell: bash
         run: |
-          set -eux
-          pwd
+          set -eu
           ROOT=$(realpath apps/desktop/node_modules/monaco-editor)
           echo "MONACO_ROOT=$ROOT"
-          ls -la "$ROOT"
-          find "$ROOT" -maxdepth 8 -iname '*worker*' -type f | head -80
-          find "$ROOT/esm/vs" -maxdepth 4 -type f | head -60
-          cat "$ROOT/package.json"
+          node -e 'const p=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); console.log(JSON.stringify({exports:p.exports,module:p.module,main:p.main,version:p.version,type:p.type},null,2))' "$ROOT/package.json"
+          ls -l "$ROOT/esm/vs/editor/editor.worker.js" "$ROOT/esm/vs/language/css/css.worker.js"
+          cd apps/desktop
+          node --input-type=module -e 'for(const p of ["monaco-editor","monaco-editor/esm/vs/editor/editor.worker.js","monaco-editor/esm/vs/language/css/css.worker.js"]){try{console.log("RESOLVED",p,import.meta.resolve(p))}catch(e){console.log("RESOLUTION ERROR",p,e.message)}}'
