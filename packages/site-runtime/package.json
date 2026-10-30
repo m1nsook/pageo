@@ -1,0 +1,10 @@
+{
+  "name": "@paglora/site-runtime",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Progressive enhancements bundled with static Paglora exports",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}
