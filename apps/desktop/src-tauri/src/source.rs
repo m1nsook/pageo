@@ -3,7 +3,6 @@ use tauri::{AppHandle, Manager};
 
 /// A local project controls its own site CSS; no system-wide stylesheet is edited.
 /// Intentionally keep the legacy project manifest and Tauri identifier unchanged.
-const THEME_FILE: &str = "theme/custom.css";
 const MAX_CSS_BYTES: usize = 256_000;
 
 pub const STARTER_CSS: &str = "/* Paglora project theme.
