@@ -4,7 +4,7 @@ import { validateProjectName } from "@paglora/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
-import { ArrowLeft, BookOpen, Check, LoaderCircle, PanelRightClose, PanelRightOpen, Plus, WandSparkles } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, Columns2, LoaderCircle, Monitor, PanelRightClose, PanelRightOpen, PencilLine, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,6 +19,7 @@ import { SiteBuilder } from "@/components/editor/site-builder";
 import { SitePreview } from "@/components/editor/site-preview";
 import { SiteDesigner } from "@/components/editor/site-designer";
 import { ThemeSourceEditor } from "@/components/editor/theme-source-editor";
+import { InlineSitePreview } from "@/components/editor/inline-site-preview";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { createProject, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
@@ -70,7 +71,9 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   const revision = useRef(0);
   const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving" | "error">("saved");
   const [saveError, setSaveError] = useState("");
-  const [preview, setPreview] = useState(false);
+  const [viewMode, setViewMode] = useState<"edit" | "split" | "site">("edit");
+  const [switchingView, setSwitchingView] = useState(false);
+  const [siteRevision, setSiteRevision] = useState(0);
   const [showBlockTools, setShowBlockTools] = useState(true);
   const [leaving, setLeaving] = useState(false);
 
@@ -84,6 +87,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     try {
       const updated = await run;
       onSaved(updated);
+      setSiteRevision(value => value + 1);
       if (capturedRevision === revision.current) { setSaveState("saved"); setSaveError(""); }
     } catch (error) {
       setSaveState("error"); setSaveError(friendlyError(error));
@@ -118,7 +122,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     return () => window.removeEventListener("keydown", saveShortcut);
   }, [persist]);
 
-  useEffect(() => { editor?.setEditable(!preview); }, [editor, preview]);
+  useEffect(() => { editor?.setEditable(viewMode !== "site"); }, [editor, viewMode]);
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   async function runAfterSave(action: () => Promise<void>) {
@@ -127,6 +131,22 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     try { await persist(); await action(); }
     catch (cause) { setSaveState("error"); setSaveError(friendlyError(cause)); }
     finally { setLeaving(false); }
+  }
+  async function selectView(next: "edit" | "split" | "site") {
+    if (next === viewMode || leaving || switchingView) return;
+    if (next === "edit") { setViewMode(next); return; }
+    setSwitchingView(true);
+    try {
+      // Before revealing the public site, flush the Markdown save queue.
+      // Later autosaves cause a fresh preview without replacing the editor.
+      await persist();
+      setViewMode(next);
+    } catch (cause) {
+      setSaveState("error");
+      setSaveError(friendlyError(cause));
+    } finally {
+      setSwitchingView(false);
+    }
   }
   async function back() { await runAfterSave(async () => onBack()); }
   const modify = (action: PageAction, id?: string, target?: string) => {
@@ -149,8 +169,12 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
             {saveState === "saving" ? "Saving" : saveState === "saved" ? "Saved locally" : saveState === "error" ? "Save failed" : "Unsaved"}
           </Badge>
           <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block"/>
-          <Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} title={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button>
-          <Button variant="outline" size="sm" onClick={() => setPreview(!preview)}><WandSparkles />{preview ? "Edit" : "Preview"}</Button>
+          {viewMode === "edit" && <Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} title={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button>}
+          <div role="group" aria-label="Editor view" className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
+            <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "edit" ? "secondary" : "ghost"} aria-pressed={viewMode === "edit"} onClick={() => void selectView("edit")} className="gap-1.5 px-2.5"><PencilLine />Edit</Button>
+            <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "split" ? "secondary" : "ghost"} aria-pressed={viewMode === "split"} onClick={() => void selectView("split")} className="gap-1.5 px-2.5"><Columns2 />Split</Button>
+            <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "site" ? "secondary" : "ghost"} aria-pressed={viewMode === "site"} onClick={() => void selectView("site")} className="gap-1.5 px-2.5"><Monitor />Site</Button>
+          </div>
           <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"} onBeforePreview={persist} />
           <SiteDesigner projectId={document.project.id} onBeforePreview={persist} />
           <SitePreview projectId={document.project.id} onBeforePreview={persist} />
@@ -161,9 +185,10 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
         <PageNavigation pages={pages} currentId={current.page.id} busy={leaving}
           onNavigate={(id) => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }}
           onAction={modify}/>
-        <section className="min-w-0 flex-1 overflow-y-auto" aria-label="Documentation editor">
-          {!preview && <FormatToolbar editor={editor} />}
-          <div data-editor-drop-zone className="mx-auto min-h-[calc(100%-3rem)] max-w-3xl animate-in fade-in-0 px-7 py-9 duration-200 lg:px-12 lg:py-12">
+        <div className={viewMode === "site" ? "hidden" : viewMode === "split" ? "flex min-h-0 min-w-0 flex-1 flex-col border-r border-border xl:w-1/2" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
+        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto" aria-label="Documentation editor">
+          <FormatToolbar editor={editor} />
+          <div data-editor-drop-zone className="mx-auto min-h-[calc(100%-3rem)] max-w-3xl animate-in fade-in-0 px-6 py-9 duration-200 lg:px-10 lg:py-12">
             {saveError && <p role="alert" className="mb-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">Couldn't save: {saveError}. Check disk permissions before leaving.</p>}
             <div onKeyDown={(event) => {
               // ProseMirror handles Ctrl/Cmd+B inside the editor. Keep it from
@@ -177,7 +202,18 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
             </div>
           </div>
         </section>
-        {showBlockTools && !preview && <BlockPalette editor={editor} disabled={leaving} />}
+        </div>
+        {viewMode !== "edit" && <InlineSitePreview
+          projectId={document.project.id}
+          page={current.page}
+          pages={pages}
+          savedVersion={siteRevision}
+          onBeforeRefresh={persist}
+          onNavigate={(pageId) => {
+            if (pageId !== current.page.id) void runAfterSave(() => onChange(pageId));
+          }}
+        />}
+        {showBlockTools && viewMode === "edit" && <BlockPalette editor={editor} disabled={leaving} />}
       </div>
     </main>
   );
