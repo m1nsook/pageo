@@ -293,10 +293,17 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
     let page = pages.iter().find(|p| p.id == rendered.id && p.is_public)
         .ok_or("Page is private or not in this project")?;
     if rendered.html.len() > 15_000_000 { return Err("Page HTML is too large".into()); }
+    let theme = crate::source::site_css(&dir)?;
     let doc = render_site_page(&settings, &pages, page, &rendered.html);
+    // CSS is user-authored project source. Embed in this script-disabled iframe
+    // without letting a literal closing style tag break out of the CSS element.
+    let override_css = theme.map(|css| {
+        let escaped = css.replace('<', "\\3c ");
+        format!("<style>{escaped}</style>")
+    }).unwrap_or_default();
     Ok(doc.replace(
         "<link rel=\"stylesheet\" href=\"styles.css\">",
-        &format!("<style>{SITE_CSS}</style>"),
+        &format!("<style>{SITE_CSS}</style>{override_css}"),
     ))
 }
 
@@ -306,6 +313,7 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
     let settings = read_settings(&dir, &project_name)?;
     validate_settings(&settings)?;
     let pages = read_pages(&dir)?;
+    let theme = crate::source::site_css(&dir)?;
     let public_pages: Vec<_> = pages.iter().filter(|p| p.is_public).collect();
     let expected: HashSet<_> = public_pages.iter().map(|p| p.id.as_str()).collect();
     if rendered.len() != public_pages.len() { return Err("Public page count changed. Build again".into()); }
@@ -325,9 +333,15 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
     fs::create_dir(&staged).map_err(|e| e.to_string())?;
     let write_result = (|| -> Result<(), String> {
         fs::write(staged.join("styles.css"), SITE_CSS).map_err(|e| e.to_string())?;
+        if let Some(css) = &theme {
+            fs::write(staged.join("custom.css"), css).map_err(|e| e.to_string())?;
+        }
         for page in &public_pages {
             let html = html_by_id.get(page.id.as_str()).ok_or("Missing public page")?;
-            let output = render_site_page(&settings, &pages, page, html);
+            let mut output = render_site_page(&settings, &pages, page, html);
+            if theme.is_some() {
+                output = output.replace("</head>", "<link rel=\"stylesheet\" href=\"custom.css\">\n</head>");
+            }
             fs::write(staged.join(filename(&page.id)), output).map_err(|e| e.to_string())?;
         }
         Ok(())
