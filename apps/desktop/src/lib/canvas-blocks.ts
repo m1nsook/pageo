@@ -42,12 +42,10 @@ export function findCanvasSourcePosition(
     if (normalize(node.textContent) !== selection.text) return;
     candidates.push({ position: offset + 1, index });
   });
-  const indexed = candidates.find(item => item.index === selection.index);
-  if (indexed) return indexed.position;
-
-  // Only accept fallback matching when it is unambiguous. Duplicate headings
-  // or paragraphs should never silently focus the wrong source block.
-  return candidates.length === 1 ? candidates[0].position : null;
+  // Duplicate rendered headings/paragraphs are indistinguishable without
+  // stable per-block source IDs. Never target any of them automatically.
+  if (candidates.length !== 1) return null;
+  return candidates[0].position;
 }
 
 export function canvasBlockName(tagName: string): string {
