@@ -205,9 +205,23 @@ import MiniSearch from "minisearch";
   }
 
   async function retry() {
-    results.replaceChildren(element("p", "paglora-search-status", "Loading search index…"));
+    // Keep the focused Retry control in the DOM while the request is pending.
+    // Removing it immediately drops keyboard focus outside the modal.
+    const retryButton = results.querySelectorAll(".paglora-search-retry")[0];
+    const restoreFocus = document.activeElement === retryButton;
+    if (retryButton) {
+      retryButton.disabled = true;
+      retryButton.setAttribute("aria-busy", "true");
+      retryButton.textContent = "Retrying search…";
+    }
     try { await load(); } catch { /* render a retryable error */ }
-    if (shell && !shell.hidden) render();
+    if (shell && !shell.hidden) {
+      render();
+      if (restoreFocus) {
+        // A failed retry creates a new button; success returns to the query.
+        (results.querySelectorAll(".paglora-search-retry")[0] ?? input).focus();
+      }
+    }
   }
 
   function render() {
