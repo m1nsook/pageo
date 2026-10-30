@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import type { Page } from "@/lib/pages";
 import { canvasBlockName, type CanvasBlockSelection } from "@/lib/canvas-blocks";
 
@@ -21,6 +22,7 @@ const layouts: { value: Page["layout"]; name: string; description: string }[] = 
  */
 export function PageInspector({
   page, busy, onChange, onEditContent, selectedBlock, onEditBlock, onClearBlock,
+  allowTextEdit, onSaveText,
 }: {
   page: Page;
   busy: boolean;
@@ -29,8 +31,16 @@ export function PageInspector({
   selectedBlock: CanvasBlockSelection | null;
   onEditBlock: () => void;
   onClearBlock: () => void;
+  allowTextEdit: boolean;
+  onSaveText: (nextText: string) => boolean;
 }) {
   const [title, setTitle] = useState(page.title);
+  const [textDraft, setTextDraft] = useState(selectedBlock?.text ?? "");
+  const [textSaveError, setTextSaveError] = useState(false);
+  useEffect(() => {
+    setTextDraft(selectedBlock?.text ?? "");
+    setTextSaveError(false);
+  }, [selectedBlock?.pageId, selectedBlock?.index, selectedBlock?.text]);
   useEffect(() => setTitle(page.title), [page.id, page.title]);
   const trimmed = title.trim();
   const dirty = trimmed !== page.title;
@@ -63,6 +73,30 @@ export function PageInspector({
               <p className="line-clamp-4 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                 {selectedBlock.text || "Empty block"}
               </p>
+              {allowTextEdit && (
+                <form className="space-y-2" onSubmit={(event) => {
+                  event.preventDefault();
+                  setTextSaveError(!onSaveText(textDraft));
+                }}>
+                  <Label htmlFor="canvas-block-text">Text</Label>
+                  <Textarea id="canvas-block-text" aria-label="Edit selected block text"
+                    value={textDraft} maxLength={3000} rows={4}
+                    disabled={busy} onChange={event => {
+                      setTextDraft(event.target.value.replace(/[\r\n]+/g, " "));
+                      setTextSaveError(false);
+                    }} />
+                  <Button type="submit" size="sm" className="w-full"
+                    disabled={busy || !textDraft.trim() || textDraft === selectedBlock.text}>
+                    <Save className="size-3.5" /> Apply text to page
+                  </Button>
+                  {textSaveError && <p role="alert" className="text-xs text-destructive">
+                    The source changed or cannot be matched safely. Open Edit instead.
+                  </p>}
+                  <p className="text-[11px] text-muted-foreground">
+                    Plain text only. For links, rich formatting or multiple paragraphs, use Edit.
+                  </p>
+                </form>
+              )}
               <Button className="w-full" onClick={onEditBlock} disabled={busy}>
                 <FilePenLine className="size-4" /> Edit selected block
               </Button>

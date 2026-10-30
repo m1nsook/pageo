@@ -60,3 +60,36 @@ export function canvasBlockName(tagName: string): string {
 export function normalizeCanvasText(value: string): string {
   return normalize(value);
 }
+
+/** Only plain, unformatted text in a heading or paragraph can be edited from
+ * the inspector. Links, inline code, emphasis, images, nested structures and
+ * ambiguous matches are deliberately excluded to protect the original source.
+ */
+export function editableCanvasText(editor: Editor, selection: CanvasBlockSelection): boolean {
+  if (selection.tagName !== "p" && !/^h[1-6]$/.test(selection.tagName)) return false;
+  const position = findCanvasSourcePosition(editor, selection);
+  if (position === null) return false;
+  const node = editor.state.doc.nodeAt(position - 1);
+  if (!node || node.content.childCount !== 1 || !node.firstChild?.isText ||
+      node.firstChild.marks.length !== 0) return false;
+  return normalize(node.textContent) === selection.text;
+}
+
+export function replacePlainCanvasText(
+  editor: Editor, selection: CanvasBlockSelection, replacement: string,
+): boolean {
+  if (replacement.length > 3000 || replacement.includes("\n") ||
+      replacement.includes("\r") || replacement.trim().length === 0 ||
+      !editableCanvasText(editor, selection)) return false;
+  const position = findCanvasSourcePosition(editor, selection);
+  if (position === null) return false;
+  const node = editor.state.doc.nodeAt(position - 1);
+  if (!node) return false;
+  if (node.textContent === replacement) return true;
+  // Replace ONLY the text contents of the verified source node, preserving
+  // the block type, heading level and surrounding document.
+  editor.view.dispatch(editor.state.tr.insertText(
+    replacement, position, position + node.nodeSize - 2,
+  ));
+  return true;
+}

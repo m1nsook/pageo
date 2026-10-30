@@ -20,7 +20,7 @@ import { SitePreview } from "@/components/editor/site-preview";
 import { SiteDesigner } from "@/components/editor/site-designer";
 import { ThemeSourceEditor } from "@/components/editor/theme-source-editor";
 import { InlineSitePreview } from "@/components/editor/inline-site-preview";
-import { findCanvasSourcePosition, type CanvasBlockSelection } from "@/lib/canvas-blocks";
+import { editableCanvasText, findCanvasSourcePosition, replacePlainCanvasText, type CanvasBlockSelection } from "@/lib/canvas-blocks";
 import { PageInspector } from "@/components/editor/page-inspector";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
@@ -245,6 +245,13 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
         />}
         {viewMode === "site" && showInspector && <PageInspector page={current.page} busy={leaving || switchingView}
           selectedBlock={selectedBlock}
+          allowTextEdit={Boolean(editor && selectedBlock && selectedBlock.pageId === current.page.id && editableCanvasText(editor, selectedBlock))}
+          onSaveText={(nextText) => {
+            if (!selectedBlock || selectedBlock.pageId !== current.page.id || !editor || leaving || switchingView) return false;
+            if (!replacePlainCanvasText(editor, selectedBlock, nextText)) return false;
+            setSelectedBlock(null);
+            return true;
+          }}
           onEditBlock={() => { if (selectedBlock) editCanvasBlock(selectedBlock); }}
           onClearBlock={() => setSelectedBlock(null)}
           onChange={(action, id, value) => modify(action, id, value)}
