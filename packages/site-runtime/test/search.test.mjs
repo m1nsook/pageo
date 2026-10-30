@@ -37,8 +37,8 @@ function fixture(pages, { responseOk = true, waitForIndex = false, failFirstFetc
       appendChild(item) { this.children.push(item); },
       replaceChildren(...items) { this.children = [...items]; },
       querySelectorAll(query) {
-        return query === ".paglora-search-result"
-          ? this.children.filter(item => item.className === "paglora-search-result")
+        return query === ".paglora-search-result, .paglora-search-retry"
+          ? this.children.filter(item => ["paglora-search-result", "paglora-search-retry"].includes(item.className))
           : [];
       },
       focus() { document.activeElement = this; },
@@ -250,4 +250,19 @@ test("a failed search-index fetch can be retried without closing the dialog", as
   input.value = "Paglora";
   input.events.input();
   assert.equal(results.children[0].href, "guide.html");
+});
+
+
+test("failed index retry stays inside the dialog keyboard focus trap", async () => {
+  const app = fixture([], { responseOk: false });
+  const { backdrop, input, results } = await app.open();
+  const retry = results.children[1];
+  assert.equal(retry.className, "paglora-search-retry");
+  let prevented = 0;
+  input.focus();
+  backdrop.events.keydown({ key: "Tab", shiftKey: true, preventDefault() { prevented++; } });
+  assert.equal(app.document.activeElement, retry);
+  backdrop.events.keydown({ key: "Tab", shiftKey: false, preventDefault() { prevented++; } });
+  assert.equal(app.document.activeElement, input);
+  assert.equal(prevented, 2);
 });
