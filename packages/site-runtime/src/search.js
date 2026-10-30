@@ -1,3 +1,5 @@
+import MiniSearch from "minisearch";
+
 /*
  * Paglora static site search. No framework, server endpoint, or unsafe HTML.
  * Inspired by the Ctrl+K local search experience in VitePress (MIT).
@@ -23,6 +25,7 @@
   let closeButton;
   let previousFocus;
   let loaded = null;
+  let engine = null;
   let pending = null;
   let loadError = false;
   let selected = 0;
@@ -114,6 +117,9 @@
     return String(value ?? "").toLocaleLowerCase().normalize("NFKC");
   }
 
+  // Keep programming-language tokens such as C++ and C# intact.
+  const tokenize = value => normalize(value).split(/[\s.,;:!?()[\]{}\/\\]+/u).filter(Boolean);
+
   async function load() {
     if (loaded) return loaded;
     if (!pending) {
@@ -127,17 +133,21 @@
         .then(data => {
           if (!data || data.version !== 1 || !Array.isArray(data.pages)) throw new Error("Invalid search index");
           const seenUrls = new Set();
-          loaded = data.pages.slice(0, 500).filter(page => {
+          loaded = data.pages.filter(page => {
             if (!page || typeof page.title !== "string" || page.title.length > 200 ||
                 typeof page.text !== "string" || page.text.length > 30_000 ||
                 typeof page.url !== "string" || !/^[a-z0-9-]+\.html$/.test(page.url) ||
                 seenUrls.has(page.url)) return false;
             seenUrls.add(page.url);
             return true;
-          }).map(page => ({
+          }).slice(0, 500).map(page => ({
             title: page.title, text: page.text.normalize("NFKC"), url: page.url,
             titleSearch: normalize(page.title), bodySearch: normalize(page.text),
           }));
+          engine = new MiniSearch({
+            idField: "url", fields: ["titleSearch", "bodySearch"], tokenize,
+          });
+          engine.addAll(loaded);
           return loaded;
         }).catch(error => { pending = null; loadError = true; throw error; });
     }
@@ -145,36 +155,41 @@
   }
 
   function find(query) {
-    // Search terms from pasted sentences or punctuation-separated phrases.
-    // Keep +, # and - intact for common documentation terms such as C++ and C#.
-    const terms = [...new Set(normalize(query).trim().split(/[\s.,;:!?()[\]{}\/\\]+/u).filter(Boolean))].slice(0, 8);
+    // MiniSearch indexes only the sanitized, local public-page JSON.
+    // Limit query work and preserve punctuation in programming-language terms.
+    const terms = [...new Set(tokenize(query.slice(0, 200)))].slice(0, 8);
     const phrase = terms.join(" ");
-    if (!terms.length || !loaded) return [];
-    const matches = [];
-    for (const page of loaded) {
-      let score = 0;
-      let firstTextMatch = -1;
-      for (const word of terms) {
-        const titleAt = page.titleSearch.indexOf(word);
-        const bodyAt = page.bodySearch.indexOf(word);
-        if (titleAt < 0 && bodyAt < 0) { score = 0; break; }
-        if (titleAt >= 0) score += titleAt === 0 ? 12 : 8;
-        if (bodyAt >= 0) {
-          score += 2;
-          if (firstTextMatch < 0) firstTextMatch = bodyAt;
+    if (!terms.length || !loaded || !engine) return [];
+    const options = { combineWith: "AND", prefix: true, boost: { titleSearch: 5 } };
+    let hits = engine.search(phrase, options);
+    // Typo tolerance is a fallback, never a reason to demote exact matches.
+    // Avoid fuzzy matching short technical identifiers (C++, C#, etc.).
+    if (!hits.length && terms.every(term => term.length >= 5 && /^[a-z]+$/u.test(term))) {
+      hits = engine.search(phrase, { ...options, fuzzy: 0.2 });
+    }
+    const matches = hits.map(hit => {
+      const page = loaded.find(item => item.url === hit.id);
+      if (!page) return null;
+      return { page, score: hit.score };
+    }).filter(Boolean);
+    // MiniSearch tokenization is word-based; retain substring discovery for
+    // CJK writing systems that often have no spaces between words.
+    if (!matches.length && /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/u.test(phrase)) {
+      for (const page of loaded) {
+        if (terms.every(term => page.titleSearch.includes(term) || page.bodySearch.includes(term))) {
+          matches.push({ page, score: 1 });
         }
       }
-      if (score) {
-        // A direct title/phrase hit should outrank scattered mentions.
-        if (page.titleSearch === phrase) score += 30;
-        else if (page.titleSearch.startsWith(phrase)) score += 16;
-        if (page.bodySearch.includes(phrase)) score += 5;
-        const start = Math.max(0, (firstTextMatch < 0 ? 0 : firstTextMatch) - 64);
-        const snippet = page.text.slice(start, start + 200).trim();
-        matches.push({ title: page.title, url: page.url, snippet, score });
-      }
     }
-    return matches.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, 8);
+    return matches.map(({ page, score }) => {
+      if (page.titleSearch === phrase) score += 100;
+      else if (page.titleSearch.startsWith(phrase)) score += 40;
+      if (page.bodySearch.includes(phrase)) score += 10;
+      const positions = terms.map(term => page.bodySearch.indexOf(term)).filter(index => index >= 0);
+      const start = Math.max(0, (positions.length ? Math.min(...positions) : 0) - 64);
+      return { title: page.title, url: page.url,
+        snippet: page.text.slice(start, start + 200).trim(), score };
+    }).sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, 8);
   }
 
   function updateSelected() {

@@ -17,3 +17,7 @@ Some interaction patterns were informed by VitePress, but its Vue components and
 - Status: **not bundled as of this change**. The current Paglora search implementation is original, using native text matching.
 
 **Distribution rule:** when copying third-party MIT-licensed implementation code or bundling a third-party package, include its exact upstream license and copyright notice in the generated website package. Do not imply that a project is bundled just because its design informed a feature. Add a CI check for the actual bundled licenses as part of the dependency integration PR.
+
+## MiniSearch 7.2.0
+
+Copyright 2022 Luca Ongaro. MIT license. The full copyright and permission notice is distributed with generated sites as `licenses/MiniSearch-MIT.txt` and in the repository at `packages/site-runtime/MINISEARCH-LICENSE.txt`. MiniSearch is bundled locally into the minified browser search runtime; no external CDN is used.

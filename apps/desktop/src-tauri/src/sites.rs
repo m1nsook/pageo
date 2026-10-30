@@ -707,6 +707,11 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
         for asset in SITE_RUNTIME_ASSETS {
             fs::write(staged.join(asset.filename), asset.source).map_err(|e| e.to_string())?;
         }
+        // Preserve MiniSearch MIT attribution in every exported website.
+        fs::create_dir(staged.join("licenses")).map_err(|e| e.to_string())?;
+        fs::write(staged.join("licenses/MiniSearch-MIT.txt"),
+            include_str!("../../../../packages/site-runtime/MINISEARCH-LICENSE.txt"))
+            .map_err(|e| e.to_string())?;
         // Bundle the default Geist font; optional hosted Google Fonts remain supported.
         fs::create_dir(staged.join("fonts")).map_err(|e| e.to_string())?;
         fs::write(staged.join("fonts/geist-latin.woff2"), include_bytes!("../assets/geist-latin.woff2"))
