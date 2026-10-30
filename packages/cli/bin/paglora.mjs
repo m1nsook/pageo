@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,6 +11,38 @@ function readJson(file) {
     return JSON.parse(readFileSync(file, "utf8"));
   } catch (error) {
     throw new Error(`Could not read ${file}: ${error.message}`);
+  }
+}
+
+/** Create a standalone Paglora project in a fresh folder.
+ * The target must not exist, so this command never overwrites user files.
+ */
+export function initProject(folder, name = basename(resolve(folder))) {
+  const directory = resolve(folder);
+  const id = basename(directory);
+  const projectName = name.trim();
+  if (!ID.test(id)) throw new Error("Project folder must be a lowercase slug (1–80 letters, digits or hyphens).");
+  if (!projectName || [...projectName].length > 80 || /[\x00-\x1f\x7f]/.test(projectName)) {
+    throw new Error("Project name must be 1–80 characters without control characters.");
+  }
+  if (existsSync(directory)) throw new Error("Project directory already exists. Choose a new directory.");
+  mkdirSync(directory);
+  try {
+    const seconds = Math.floor(Date.now() / 1000);
+    const metadata = { formatVersion: 1, id, name: projectName, createdAt: seconds, updatedAt: seconds };
+    const manifest = { formatVersion: 1, pages: [
+      { id: "index", title: "Overview", isPublic: true, layout: "docs", navGroup: "Documentation" },
+    ] };
+    mkdirSync(join(directory, "docs"));
+    mkdirSync(join(directory, "theme"));
+    writeFileSync(join(directory, "paglora.json"), JSON.stringify(metadata, null, 2) + "\n", { flag: "wx" });
+    writeFileSync(join(directory, "pages.json"), JSON.stringify(manifest, null, 2) + "\n", { flag: "wx" });
+    writeFileSync(join(directory, "docs", "index.md"), "# " + projectName + "\n\nWelcome to your documentation. Start writing here.\n", { flag: "wx" });
+    writeFileSync(join(directory, "theme", "custom.css"), "/* Paglora project theme. Override site styles here. */\n", { flag: "wx" });
+    return inspectProject(directory);
+  } catch (error) {
+    rmSync(directory, { recursive: true, force: true });
+    throw error;
   }
 }
 
@@ -66,7 +98,7 @@ export function inspectProject(folder) {
     folder: directory,
     pageCount: pages.length,
     publicCount: pages.filter(page => page.isPublic).length,
-    pages: pages.map(page => ({ id: page.id, title: page.title, isPublic: page.isPublic })),
+    pages: pages.map(page => ({ id: page.id, title: page.title, isPublic: page.isPublic, layout: page.layout, navGroup: page.navGroup ?? "Documentation" })),
     siteTitle: site?.title ?? config.name,
   };
 }
@@ -74,6 +106,7 @@ export function inspectProject(folder) {
 const HELP = `Paglora CLI (early alpha)
 
 Usage:
+  paglora init <new-folder> [--name "My Docs"]  Create a Paglora project
   paglora inspect <project-folder> [--json]  Show project and page details
   paglora validate <project-folder>         Check local project structure
   paglora --version                         Print CLI version
@@ -93,6 +126,23 @@ export function run(args, output = process.stdout, errors = process.stderr) {
     output.write(pkg.version + "\n");
     return 0;
   }
+  if (command === "init") {
+    const folder = rest.find(value => !value.startsWith("--"));
+    const nameIndex = rest.indexOf("--name");
+    const name = nameIndex >= 0 ? rest[nameIndex + 1] : undefined;
+    if (!folder || (nameIndex >= 0 && (!name || name.startsWith("--")))) {
+      errors.write('Usage: paglora init <new-folder> [--name "My Docs"]\n');
+      return 1;
+    }
+    try {
+      const details = initProject(folder, name);
+      output.write("Created Paglora project: " + details.name + "\nDirectory: " + details.folder + "\n");
+      return 0;
+    } catch (error) {
+      errors.write("Paglora: " + error.message + "\n");
+      return 1;
+    }
+  }
   if (command !== "inspect" && command !== "validate") {
     errors.write(`Unknown command: ${command}\n\n${HELP}`);
     return 1;
@@ -110,7 +160,7 @@ export function run(args, output = process.stdout, errors = process.stderr) {
     else {
       output.write(`Documentation project: ${details.name}\nDirectory: ${details.folder}\nWebsite: ${details.siteTitle}\nPages: ${details.pageCount} (${details.publicCount} public)\n`);
       for (const page of details.pages) {
-        output.write(`  ${page.isPublic ? "[public] " : "[private]"} ${page.title} (${page.id}.md)\n`);
+        output.write(`  ${page.isPublic ? "[public] " : "[private]"} ${page.title} (${page.id}.md) · ${page.navGroup} · ${page.layout}\n`);
       }
     }
     return 0;
