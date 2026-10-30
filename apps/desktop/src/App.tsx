@@ -151,7 +151,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block"/>
           <Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} title={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button>
           <Button variant="outline" size="sm" onClick={() => setPreview(!preview)}><WandSparkles />{preview ? "Edit" : "Preview"}</Button>
-          <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.id} onBeforePreview={persist} />
+          <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"} onBeforePreview={persist} />
           <SiteDesigner projectId={document.project.id} onBeforePreview={persist} />
           <SitePreview projectId={document.project.id} onBeforePreview={persist} />
           <SiteBuilder projectId={document.project.id} onBeforeBuild={persist} />
