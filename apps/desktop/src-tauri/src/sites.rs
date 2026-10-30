@@ -26,7 +26,33 @@ a{color:inherit}a:hover{color:#52525b}a:focus-visible{outline:2px solid var(--br
 .site-footer{border-top:1px solid var(--line);background:#fafafa}.site-footer-inner{max-width:1320px;margin:auto;padding:25px 28px;font-size:12px;color:var(--muted)}
 @media(max-width:800px){.top-bar{height:60px;padding:0 18px}.site-body{display:block}.site-nav{border-right:0;border-bottom:1px solid var(--line);padding:16px 18px;display:flex;overflow-x:auto;white-space:nowrap;gap:3px;align-items:center}.site-nav h2{display:none}.site-nav a{display:inline-block;margin:0}.site-main{padding:35px 22px 64px}.docs h1{font-size:2.1em}.site-footer-inner{padding:22px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+/* Configurable layout options are shared by preview and static export. */
+.site-header.not-sticky{position:static}.site-header.header-center .top-bar{justify-content:center;flex-wrap:wrap;height:auto;min-height:68px;padding-block:14px}
+.brand-wrap{display:flex;align-items:center;gap:10px;min-width:0}.brand-logo{height:32px;max-width:130px;object-fit:contain}
+.header-links{display:flex;align-items:center;gap:18px;flex-wrap:wrap}.header-links a{font-size:13px;color:var(--muted);text-decoration:none;white-space:nowrap}
+.header-links a:hover{color:var(--fg)}
+.site-body.nav-right{grid-template-columns:minmax(0,1fr) 258px}
+.site-body.nav-right .site-nav{grid-column:2;grid-row:1;border-left:1px solid var(--line);border-right:0}
+.site-body.nav-right .site-main{grid-column:1;grid-row:1}
+.site-body.nav-top{display:block}.site-body.nav-top .site-nav{border-right:0;border-bottom:1px solid var(--line);padding:14px 26px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.site-body.nav-top .site-nav h2{margin:0 12px 0 0}.site-body.nav-top .site-nav a{white-space:nowrap}
+.site-footer-inner{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.footer-links{display:flex;align-items:center;flex-wrap:wrap;gap:16px}.footer-links a{font-size:12px;text-decoration:none}
+.docs{max-width:var(--pageo-content-width,790px)}
+@media(max-width:800px){.site-body.nav-right{display:flex;flex-direction:column}.site-body.nav-right .site-nav{order:0;border-left:0;border-bottom:1px solid var(--line)}.site-body.nav-right .site-main{order:1}.header-links{gap:10px}.header-links a{font-size:12px}.site-body.nav-top .site-nav{padding:16px 18px}}
 "#;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SiteLink {
+    label: String,
+    url: String,
+}
+
+fn nav_default() -> String { "left".into() }
+fn align_default() -> String { "left".into() }
+fn true_default() -> bool { true }
+fn width_default() -> u16 { 790 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,6 +60,22 @@ pub struct SiteSettings {
     title: String,
     description: String,
     footer_text: String,
+    #[serde(default = "nav_default")]
+    navigation_position: String,
+    #[serde(default = "align_default")]
+    header_alignment: String,
+    #[serde(default = "true_default")]
+    sticky_header: bool,
+    #[serde(default = "true_default")]
+    show_footer: bool,
+    #[serde(default = "width_default")]
+    content_width: u16,
+    #[serde(default)]
+    logo_url: String,
+    #[serde(default)]
+    header_links: Vec<SiteLink>,
+    #[serde(default)]
+    footer_links: Vec<SiteLink>,
 }
 
 #[derive(Deserialize)]
@@ -71,6 +113,14 @@ fn default_settings(name: &str) -> SiteSettings {
         title: name.into(),
         description: format!("Documentation for {name}"),
         footer_text: format!("{name} · Built with Pageo"),
+        navigation_position: nav_default(),
+        header_alignment: align_default(),
+        sticky_header: true,
+        show_footer: true,
+        content_width: width_default(),
+        logo_url: String::new(),
+        header_links: Vec::new(),
+        footer_links: Vec::new(),
     }
 }
 
@@ -91,7 +141,42 @@ fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
             return Err(format!("{field} must contain no control characters and fit within {max} characters"));
         }
     }
+    if !["left", "right", "top"].contains(&settings.navigation_position.as_str()) {
+        return Err("Unsupported navigation position".into());
+    }
+    if !["left", "center"].contains(&settings.header_alignment.as_str()) {
+        return Err("Unsupported header alignment".into());
+    }
+    if !(640..=1100).contains(&settings.content_width) {
+        return Err("Content width must be between 640 and 1100 pixels".into());
+    }
+    if !settings.logo_url.is_empty() && !safe_link(&settings.logo_url, true) {
+        return Err("Logo must use an HTTPS URL".into());
+    }
+    for (links, name) in [
+        (&settings.header_links, "Header"),
+        (&settings.footer_links, "Footer"),
+    ] {
+        if links.len() > 8 { return Err(format!("{name} has too many links")); }
+        for link in links {
+            if link.label.trim().is_empty() || link.label.chars().count() > 60 ||
+                link.label.chars().any(char::is_control) || !safe_link(&link.url, false) {
+                return Err(format!("{name} link label or URL is invalid"));
+            }
+        }
+    }
     Ok(())
+}
+
+fn safe_link(raw: &str, https_only: bool) -> bool {
+    if raw.chars().any(|c| c.is_control() || c.is_whitespace() || matches!(c, '"' | '\'' | '<' | '>')) {
+        return false;
+    }
+    if raw.starts_with("https://") && raw.len() > 8 { return true; }
+    !https_only && (
+        (raw.starts_with("mailto:") && raw.len() > 7) ||
+        (raw.ends_with(".html") && raw.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-'))
+    )
 }
 
 fn read_pages(dir: &Path) -> Result<Vec<crate::pages::Page>, String> {
@@ -133,6 +218,31 @@ fn render_site_page(settings: &SiteSettings, pages: &[crate::pages::Page], page:
         ));
     }
     let page_title = format!("{} | {}", page.title, settings.title);
+    let logo = if settings.logo_url.is_empty() {
+        String::new()
+    } else {
+        format!("<img class=\"brand-logo\" src=\"{}\" alt=\"\">", escape(&settings.logo_url))
+    };
+    let link_html = |links: &[SiteLink], class_name: &str| -> String {
+        if links.is_empty() { return String::new(); }
+        let mut out = format!("<nav class=\"{}\" aria-label=\"Site links\">", class_name);
+        for link in links {
+            out.push_str(&format!(
+                "<a href=\"{}\"{}>{}</a>",
+                escape(&link.url),
+                if link.url.starts_with("https://") { " rel=\"noopener noreferrer\"" } else { "" },
+                escape(&link.label),
+            ));
+        }
+        out.push_str("</nav>");
+        out
+    };
+    let header_class = format!("{} {}", if settings.sticky_header { "" } else { "not-sticky" },
+        if settings.header_alignment == "center" { "header-center" } else { "" });
+    let footer = if settings.show_footer {
+        format!("<footer class=\"site-footer\"><div class=\"site-footer-inner\"><span>{}</span>{}</div></footer>",
+            escape(&settings.footer_text), link_html(&settings.footer_links, "footer-links"))
+    } else { String::new() };
     format!(r#"<!doctype html>
 <html lang="en">
 <head>
@@ -143,16 +253,17 @@ fn render_site_page(settings: &SiteSettings, pages: &[crate::pages::Page], page:
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header class="site-header"><div class="top-bar"><a class="brand" href="index.html">{}</a><span class="site-badge">Documentation</span></div></header>
-<div class="site-body">
+<header class="site-header {}"><div class="top-bar"><a class="brand brand-wrap" href="index.html">{}{}</a>{}</div></header>
+<div class="site-body nav-{}">
 <nav class="site-nav" aria-label="Documentation navigation"><h2>Pages</h2>{}</nav>
-<main class="site-main" id="content"><div class="page-heading">{}</div><article class="docs">{}</article></main>
+<main class="site-main" id="content" style="--pageo-content-width:{}px"><div class="page-heading">{}</div><article class="docs">{}</article></main>
 </div>
-<footer class="site-footer"><div class="site-footer-inner">{}</div></footer>
+{}
 </body>
 </html>"#,
-        escape(&settings.description), escape(&page_title), escape(&settings.title),
-        links, escape(&page.title), body, escape(&settings.footer_text)
+        escape(&settings.description), escape(&page_title), header_class,
+        logo, escape(&settings.title), link_html(&settings.header_links, "header-links"),
+        settings.navigation_position, links, settings.content_width, escape(&page.title), body, footer
     )
 }
 
