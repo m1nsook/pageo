@@ -104,6 +104,8 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs ul,.docs ol{padding-left:1.55em}
 .docs li{padding-left:3px;margin:.32em 0}
 .docs li::marker{color:var(--muted)}
+.docs li.paglora-task-item{list-style:none;padding-left:0}
+.docs .paglora-task-checkbox{margin:0 .55em 0 -1.5em;vertical-align:middle;accent-color:var(--brand);opacity:1;pointer-events:none}
 .docs blockquote{margin:24px 0;border-left:3px solid var(--brand);padding:13px 20px;color:var(--muted);background:var(--subtle);border-radius:0 10px 10px 0}
 .docs blockquote p:last-child{margin-bottom:0}
 
