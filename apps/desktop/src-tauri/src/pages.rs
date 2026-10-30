@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, fs, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::HashSet, fs, io::Write, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
 use tauri::{AppHandle, Manager};
 
 const MANIFEST: &str = "pages.json";
@@ -120,6 +120,19 @@ pub fn load_page(app: AppHandle, project_id: String, page_id: String) -> Result<
     let markdown = fs::read_to_string(document(&dir, &page.id)?).map_err(|e| e.to_string())?;
     Ok(PageDocument { page, markdown })
 }
+// Never clobber a Markdown file that is present on disk but absent from
+// pages.json (for example after a manual recovery or interrupted operation).
+fn write_new_document(path: &Path, markdown: &str) -> Result<(), String> {
+    let mut file = fs::OpenOptions::new().write(true).create_new(true).open(path)
+        .map_err(|error| format!("Page file already exists or cannot be created: {error}"))?;
+    if let Err(error) = file.write_all(markdown.as_bytes()) {
+        drop(file);
+        let _ = fs::remove_file(path);
+        return Err(error.to_string());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn create_page(app: AppHandle, project_id: String, name: String) -> Result<PageDocument, String> {
     let name = title(&name)?;
@@ -129,7 +142,7 @@ pub fn create_page(app: AppHandle, project_id: String, name: String) -> Result<P
     let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: true, layout: layout_default(), nav_group: navigation_group_default() };
     let markdown = format!("# {}\n\n", page.title);
     let path = document(&dir, &page.id)?;
-    fs::write(&path, &markdown).map_err(|e| e.to_string())?;
+    write_new_document(&path, &markdown)?;
     manifest.pages.push(page.clone());
     if let Err(error) = save_pages(&dir, &manifest) { let _ = fs::remove_file(path); return Err(error); }
     touch(&dir)?;
@@ -157,7 +170,7 @@ pub fn duplicate_page(app: AppHandle, project_id: String, page_id: String) -> Re
     let name = title(&format!("{} (Copy)", source.title))?;
     let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: source.is_public, layout: source.layout.clone(), nav_group: source.nav_group.clone() };
     let path = document(&dir, &page.id)?;
-    fs::write(&path, &markdown).map_err(|e| e.to_string())?;
+    write_new_document(&path, &markdown)?;
     manifest.pages.push(page.clone());
     if let Err(error) = save_pages(&dir, &manifest) { let _ = fs::remove_file(path); return Err(error); }
     touch(&dir)?;
@@ -264,6 +277,26 @@ mod tests {
         let json = serde_json::to_string(&updated).unwrap();
         assert!(json.contains(r#""navGroup":"Examples""#));
     }
+    #[test]
+    fn creating_a_page_never_overwrites_an_orphaned_markdown_file() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "paglora-page-write-{}-{nonce}", std::process::id()
+        ));
+        fs::create_dir(&dir).unwrap();
+        let existing = dir.join("existing.md");
+        fs::write(&existing, "# Original user content").unwrap();
+        assert!(write_new_document(&existing, "# Replacement").is_err());
+        assert_eq!(fs::read_to_string(&existing).unwrap(), "# Original user content");
+
+        let fresh = dir.join("fresh.md");
+        write_new_document(&fresh, "# New page").unwrap();
+        assert_eq!(fs::read_to_string(&fresh).unwrap(), "# New page");
+        assert!(write_new_document(&fresh, "# Another").is_err());
+        assert_eq!(fs::read_to_string(&fresh).unwrap(), "# New page");
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn explicit_layout_round_trip() {
         let page: Page = serde_json::from_str(r#"{"id":"intro","title":"Hello","isPublic":true,"layout":"landing"}"#).unwrap();
