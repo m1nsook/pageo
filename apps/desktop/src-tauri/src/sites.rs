@@ -10,8 +10,8 @@ struct SiteRuntimeAsset {
     source: &'static str,
 }
 const SITE_RUNTIME_ASSETS: &[SiteRuntimeAsset] = &[
-    SiteRuntimeAsset { filename: "paglora.js", source: include_str!("../../../../packages/site-runtime/src/index.js") },
-    SiteRuntimeAsset { filename: "paglora-search.js", source: include_str!("../../../../packages/site-runtime/src/search.js") },
+    SiteRuntimeAsset { filename: "paglora.js", source: include_str!("../../../../packages/site-runtime/dist/index.js") },
+    SiteRuntimeAsset { filename: "paglora-search.js", source: include_str!("../../../../packages/site-runtime/dist/search.js") },
 ];
 fn site_runtime_script_tags() -> String {
     SITE_RUNTIME_ASSETS.iter()

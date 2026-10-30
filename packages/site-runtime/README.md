@@ -4,9 +4,9 @@ The small first-party `@paglora/site-runtime` package progressively enhances sta
 
 The initial release supports **Light / Dark / System** appearance preferences (stored per site root where storage is allowed) and **active table-of-contents heading** tracking. Navigation and content work without JavaScript; interactive enhancement is optional.
 
-The build exports `paglora.js` alongside every public page, and each exported HTML page loads it with `<script defer src="paglora.js"></script>`. Studio previews intentionally remove that tag because the current same-origin iframe is script-disabled, pending a separate secure interactive-preview design.
+The Rust exporter embeds **minified browser bundles** generated from `src/index.js` and `src/search.js` by `bun packages/site-runtime/build.mjs`. Cargo invokes this build automatically before compiling the desktop backend (Bun is required for Rust builds). The bundles are emitted as `paglora.js` and `paglora-search.js` alongside exported public HTML, and public pages load them with deferred script tags. Studio previews intentionally strip both script tags because the current same-origin iframe is script-disabled, pending a separate secure interactive-preview design. Generated `dist/` bundles remain ignored by Git.
 
-Run `node --test packages/site-runtime/test/*.test.mjs` for focused tests.
+Run `bun packages/site-runtime/build.mjs` followed by `node --test packages/site-runtime/test/*.test.mjs` for focused tests.
 
 The runtime is original Paglora source, **informed by VitePress's interaction patterns**, not copied Vue code. VitePress source is MIT-licensed (Copyright 2019–present Yuxi (Evan) You). If actual source is reused in the future, preserve the required notices in the distributed artifacts.
 
