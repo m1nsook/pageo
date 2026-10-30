@@ -91,7 +91,7 @@
       // Merely trapping focus between the input and close button would make
       // links unreachable with Tab (screen readers and keyboard users).
       const controls = [input, closeButton,
-        ...results.querySelectorAll(".paglora-search-result")];
+        ...results.querySelectorAll(".paglora-search-result, .paglora-search-retry")];
       const first = controls[0];
       const last = controls[controls.length - 1];
       if (event.shiftKey && document.activeElement === first) {
