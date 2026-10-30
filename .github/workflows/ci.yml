@@ -55,6 +55,8 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.0"
+      - name: Install workspace dependencies for embedded MiniSearch
+        run: bun install --frozen-lockfile
       - name: Check Rust backend using Cargo.lock
         run: cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
       - name: Test Rust backend
