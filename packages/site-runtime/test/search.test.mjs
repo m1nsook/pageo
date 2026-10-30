@@ -72,6 +72,27 @@ function fixture(pages, { responseOk = true, waitForIndex = false, failFirstFetc
   return { button, open, document, docListeners, releaseFetch, get requested() { return requested; }, get requestOptions() { return requestOptions; }, get navigated() { return navigated; }, get fetchCalls() { return fetchCalls; } };
 }
 
+test("search keyboard selection exposes the active result and supports Home/End", async () => {
+  const app = fixture([
+    { title: "First", url: "first.html", text: "docs" },
+    { title: "Second", url: "second.html", text: "docs" },
+  ]);
+  const { input, results } = await app.open();
+  input.value = "docs";
+  input.events.input();
+  assert.equal(input.attrs.get("aria-controls"), "paglora-search-results");
+  assert.equal(input.attrs.get("aria-activedescendant"), results.children[0].id);
+  let prevented = 0;
+  input.events.keydown({ key: "End", preventDefault() { prevented++; } });
+  assert.equal(input.attrs.get("aria-activedescendant"), results.children[1].id);
+  input.events.keydown({ key: "Home", preventDefault() { prevented++; } });
+  assert.equal(input.attrs.get("aria-activedescendant"), results.children[0].id);
+  assert.equal(prevented, 2);
+  input.value = "no-match";
+  input.events.input();
+  assert.equal(input.attrs.has("aria-activedescendant"), false);
+});
+
 test("Ctrl+K search fetches only the local static index", async () => {
   const app = fixture([{ title: "Overview", url: "index.html", text: "Welcome to Paglora" }]);
   const { input, results } = await app.open();
