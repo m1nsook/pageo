@@ -8,12 +8,16 @@ import {
   ArrowLeft, ArrowRight, Bold, BookOpen, Check, ChevronRight, Clock3, Code2,
   FileText, FolderOpen, Heading1, Heading2, Home, Italic, LayoutTemplate,
   List, ListOrdered, LoaderCircle, Plus, Search, Settings2, ShieldCheck,
-  Sparkles, Upload, WandSparkles,
+  Sparkles, Upload, WandSparkles, GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { NewPageDialog, PageActions } from "@/components/editor/page-dialogs";
 import { createProject, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
 import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, type Page, type PageDocument } from "@/lib/pages";
 
@@ -99,12 +103,14 @@ function CreateProjectDialog({ open, onOpenChange, onCreate, disabled }: {
 
 function ProjectCard({ project, onOpen }: { project: ProjectSummary; onOpen: () => void }) {
   return (
-    <button onClick={onOpen} className="group flex min-h-48 flex-col rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-[0_2px_10px_rgba(18,22,40,0.025)] transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-[0_10px_30px_rgba(60,56,130,0.08)]">
+    <Card className="group overflow-hidden rounded-2xl transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-[0_12px_32px_rgba(60,56,130,0.1)]">
+      <button onClick={onOpen} className="flex min-h-48 w-full flex-col p-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
       <div className="flex w-full items-start justify-between"><span className="flex size-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><BookOpen size={22}/></span><ArrowRight className="text-zinc-300 transition-all group-hover:translate-x-1 group-hover:text-indigo-500" size={19}/></div>
       <div className="mt-6 truncate text-base font-semibold tracking-tight text-zinc-900" title={project.name}>{project.name}</div>
       <div className="mt-1 text-xs text-zinc-500">Documentation project</div>
       <div className="mt-auto flex items-center gap-2 border-t border-zinc-100 pt-4 text-xs text-zinc-400"><Clock3 size={14}/> Updated {displayDate(project.updatedAt)}</div>
-    </button>
+      </button>
+    </Card>
   );
 }
 
@@ -115,7 +121,7 @@ function Dashboard({ projects, openCreate, openProject, view, loading, search, s
   const visible = useMemo(() => projects.filter(p => p.name.toLowerCase().includes(search.toLowerCase())), [projects, search]);
   return (
     <main className="min-w-0 flex-1 overflow-y-auto">
-      <header className="flex h-20 items-center justify-between border-b border-zinc-200/70 bg-white/70 px-10"><div className="flex items-center gap-2 text-sm text-zinc-500">Workspace <ChevronRight size={14}/> <span className="font-medium text-zinc-800">{view === "home" ? "Home" : "Projects"}</span></div><div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600"><span className="size-1.5 rounded-full bg-emerald-500"/> Local workspace</div></header>
+      <header className="flex h-20 items-center justify-between border-b border-zinc-200/70 bg-white/70 px-10"><div className="flex items-center gap-2 text-sm text-zinc-500">Workspace <ChevronRight size={14}/> <span className="font-medium text-zinc-800">{view === "home" ? "Home" : "Projects"}</span></div><Badge variant="outline" className="gap-2 py-1.5"><span className="size-1.5 rounded-full bg-emerald-500"/> Local workspace</Badge></header>
       <div className="mx-auto max-w-[1120px] px-10 py-12">
         {view === "home" && (
           <div className="relative mb-12 overflow-hidden rounded-[24px] border border-indigo-100 bg-gradient-to-br from-[#f0efff] via-[#f8f7ff] to-white px-9 py-10">
@@ -223,15 +229,20 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
         </div>
       </div>
       <div className="flex min-h-0 flex-1">
-        <aside className="w-[224px] shrink-0 overflow-y-auto border-r border-zinc-200 bg-white p-3">
-          <div className="mb-2 flex items-center justify-between px-2 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Pages <button title="Create page" className="rounded-md p-1 text-indigo-600 hover:bg-indigo-50" onClick={() => modify("create")} disabled={leaving}><Plus size={16}/></button></div>
-          {pages.map(page => <div key={page.id} onDragOver={event => { if(dragged && page.id!=="index") event.preventDefault(); }} onDrop={event => { event.preventDefault(); if(dragged && dragged!==page.id) modify("reorder",dragged,page.id); setDragged(null); }} className={cn("group mb-1 flex items-center rounded-lg",current.page.id===page.id ? "bg-indigo-50 text-indigo-700" : "hover:bg-zinc-50")}>
-            <span draggable={page.id!=="index"} onDragStart={()=>setDragged(page.id)} onDragEnd={()=>setDragged(null)} className="cursor-grab px-1 text-zinc-300">⋮</span>
-            <button disabled={leaving} onClick={() => page.id!==current.page.id && void runAfterSave(() => onChange(page.id))} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm"><FileText size={14}/><span className="truncate">{page.title}</span></button>
-            <button title="Rename" disabled={leaving} onClick={()=>modify("rename",page.id)} className="hidden px-1 text-xs group-hover:block">✎</button>
-            <button title="Duplicate" disabled={leaving} onClick={()=>modify("duplicate",page.id)} className="hidden px-1 text-xs group-hover:block">⧉</button>
-            {page.id!=="index" && <button title="Delete" disabled={leaving} onClick={()=>modify("delete",page.id)} className="hidden px-1 text-xs text-red-600 group-hover:block">×</button>}
-          </div>)}
+        <aside className="w-[248px] shrink-0 overflow-y-auto border-r border-zinc-200 bg-white p-3">
+          <div className="mb-2 flex items-center justify-between px-2 py-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Pages</span>
+            <NewPageDialog disabled={leaving} onModify={modify}/>
+          </div>
+          <Separator className="mb-2 bg-zinc-100"/>
+          <nav aria-label="Documentation pages" className="space-y-1">
+            {pages.map(page => <div key={page.id} onDragOver={event => { if(dragged && page.id!=="index") event.preventDefault(); }} onDrop={event => { event.preventDefault(); if(dragged && dragged!==page.id) modify("reorder",dragged,page.id); setDragged(null); }} className={cn("group flex items-center gap-1 rounded-lg pr-1 transition-colors duration-150",current.page.id===page.id ? "bg-indigo-50 text-indigo-700" : "hover:bg-zinc-50 text-zinc-600")}>
+              <span draggable={page.id!=="index"} onDragStart={()=>setDragged(page.id)} onDragEnd={()=>setDragged(null)} title={page.id!=="index" ? "Drag to reorder" : "Overview stays first"} className={cn("flex h-9 w-4 items-center justify-center text-zinc-300",page.id!=="index" ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-40")}><GripVertical size={14}/></span>
+              <button disabled={leaving} aria-current={current.page.id===page.id ? "page" : undefined} onClick={() => page.id!==current.page.id && void runAfterSave(() => onChange(page.id))} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-indigo-500"><FileText size={15} className="shrink-0 opacity-75"/><span className="truncate">{page.title}</span></button>
+              <PageActions page={page} disabled={leaving} onModify={modify}/>
+            </div>)}
+          </nav>
+          <p className="mt-5 px-2 text-[11px] leading-relaxed text-zinc-400">Drag a page to reorder it. Changes are saved locally.</p>
         </aside>
         <div className="min-w-0 flex-1 overflow-y-auto">
           {!preview && <div className="sticky top-0 z-10 flex h-14 items-center gap-0.5 border-b border-zinc-200 bg-white px-8"><ToolbarButton title="Heading 1" active={editor?.isActive("heading", { level: 1 })} onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 size={18}/></ToolbarButton><ToolbarButton title="Heading 2" active={editor?.isActive("heading", { level: 2 })} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={18}/></ToolbarButton><div className="mx-2 h-5 w-px bg-zinc-200"/><ToolbarButton title="Bold" active={editor?.isActive("bold")} onClick={() => editor?.chain().focus().toggleBold().run()}><Bold size={17}/></ToolbarButton><ToolbarButton title="Italic" active={editor?.isActive("italic")} onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic size={17}/></ToolbarButton><div className="mx-2 h-5 w-px bg-zinc-200"/><ToolbarButton title="Bulleted list" active={editor?.isActive("bulletList")} onClick={() => editor?.chain().focus().toggleBulletList().run()}><List size={18}/></ToolbarButton><ToolbarButton title="Numbered list" active={editor?.isActive("orderedList")} onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered size={18}/></ToolbarButton><ToolbarButton title="Code block" active={editor?.isActive("codeBlock")} onClick={() => editor?.chain().focus().toggleCodeBlock().run()}><Code2 size={17}/></ToolbarButton><span className="ml-auto text-xs text-zinc-400">Visual editor · Markdown source</span></div>}
@@ -256,18 +267,14 @@ function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; o
   const change = async (pageId: string) => { setCurrent(await loadPage(id,pageId)); };
   const modify = async (action: "create"|"rename"|"duplicate"|"delete"|"reorder", pageId?: string, target?: string) => {
     if(action==="create"){
-      const name=window.prompt("New page title:");
-      if(!name?.trim())return;
-      setCurrent(await createPage(id,name));
+      if(!target?.trim())return;
+      setCurrent(await createPage(id,target.trim()));
     } else if(action==="rename" && pageId){
-      const old=pages.find(p=>p.id===pageId);
-      const name=window.prompt("Rename page:",old?.title);
-      if(!name?.trim())return;
-      const updated=await renamePage(id,pageId,name);
+      if(!target?.trim())return;
+      const updated=await renamePage(id,pageId,target.trim());
       if(current.page.id===pageId)setCurrent(p=>({...p,page:updated}));
     } else if(action==="duplicate" && pageId) setCurrent(await duplicatePage(id,pageId));
     else if(action==="delete" && pageId){
-      if(!window.confirm("Remove this page from navigation? Its Markdown will remain in .trash."))return;
       await deletePage(id,pageId);
       if(current.page.id===pageId)setCurrent(await loadPage(id,"index"));
     } else if(action==="reorder" && pageId && target){
