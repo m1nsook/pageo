@@ -5,8 +5,9 @@ use tauri::{AppHandle, Manager};
 const CONFIG: &str = "site.json";
 const EXPORTS: &str = "site-exports";
 const SITE_CSS: &str = r#"
+@font-face{font-family:"Geist Website";src:url("fonts/geist-latin.woff2") format("woff2");font-style:normal;font-weight:100 900;font-display:swap}
 :root{color-scheme:light;--bg:#fff;--fg:#171717;--muted:#737373;--line:#e5e5e5;--brand:#171717}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.7;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--fg);font-family:"Geist Website",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.7;-webkit-font-smoothing:antialiased}
 a{color:inherit}a:hover{color:#52525b}a:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 .site-header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
 .top-bar{max-width:1320px;height:68px;margin:auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:18px}
@@ -303,7 +304,11 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
     }).unwrap_or_default();
     Ok(doc.replace(
         "<link rel=\"stylesheet\" href=\"styles.css\">",
-        &format!("<style>{SITE_CSS}</style>{override_css}"),
+        &format!("<style>{}</style>{override_css}",
+            SITE_CSS.replace("fonts/geist-latin.woff2", &format!(
+                "data:font/woff2;base64,{}", include_str!("../assets/geist-latin.b64")
+            ))
+        ),
     ))
 }
 
@@ -333,6 +338,12 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
     fs::create_dir(&staged).map_err(|e| e.to_string())?;
     let write_result = (|| -> Result<(), String> {
         fs::write(staged.join("styles.css"), SITE_CSS).map_err(|e| e.to_string())?;
+        // Ship the exact font used by the local preview; exported sites are offline-first.
+        fs::create_dir(staged.join("fonts")).map_err(|e| e.to_string())?;
+        fs::write(staged.join("fonts/geist-latin.woff2"), include_bytes!("../assets/geist-latin.woff2"))
+            .map_err(|e| e.to_string())?;
+        fs::write(staged.join("fonts/OFL.txt"), include_str!("../assets/GEIST-LICENSE.txt"))
+            .map_err(|e| e.to_string())?;
         if let Some(css) = &theme {
             fs::write(staged.join("custom.css"), css).map_err(|e| e.to_string())?;
         }
