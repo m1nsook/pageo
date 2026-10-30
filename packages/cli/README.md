@@ -1,5 +1,7 @@
 # Paglora CLI
 
+<img src="https://raw.githubusercontent.com/m1nsook/paglora/main/apps/desktop/src-tauri/icons/icon.png" alt="Paglora official logo" width="88" />
+
 The official npm package for [Paglora](https://github.com/m1nsook/paglora), an open-source local-first documentation studio.
 
 The **early alpha** CLI inspects and validates project folders. Static site building and publishing still use Paglora Desktop.

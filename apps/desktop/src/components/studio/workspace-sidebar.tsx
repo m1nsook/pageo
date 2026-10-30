@@ -1,4 +1,4 @@
-import { BookOpen, FolderOpen, Home, LayoutTemplate, Settings2, ShieldCheck } from "lucide-react";
+import { FolderOpen, Home, LayoutTemplate, Settings2, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ThemeSwitcher } from "@/components/studio/theme-switcher";
 import {
@@ -24,8 +24,8 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="px-3 py-5">
         <div className="flex h-10 items-center gap-3 px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <BookOpen className="size-5" />
+          <span className="flex size-9 shrink-0 items-center justify-center">
+            <img src="/paglora.svg" className="size-9 object-contain" alt="Paglora logo" />
           </span>
           <span className="truncate text-lg font-semibold tracking-tight group-data-[collapsible=icon]:hidden">paglora<span className="text-muted-foreground">.</span></span>
         </div>
