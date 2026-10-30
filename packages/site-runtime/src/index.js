@@ -90,7 +90,7 @@
   }
 
   // Expose sharable heading anchors without changing project Markdown.
-  for (const heading of document.querySelectorAll?.(".docs h2[id], .docs h3[id]") ?? []) {
+  for (const heading of document.querySelectorAll?.(".docs h2[id], .docs h3[id], .docs h4[id]") ?? []) {
     const id = heading.getAttribute("id");
     if (!id) continue;
     const link = document.createElement("a");

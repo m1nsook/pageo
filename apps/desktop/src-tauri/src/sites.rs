@@ -135,7 +135,7 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs .paglora-copy-code:hover{background:#354359}
 .docs .paglora-copy-code:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .docs .paglora-heading-link{margin-left:12px;display:inline-block;font-size:.7em;font-weight:550;color:var(--brand);text-decoration:none;opacity:0;vertical-align:baseline}
-.docs :is(h2,h3):hover .paglora-heading-link,.docs .paglora-heading-link:focus-visible{opacity:1}
+.docs :is(h2,h3,h4):hover .paglora-heading-link,.docs .paglora-heading-link:focus-visible{opacity:1}
 @media(hover:none){.docs .paglora-heading-link{opacity:.8}}
 .docs .paglora-heading-link:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 .docs a{color:var(--brand);text-decoration-color:color-mix(in srgb,var(--brand) 40%,transparent);text-decoration-thickness:1px;text-underline-offset:3px}
@@ -147,7 +147,7 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs tr:last-child td{border-bottom:0}
 .docs th:last-child,.docs td:last-child{border-right:0}
 .docs hr{border:0;border-top:1px solid var(--line);margin:38px 0}
-.docs :is(h2,h3) a{color:inherit}
+.docs :is(h2,h3,h4) a{color:inherit}
 .on-this-page{grid-column:3;min-width:0;padding:35px clamp(18px,2.2vw,32px) 40px 14px}
 .toc-inner{position:sticky;top:105px;max-height:calc(100vh - 125px);overflow-y:auto;scrollbar-width:thin}
 .toc-inner h2{margin:0 0 13px;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:750}
@@ -225,6 +225,20 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
   .layout-landing .docs>h1:first-child + p{margin-bottom:42px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important}}
+
+/* Arabic documents use right-to-left reading order, including navigation and callouts. */
+:root[dir="rtl"] .site-nav{border-right:0;border-left:1px solid var(--line);padding-right:clamp(18px,2.5vw,42px);padding-left:16px}
+:root[dir="rtl"] .site-body.nav-right .site-nav{border-left:0;border-right:1px solid var(--line);padding-right:16px;padding-left:clamp(18px,2.5vw,42px)}
+:root[dir="rtl"] .docs ul,:root[dir="rtl"] .docs ol{padding-left:0;padding-right:1.55em}
+:root[dir="rtl"] .docs .paglora-task-checkbox{margin:0 -1.5em 0 .55em}
+:root[dir="rtl"] .docs blockquote{border-left:0;border-right:3px solid var(--brand);border-radius:10px 0 0 10px}
+:root[dir="rtl"] .docs .paglora-callout{border-left:1px solid var(--line);border-right:3px solid var(--callout-accent)}
+:root[dir="rtl"] .docs .paglora-heading-link{margin-left:0;margin-right:12px}
+:root[dir="rtl"] .docs th,:root[dir="rtl"] .docs td{text-align:right}
+:root[dir="rtl"] .toc-inner a{border-left:0;border-right:1px solid var(--line)}
+:root[dir="rtl"] .toc-inner a.toc-h3{padding-left:9px;padding-right:20px}
+:root[dir="rtl"] .page-pager .next{text-align:left}
+@media(max-width:800px){:root[dir="rtl"] .site-nav,:root[dir="rtl"] .site-body.nav-right .site-nav{border:0}}
 
 "#;
 
@@ -563,6 +577,7 @@ fn render_site_page(
     let description = escape(&settings.description);
     let theme_mode = &settings.theme_mode;
     let language = &settings.language;
+    let direction = if language == "ar" { "rtl" } else { "ltr" };
     let google_font = google_font_markup(&settings.google_font_family);
     // Hex color was checked by validate_settings for both preview and build.
     let accent_style = format!("<style>:root{{--brand:{};--brand-light:color-mix(in srgb,var(--brand) 13%,var(--bg))}}</style>", settings.accent_color);
@@ -575,7 +590,7 @@ fn render_site_page(
     let layout = &page.layout;
     let runtime_scripts = site_runtime_script_tags();
     format!(r##"<!doctype html>
-<html lang="{language}" data-color-mode="{theme_mode}">
+<html lang="{language}" dir="{direction}" data-color-mode="{theme_mode}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -792,7 +807,14 @@ mod website_font_tests {
             layout: "docs".into(), nav_group: "Documentation".into(),
         };
         let output = render_site_page(&korean, &[page.clone()], &page, "<p>안녕하세요</p>", &[]);
-        assert!(output.contains(r#"<html lang="ko" data-color-mode="#));
+        assert!(output.contains(r#"<html lang="ko" dir="ltr" data-color-mode="#));
+
+        let mut arabic = settings.clone();
+        arabic.language = "ar".into();
+        assert!(validate_settings(&arabic).is_ok());
+        let rtl = render_site_page(&arabic, &[page.clone()], &page, "<p>مرحبا</p>", &[]);
+        assert!(rtl.contains(r#"<html lang="ar" dir="rtl" data-color-mode="#));
+        assert!(SITE_CSS.contains(r#":root[dir="rtl"] .docs blockquote"#));
 
         korean.language = r#"en" onload="alert(1)"#.into();
         assert!(validate_settings(&korean).is_err());

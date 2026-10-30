@@ -57,6 +57,7 @@
     bar.append(input, closeButton);
     results = element("div", "paglora-search-results");
     results.id = "paglora-search-results";
+    input.setAttribute("aria-controls", results.id);
     results.setAttribute("aria-live", "polite");
     results.appendChild(element("p", "paglora-search-status", "Type to search documentation"));
     const foot = element("div", "paglora-search-footnote", "↑ ↓ Navigate  ·  Enter Open  ·  Esc Close");
@@ -72,10 +73,12 @@
       // Enter confirms an IME candidate for Korean, Japanese and Chinese;
       // it must not navigate away before composition has finished.
       if (event.isComposing || event.keyCode === 229) return;
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
+      if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
         if (!currentResults.length) return;
-        selected = (selected + (event.key === "ArrowDown" ? 1 : -1) + currentResults.length) % currentResults.length;
+        event.preventDefault();
+        if (event.key === "Home") selected = 0;
+        else if (event.key === "End") selected = currentResults.length - 1;
+        else selected = (selected + (event.key === "ArrowDown" ? 1 : -1) + currentResults.length) % currentResults.length;
         updateSelected();
       } else if (event.key === "Enter" && currentResults.length) {
         event.preventDefault();
@@ -88,7 +91,7 @@
       // Merely trapping focus between the input and close button would make
       // links unreachable with Tab (screen readers and keyboard users).
       const controls = [input, closeButton,
-        ...results.querySelectorAll(".paglora-search-result")];
+        ...results.querySelectorAll(".paglora-search-result, .paglora-search-retry")];
       const first = controls[0];
       const last = controls[controls.length - 1];
       if (event.shiftKey && document.activeElement === first) {
@@ -180,6 +183,7 @@
       link.classList.toggle("is-selected", index === selected);
       if (index === selected) {
         link.setAttribute("aria-current", "true");
+        input.setAttribute("aria-activedescendant", link.id);
         link.scrollIntoView({ block: "nearest" });
       } else link.removeAttribute("aria-current");
     });
@@ -195,6 +199,7 @@
     const query = input.value.trim();
     currentResults = find(query);
     selected = 0;
+    input.removeAttribute("aria-activedescendant");
     results.replaceChildren();
     if (!loaded) {
       results.appendChild(element("p", "paglora-search-status", loadError
@@ -217,6 +222,7 @@
     }
     for (const item of currentResults) {
       const link = element("a", "paglora-search-result");
+      link.id = "paglora-search-option-" + results.children.length;
       link.href = item.url;
       const title = element("strong", "paglora-search-result-title", item.title);
       const summary = element("span", "paglora-search-result-summary", item.snippet || "Open page");

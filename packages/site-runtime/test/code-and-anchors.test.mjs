@@ -5,7 +5,7 @@ import vm from "node:vm";
 
 const source = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
 
-function createDom({ clipboardAvailable = true, waitForClipboard = false } = {}) {
+function createDom({ clipboardAvailable = true, headingLevel = 2, waitForClipboard = false } = {}) {
   let releaseClipboard;
   const attributes = new Map();
   const pre = { children: [], classList: { add(name) { assert.equal(name, "paglora-has-copy"); } }, appendChild(child) { this.children.push(child); } };
@@ -23,7 +23,7 @@ function createDom({ clipboardAvailable = true, waitForClipboard = false } = {})
     querySelector(name) { return name === ".top-bar" ? header : null; },
     querySelectorAll(selector) {
       if (selector === ".docs pre > code") return [code];
-      if (selector === ".docs h2[id], .docs h3[id]") return [heading];
+      if (selector === ".docs h2[id], .docs h3[id], .docs h4[id]") return [2, 3, 4].includes(headingLevel) ? [heading] : [];
       return [];
     },
     createElement(tag) {
@@ -99,6 +99,15 @@ test("copy feedback resets after two seconds, including unavailable clipboard", 
   assert.equal(missingButton.attributes.get("aria-label"), "Clipboard unavailable");
   missing.flushTimers();
   assert.equal(missingButton.textContent, "Copy");
+});
+
+
+test("fourth-level headings receive shareable anchors without entering the TOC", () => {
+  const { heading } = createDom({ headingLevel: 4 });
+  assert.equal(heading.children.length, 1);
+  assert.equal(heading.children[0].href, "#getting-started");
+  assert.equal(heading.children[0].attributes.get("aria-label"), "Link to Getting Started");
+  assert.equal(createDom({ headingLevel: 1 }).heading.children.length, 0);
 });
 
 
