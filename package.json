@@ -1,0 +1,13 @@
+{
+  "name": "pageo-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "bun@1.4.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "cd apps/desktop && bun run dev",
+    "desktop": "cd apps/desktop && bun run desktop",
+    "build": "cd apps/desktop && bun run build",
+    "check": "cd apps/desktop && bun run check"
+  }
+}
