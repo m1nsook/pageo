@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { inspectProject, run } from "../bin/pageo.mjs";
+import { inspectProject, run } from "../bin/paglora.mjs";
 
 function fixture(fn) {
   const root = mkdtempSync(join(tmpdir(), "pageo-cli-"));
@@ -63,6 +63,6 @@ test("command provides JSON output and successful validate exit code", () => fix
   assert.equal(JSON.parse(out).pageCount, 1);
   out = "";
   assert.equal(run(["validate", folder], output, errors), 0);
-  assert.match(out, /Valid Pageo project/);
+  assert.match(out, /Valid documentation project/);
   assert.equal(err, "");
 }));
