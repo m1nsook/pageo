@@ -731,7 +731,7 @@ mod website_font_tests {
         assert!(valid_site_page_entry(&page));
         page.title.push('📘');
         assert!(!valid_site_page_entry(&page));
-        page.title = "Docs\\u{85}Internal".replace("\\u{85}", "\u{85}");
+        page.title = "Docs\u{85}Internal".into();
         assert!(!valid_site_page_entry(&page));
         page.title = "   ".into();
         assert!(!valid_site_page_entry(&page));
