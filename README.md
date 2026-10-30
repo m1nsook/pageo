@@ -1,6 +1,6 @@
 # Paglora
 
-![Paglora official logo](apps/desktop/public/paglora.svg)
+<img src="apps/desktop/public/paglora.svg" alt="Paglora official logo" width="88" />
 
 **Beautiful docs, built your way.**
 
