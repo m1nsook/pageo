@@ -132,7 +132,7 @@
             seenUrls.add(page.url);
             return true;
           }).map(page => ({
-            title: page.title, text: page.text, url: page.url,
+            title: page.title, text: page.text.normalize("NFKC"), url: page.url,
             titleSearch: normalize(page.title), bodySearch: normalize(page.text),
           }));
           return loaded;
@@ -142,7 +142,8 @@
   }
 
   function find(query) {
-    const terms = normalize(query).trim().split(/\s+/).filter(Boolean).slice(0, 8);
+    const terms = [...new Set(normalize(query).trim().split(/\s+/).filter(Boolean))].slice(0, 8);
+    const phrase = terms.join(" ");
     if (!terms.length || !loaded) return [];
     const matches = [];
     for (const page of loaded) {
@@ -159,6 +160,10 @@
         }
       }
       if (score) {
+        // A direct title/phrase hit should outrank scattered mentions.
+        if (page.titleSearch === phrase) score += 30;
+        else if (page.titleSearch.startsWith(phrase)) score += 16;
+        if (page.bodySearch.includes(phrase)) score += 5;
         const start = Math.max(0, (firstTextMatch < 0 ? 0 : firstTextMatch) - 64);
         const snippet = page.text.slice(start, start + 200).trim();
         matches.push({ title: page.title, url: page.url, snippet, score });
