@@ -37,9 +37,8 @@ function fixture(pages, { responseOk = true, waitForIndex = false, failFirstFetc
       appendChild(item) { this.children.push(item); },
       replaceChildren(...items) { this.children = [...items]; },
       querySelectorAll(query) {
-        return query === ".paglora-search-result, .paglora-search-retry"
-          ? this.children.filter(item => ["paglora-search-result", "paglora-search-retry"].includes(item.className))
-          : [];
+        const selectors = query.split(",").map(part => part.trim());
+        return this.children.filter(item => selectors.includes("." + item.className));
       },
       focus() { document.activeElement = this; },
       scrollIntoView() {},
