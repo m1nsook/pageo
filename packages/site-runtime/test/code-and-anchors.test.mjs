@@ -7,7 +7,7 @@ const source = readFileSync(new URL("../src/index.js", import.meta.url), "utf8")
 
 function createDom({ clipboardAvailable = true } = {}) {
   const attributes = new Map();
-  const pre = { children: [], appendChild(child) { this.children.push(child); } };
+  const pre = { children: [], classList: { add(name) { assert.equal(name, "paglora-has-copy"); } }, appendChild(child) { this.children.push(child); } };
   const code = { parentElement: pre, textContent: "curl https://example.test\n" };
   const heading = {
     textContent: "Getting Started",
