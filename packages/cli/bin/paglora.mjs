@@ -64,13 +64,13 @@ export function inspectProject(folder) {
   };
 }
 
-const HELP = `Pageo CLI (early alpha)
+const HELP = `Paglora CLI (early alpha)
 
 Usage:
-  pageo inspect <project-folder> [--json]  Show project and page details
-  pageo validate <project-folder>         Check local project structure
-  pageo --version                         Print CLI version
-  pageo --help                            Show this help
+  paglora inspect <project-folder> [--json]  Show project and page details
+  paglora validate <project-folder>         Check local project structure
+  paglora --version                         Print CLI version
+  paglora --help                            Show this help
 
 Static site builds currently run through Pageo Desktop.
 Documentation: https://github.com/m1nsook/pageo
@@ -93,22 +93,22 @@ export function run(args, output = process.stdout, errors = process.stderr) {
   const json = rest.includes("--json");
   const folder = rest.find(value => !value.startsWith("--"));
   if (!folder) {
-    errors.write("Missing project directory. Example: pageo inspect ./projects/my-docs\n");
+    errors.write("Missing project directory. Example: paglora inspect ./projects/my-docs\n");
     return 1;
   }
   try {
     const details = inspectProject(folder);
     if (json) output.write(JSON.stringify(details, null, 2) + "\n");
-    else if (command === "validate") output.write(`Valid Pageo project: ${details.name} (${details.pageCount} pages)\n`);
+    else if (command === "validate") output.write(`Valid documentation project: ${details.name} (${details.pageCount} pages)\n`);
     else {
-      output.write(`Pageo project: ${details.name}\nDirectory: ${details.folder}\nWebsite: ${details.siteTitle}\nPages: ${details.pageCount} (${details.publicCount} public)\n`);
+      output.write(`Documentation project: ${details.name}\nDirectory: ${details.folder}\nWebsite: ${details.siteTitle}\nPages: ${details.pageCount} (${details.publicCount} public)\n`);
       for (const page of details.pages) {
         output.write(`  ${page.isPublic ? "[public] " : "[private]"} ${page.title} (${page.id}.md)\n`);
       }
     }
     return 0;
   } catch (error) {
-    errors.write(`Pageo: ${error.message}\n`);
+    errors.write(`Paglora: ${error.message}\n`);
     return 1;
   }
 }

@@ -57,7 +57,7 @@
       },
     },
     "packages/cli": {
-      "name": "pageo",
+      "name": "paglora",
       "version": "0.0.1-alpha.0",
     },
     "packages/core": {

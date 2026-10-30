@@ -1,30 +1,35 @@
-# Pageo CLI
+# Paglora CLI
 
-Official command-line tools for [Pageo](https://github.com/m1nsook/pageo), a local-first documentation studio.
+**Paglora** is the new name for our local-first documentation studio. This early alpha CLI provides genuine project inspection and validation.
 
-> **Early alpha.** This package currently provides useful project inspection and validation. Creating and exporting sites remains available in Pageo Desktop. The CLI does not yet build public websites.
+> **Compatibility:** Desktop application, GitHub repository and on-disk project files still use the original `Pageo` name in this initial package-name reservation release. Existing `pageo.json` projects remain supported without migration. The full application rename comes after npm successfully accepts `paglora`.
 
-Install with Bun:
+## Install (once published)
 
-```bash
-bun add --global pageo
-pageo --help
-pageo inspect "C:\\path\\to\\app-data\\projects\\my-docs"
-pageo validate "C:\\path\\to\\app-data\\projects\\my-docs"
+```powershell
+bun add --global paglora@alpha
+paglora --help
+paglora inspect "C:\\path\\to\\projects\\my-docs"
+paglora validate "C:\\path\\to\\projects\\my-docs"
 ```
 
-Or run without installing:
+Or use it without installing:
 
-```bash
-bunx --bun pageo inspect ./projects/my-docs
+```powershell
+bunx --bun paglora@alpha inspect .\projects\my-docs
 ```
 
-`inspect --json` returns machine-readable information about a project, including which pages are public or private.
+`inspect --json` prints project information, including public and private pages.
 
-## Maintainer publication
+This alpha does **not** build or publish websites through the CLI yet. That remains available in the desktop application.
 
-This package is intended to be published from the `packages/cli` directory under the `pageo` name. **A GitHub repository or pull request does not reserve a name on npm.** Only a successful publication under the maintainer's authenticated npm account claims it.
+## Publish the first alpha (maintainer only)
 
-Run `bun run test`, `npm pack --dry-run`, and publish from the directory using `npm publish --access public --tag alpha` after verifying the npm account and exact package name availability.
+1. Switch GitHub Desktop to `main` and pull the updated source.
+2. From the repository root: `cd packages/cli`.
+3. Run `bun run test`, `npm pack --dry-run`, and `npm whoami`.
+4. Check `npm view paglora version`. A 404 means no publicly indexed package, **not** a guarantee that npm will accept publication.
+5. Run `npm publish --access public --tag alpha` while logged in to the intended npm owner account.
+6. Confirm with `npm view paglora@alpha version`.
 
-Do not commit npm tokens or publish an empty placeholder package.
+Only a successful publication secures an unscoped name. Never commit your npm token or authentication data. Verify ownership and availability before any GitHub repository rename.
