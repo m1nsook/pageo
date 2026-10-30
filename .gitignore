@@ -2,6 +2,9 @@
 node_modules/
 dist/
 dist-ssr/
+# Temporary and previous outputs used by the atomic site runtime build
+packages/site-runtime/.dist-staging/
+packages/site-runtime/.dist-previous/
 coverage/
 .vite/
 *.tsbuildinfo
