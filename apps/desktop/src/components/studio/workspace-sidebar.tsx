@@ -1,4 +1,4 @@
-import { BookOpen, FolderOpen, Home, LayoutTemplate, Settings2, ShieldCheck } from "lucide-react";
+import { FolderOpen, Home, LayoutTemplate, Settings2, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
