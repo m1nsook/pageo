@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { WorkspaceView } from "@/components/studio/workspace-sidebar";
+import { ThemeSwitcher } from "@/components/studio/theme-switcher";
 
 const formatter = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
 const displayDate = (seconds: number) => formatter.format(new Date(seconds * 1000));
@@ -131,6 +132,10 @@ export function Settings({ location, desktop }: { location: string; desktop: boo
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-4xl animate-in fade-in-0 space-y-5 px-5 py-10 duration-200 lg:px-10">
           <div className="mb-8"><h1 className="text-2xl font-semibold tracking-tight">Settings</h1><p className="mt-1 text-sm text-muted-foreground">Everything is stored locally. No login or cloud service required.</p></div>
+          <Card>
+            <CardHeader><CardTitle>Appearance</CardTitle><CardDescription>Choose a light or dark theme, or follow your system preference. Your choice is saved on this computer.</CardDescription></CardHeader>
+            <CardContent><ThemeSwitcher showLabel /></CardContent>
+          </Card>
           <Card><CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="size-4" /> Local project storage</CardTitle><CardDescription>Paglora saves documentation inside its application data folder.</CardDescription></CardHeader>
             <CardContent><div className="break-all rounded-md bg-muted p-3 font-mono text-xs text-foreground">{desktop ? location || "Loading location..." : "Available in the desktop app only"}</div><p className="mt-4 text-xs text-muted-foreground">Custom locations and .paglora backups are planned for later releases.</p></CardContent>
           </Card>
