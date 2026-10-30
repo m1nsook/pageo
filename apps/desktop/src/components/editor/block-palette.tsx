@@ -17,7 +17,7 @@ function topLevelDropPos(editor: Editor, y: number): number {
   // Snap to boundaries between top-level nodes: inserting there cannot
   // accidentally split a paragraph, heading, or code block.
   let result = editor.state.doc.content.size;
-  editor.state.doc.forEach((node, offset) => {
+  editor.state.doc.forEach((_node, offset) => {
     const dom = editor.view.nodeDOM(offset);
     if (!(dom instanceof HTMLElement)) return;
     const bounds = dom.getBoundingClientRect();
