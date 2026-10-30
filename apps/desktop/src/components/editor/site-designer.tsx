@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Eye, LayoutTemplate, LoaderCircle, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -41,11 +41,15 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [width, setWidth] = useState<"desktop" | "mobile">("desktop");
+  const editVersion = useRef(0);
 
   useEffect(() => {
     if (!open) return;
     let mounted = true;
     setLoading(true);
+    setSettings(null);
+    setPreview("");
+    editVersion.current++;
     setError("");
     setSaved(false);
     void Promise.all([onBeforePreview(), loadSiteSettings(projectId)])
@@ -68,6 +72,7 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
   }, [open, projectId, settings]);
 
   function patch<K extends keyof SiteSettings>(key: K, value: SiteSettings[K]) {
+    editVersion.current++;
     setSettings(current => current ? { ...current, [key]: value } : null);
     setSaved(false);
     setError("");
@@ -78,9 +83,11 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
     if (!settings || busy) return;
     setBusy(true);
     setError("");
+    const savingVersion = editVersion.current;
     try {
       await saveSiteSettings(projectId, settings);
-      setSaved(true);
+      // An edit made during the save still needs another save.
+      setSaved(editVersion.current === savingVersion);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -98,6 +105,7 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
         <div className="flex h-[48%] shrink-0 flex-col overflow-hidden rounded-lg border border-border lg:h-full lg:w-[365px]">
           {loading && <p className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/> Loading website settings...</p>}
+          {!loading && !settings && error && <p role="alert" className="m-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
           {settings && !loading && <form onSubmit={event => void save(event)} className="flex min-h-0 flex-1 flex-col">
             <Tabs defaultValue="header" className="min-h-0 flex-1 gap-0">
               <TabsList className="mx-3 mt-3 grid w-[calc(100%-24px)] grid-cols-4">
