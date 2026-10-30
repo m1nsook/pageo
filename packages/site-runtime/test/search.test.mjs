@@ -212,3 +212,27 @@ test("search snippets align with NFKC compatibility-expanded text", async () => 
   assert.equal(results.children[0].href, "ligatures.html");
   assert.match(results.children[0].children[1].textContent, /needle appears here/);
 });
+
+test("search accepts natural-language punctuation without treating it as part of a term", async () => {
+  const app = fixture([
+    { title: "Installation", url: "install.html", text: "Install Paglora. Then configure your project!" },
+    { title: "Unrelated", url: "other.html", text: "This is about other tools." },
+  ]);
+  const { input, results } = await app.open();
+  input.value = "install, configure?";
+  input.events.input();
+  assert.equal(results.children.length, 1);
+  assert.equal(results.children[0].href, "install.html");
+});
+
+test("search preserves punctuation in programming-language terms", async () => {
+  const app = fixture([
+    { title: "C++", url: "cpp.html", text: "Compile C++ examples" },
+    { title: "C#", url: "csharp.html", text: "Compile C# examples" },
+  ]);
+  const { input, results } = await app.open();
+  input.value = "C++";
+  input.events.input();
+  assert.equal(results.children.length, 1);
+  assert.equal(results.children[0].href, "cpp.html");
+});
