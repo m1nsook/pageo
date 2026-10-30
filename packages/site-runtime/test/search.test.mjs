@@ -5,13 +5,14 @@ import vm from "node:vm";
 
 const source = readFileSync(new URL("../src/search.js", import.meta.url), "utf8");
 
-function fixture(pages, { responseOk = true, waitForIndex = false } = {}) {
+function fixture(pages, { responseOk = true, waitForIndex = false, failFirstFetch = false } = {}) {
   let releaseFetch;
   const gate = new Promise(resolve => { releaseFetch = resolve; });
   const docListeners = {};
   let requested = "";
   let requestOptions;
   let navigated = "";
+  let fetchCalls = 0;
   const document = {
     activeElement: null,
     body: node("body"),
@@ -52,8 +53,9 @@ function fixture(pages, { responseOk = true, waitForIndex = false } = {}) {
     fetch: async (url, options) => {
       requested = url;
       requestOptions = options;
+      fetchCalls++;
       if (waitForIndex) await gate;
-      return { ok: responseOk, json: async () => ({ version: 1, pages }) };
+      return { ok: responseOk && (!failFirstFetch || fetchCalls > 1), json: async () => ({ version: 1, pages }) };
     },
   };
   vm.runInNewContext(source, context);
@@ -67,7 +69,7 @@ function fixture(pages, { responseOk = true, waitForIndex = false } = {}) {
     const bar = modal.children[0];
     return { backdrop, modal, input: bar.children[0], results: modal.children[1] };
   }
-  return { button, open, document, docListeners, releaseFetch, get requested() { return requested; }, get requestOptions() { return requestOptions; }, get navigated() { return navigated; } };
+  return { button, open, document, docListeners, releaseFetch, get requested() { return requested; }, get requestOptions() { return requestOptions; }, get navigated() { return navigated; }, get fetchCalls() { return fetchCalls; } };
 }
 
 test("Ctrl+K search fetches only the local static index", async () => {
@@ -211,4 +213,17 @@ test("search snippets align with NFKC compatibility-expanded text", async () => 
   input.events.input();
   assert.equal(results.children[0].href, "ligatures.html");
   assert.match(results.children[0].children[1].textContent, /needle appears here/);
+});
+
+test("a failed search-index fetch can be retried without closing the dialog", async () => {
+  const app = fixture([{ title: "Guide", url: "guide.html", text: "Paglora guide" }], { failFirstFetch: true });
+  const { input, results } = await app.open();
+  assert.match(results.children[0].textContent, /could not be loaded/);
+  assert.equal(results.children[1].textContent, "Retry search");
+  results.children[1].events.click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(app.fetchCalls, 2);
+  input.value = "Paglora";
+  input.events.input();
+  assert.equal(results.children[0].href, "guide.html");
 });

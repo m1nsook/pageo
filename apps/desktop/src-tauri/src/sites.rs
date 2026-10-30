@@ -54,6 +54,8 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .paglora-search-result-title{display:block;font-size:13px;font-weight:700;line-height:1.5}
 .paglora-search-result-summary{display:block;margin-top:4px;font-size:12px;color:var(--muted);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .paglora-search-status{padding:22px 15px;color:var(--muted);font-size:13px}
+.paglora-search-retry{margin:0 15px 16px;padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--subtle);color:var(--fg);font:inherit;font-size:12px;cursor:pointer}
+.paglora-search-retry:hover,.paglora-search-retry:focus-visible{border-color:var(--brand);outline-offset:2px}
 .paglora-search-footnote{padding:9px 15px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
 @media(max-width:680px){.paglora-search-trigger{width:auto;min-width:75px}.paglora-search-trigger::after{display:none}.paglora-search-backdrop{padding-top:7vh}}
 

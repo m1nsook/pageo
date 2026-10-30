@@ -183,6 +183,12 @@
     });
   }
 
+  async function retry() {
+    results.replaceChildren(element("p", "paglora-search-status", "Loading search index…"));
+    try { await load(); } catch { /* render a retryable error */ }
+    if (shell && !shell.hidden) render();
+  }
+
   function render() {
     const query = input.value.trim();
     currentResults = find(query);
@@ -191,6 +197,12 @@
     if (!loaded) {
       results.appendChild(element("p", "paglora-search-status", loadError
         ? "Search index could not be loaded" : "Loading search index…"));
+      if (loadError) {
+        const retryButton = element("button", "paglora-search-retry", "Retry search");
+        retryButton.type = "button";
+        retryButton.addEventListener("click", () => { void retry(); });
+        results.appendChild(retryButton);
+      }
       return;
     }
     if (!query) {
