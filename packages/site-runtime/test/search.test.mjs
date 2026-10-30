@@ -107,3 +107,22 @@ test("failed index load shows a non-crashing error message", async () => {
   const { results } = await app.open();
   assert.match(results.children[0].textContent, /could not be loaded/);
 });
+
+test("Tab reaches search results and wraps keyboard focus inside the dialog", async () => {
+  const app = fixture([{ title: "Guide", url: "guide.html", text: "Keyboard accessible" }]);
+  const { backdrop, input, results } = await app.open();
+  input.value = "Keyboard";
+  input.events.input();
+  const link = results.children[0];
+  const modal = backdrop.children[0];
+  const closeButton = modal.children[0].children[1];
+  let prevented = 0;
+  input.focus();
+  modal.events.keydown({ key: "Tab", shiftKey: true, preventDefault() { prevented++; } });
+  assert.equal(app.document.activeElement, link);
+  modal.events.keydown({ key: "Tab", shiftKey: false, preventDefault() { prevented++; } });
+  assert.equal(app.document.activeElement, input);
+  assert.equal(prevented, 2);
+  // The close button remains part of the normal focus order.
+  assert.ok(closeButton);
+});
