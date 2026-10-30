@@ -31,7 +31,7 @@ jobs:
       # The issue templates already assign bug/enhancement and needs-triage.
       # This maps their "Area" dropdown to the corresponding area:* label.
       - name: Label issue using selected area
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const body = context.payload.issue.body || '';
