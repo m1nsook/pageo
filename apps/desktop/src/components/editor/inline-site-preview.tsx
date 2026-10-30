@@ -59,7 +59,7 @@ export function InlineSitePreview({
       .catch(cause => { if (active) { setError(describeError(cause)); setHtml(""); } })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [projectId, previewPageId, savedVersion, reload]);
+  }, [projectId, previewPageId, savedVersion, reload, page.layout, page.title, page.isPublic]);
 
   const refresh = useCallback(async () => {
     setBusy(true);
