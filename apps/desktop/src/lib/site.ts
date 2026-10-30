@@ -32,7 +32,7 @@ const allowed = new Set([
   "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "hr",
   "strong", "em", "del", "s", "code", "pre", "blockquote",
   "ul", "ol", "li", "a", "img", "table", "thead", "tbody",
-  "tr", "th", "td", "sup", "sub",
+  "tr", "th", "td", "sup", "sub", "details", "summary",
 ]);
 
 function safeLink(raw: string): string | null {
@@ -81,6 +81,12 @@ export function renderSafeMarkdown(html: string): string {
       return checkbox;
     }
     const next = document.createElement(allowed.has(tag) ? tag : "span");
+    // Native disclosure components work without JavaScript in both exported
+    // HTML and the script-disabled Studio preview. Never copy event handlers.
+    if (tag === "details") {
+      next.className = "paglora-disclosure";
+      if (element.hasAttribute("open")) next.setAttribute("open", "");
+    }
     if (tag === "a") {
       const href = safeLink(element.getAttribute("href") || "");
       if (href) next.setAttribute("href", href);
