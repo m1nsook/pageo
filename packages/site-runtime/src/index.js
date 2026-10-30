@@ -53,6 +53,7 @@
     copy.textContent = "Copy";
     copy.setAttribute("aria-label", "Copy code block");
     pre.appendChild(copy);
+    pre.classList.add("paglora-has-copy");
     copy.addEventListener("click", async () => {
       if (!navigator.clipboard?.writeText) {
         copy.textContent = "Unavailable";
