@@ -99,6 +99,19 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     },
   });
 
+  // Desktop Ctrl+S saves the active Markdown file instead of opening WebView's
+  // "Save page as..." dialog. The existing serialized autosave queue is reused.
+  useEffect(() => {
+    function saveShortcut(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void persist().catch(() => undefined);
+      }
+    }
+    window.addEventListener("keydown", saveShortcut);
+    return () => window.removeEventListener("keydown", saveShortcut);
+  }, [persist]);
+
   useEffect(() => { editor?.setEditable(!preview); }, [editor, preview]);
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
@@ -206,6 +219,22 @@ export default function App() {
   const [loading, setLoading] = useState(desktop);
   const [error, setError] = useState("");
   const [location, setLocation] = useState("");
+
+  // Pageo is a desktop editor, not a web page. Prevent browser-only
+  // print/save/reload/open shortcuts (and F5) in the Tauri WebView.
+  // Do not block copy/paste/undo, or text formatting inside Tiptap.
+  useEffect(() => {
+    if (!desktop) return;
+    function preventBrowserCommands(event: KeyboardEvent) {
+      const command = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+      if ((command && ["p", "s", "r", "o"].includes(key)) || event.key === "F5") {
+        event.preventDefault();
+      }
+    }
+    window.addEventListener("keydown", preventBrowserCommands, { capture: true });
+    return () => window.removeEventListener("keydown", preventBrowserCommands, { capture: true });
+  }, [desktop]);
 
   const refresh = useCallback(async () => {
     if (!desktop) return;
