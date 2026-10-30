@@ -23,7 +23,7 @@ jobs:
       - name: Install locked workspace tooling
         run: bun install --frozen-lockfile
       - name: Generate official Tauri icon files
-        run: bunx tauri icon apps/desktop/public/paglora.svg --output apps/desktop/src-tauri/icons
+        run: cd apps/desktop && bunx @tauri-apps/cli icon public/paglora.svg --output src-tauri/icons
       - name: Commit icon files to PR branch
         run: |
           git config user.name "github-actions[bot]"
