@@ -16,7 +16,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout PR configuration
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Label PR from files and branch name
         uses: actions/labeler@v6
         with:
