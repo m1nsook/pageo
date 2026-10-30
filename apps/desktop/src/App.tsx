@@ -275,7 +275,17 @@ function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; o
   const id = document.project.id;
   useEffect(() => {
     let alive=true;
-    void listPages(id).then(result => {if(alive) setPages(result);}).catch(e=>{if(alive)setFailure(friendlyError(e));});
+    void listPages(id).then(result => {
+      if (!alive) return;
+      setPages(result);
+      // Hydrate the selected page's persisted title/layout/navigation metadata.
+      // The initial Markdown comes from loadProject, but page metadata comes
+      // from pages.json and must not remain a hard-coded placeholder.
+      setCurrent(previous => {
+        const loaded = result.find(page => page.id === previous.page.id);
+        return loaded ? { ...previous, page: loaded } : previous;
+      });
+    }).catch(e => { if (alive) setFailure(friendlyError(e)); });
     return ()=>{alive=false;};
   },[id]);
   const change = async (pageId: string) => { setCurrent(await loadPage(id,pageId)); };
