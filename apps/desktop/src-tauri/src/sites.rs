@@ -7,6 +7,8 @@ const EXPORTS: &str = "site-exports";
 // First-party, browser-only runtime. The Studio preview deliberately removes it.
 const SITE_RUNTIME_JS: &str = include_str!("../../../../packages/site-runtime/src/index.js");
 const SITE_RUNTIME_SCRIPT: &str = "<script defer src=\"paglora.js\"></script>";
+const SITE_SEARCH_JS: &str = include_str!("../../../../packages/site-runtime/src/search.js");
+const SITE_SEARCH_SCRIPT: &str = "<script defer src=\"paglora-search.js\"></script>";
 const SITE_CSS: &str = r#"
 @font-face{font-family:"Geist Website";src:url("fonts/geist-latin.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
 :root{color-scheme:light;--bg:#ffffff;--fg:#151a24;--muted:#626b7c;--line:#e6eaf0;--subtle:#f6f8fb;--hover:#edf3fa;--brand:#2196f3;--brand-light:#eaf5ff;--code-bg:#101828;--code-fg:#e9eef8;--header-bg:rgba(255,255,255,.96)}
@@ -25,6 +27,27 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .paglora-appearance-toggle{flex-shrink:0;appearance:none;border:1px solid var(--line);border-radius:9px;background:var(--subtle);color:var(--fg);font:inherit;font-size:12px;font-weight:650;cursor:pointer;white-space:nowrap;padding:7px 11px;line-height:1.3}
 .paglora-appearance-toggle:hover{border-color:var(--brand);background:var(--hover)}
 .paglora-appearance-toggle:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.paglora-search-trigger{appearance:none;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;width:160px;min-height:33px;padding:5px 11px;border:1px solid var(--line);border-radius:9px;background:var(--subtle);color:var(--muted);font:inherit;font-size:12px;text-align:left;cursor:pointer}
+.paglora-search-trigger::after{content:"⌘K";font-size:11px;opacity:.65}
+.paglora-search-trigger:hover{border-color:var(--brand);color:var(--fg)}
+.paglora-search-trigger:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.paglora-search-open{overflow:hidden}
+.paglora-search-backdrop[hidden]{display:none}
+.paglora-search-backdrop{position:fixed;inset:0;z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:12vh 18px 28px;background:rgba(5,10,18,.65);backdrop-filter:blur(5px)}
+.paglora-search-dialog{width:min(640px,100%);max-height:min(76vh,750px);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:15px;background:var(--bg);color:var(--fg);box-shadow:0 20px 80px rgba(0,0,0,.25);overflow:hidden}
+.paglora-search-field{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.paglora-search-input{flex:1;min-width:0;outline:none;background:transparent;border:0;color:var(--fg);font:inherit;font-size:16px}
+.paglora-search-input::-webkit-search-cancel-button{cursor:pointer}
+.paglora-search-close{padding:5px 9px;border:1px solid var(--line);border-radius:6px;background:var(--subtle);color:var(--muted);font:inherit;font-size:11px;cursor:pointer}
+.paglora-search-results{min-height:100px;max-height:55vh;overflow-y:auto;padding:8px}
+.paglora-search-result{display:block;padding:11px 13px;border:1px solid transparent;border-radius:9px;color:var(--fg);text-decoration:none}
+.paglora-search-result:hover,.paglora-search-result.is-selected{background:var(--hover);border-color:var(--line)}
+.paglora-search-result-title{display:block;font-size:13px;font-weight:700;line-height:1.5}
+.paglora-search-result-summary{display:block;margin-top:4px;font-size:12px;color:var(--muted);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.paglora-search-status{padding:22px 15px;color:var(--muted);font-size:13px}
+.paglora-search-footnote{padding:9px 15px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+@media(max-width:680px){.paglora-search-trigger{width:auto;min-width:75px}.paglora-search-trigger::after{display:none}.paglora-search-backdrop{padding-top:7vh}}
+
 .toc-inner a[aria-current="location"]{color:var(--brand);font-weight:650}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 .top-bar{max-width:1500px;min-height:72px;margin:auto;padding:0 clamp(22px,3vw,48px);display:flex;align-items:center;justify-content:space-between;gap:28px}
@@ -236,6 +259,8 @@ pub struct RenderedPage {
     html: String,
     #[serde(default)]
     toc: Vec<TocHeading>,
+    #[serde(default)]
+    search_text: String,
 }
 
 #[derive(Deserialize)]
@@ -394,6 +419,21 @@ fn escape(value: &str) -> String {
 }
 
 fn filename(id: &str) -> String { format!("{id}.html") }
+fn public_search_index(
+    public_pages: &[&crate::pages::Page],
+    html_by_id: &HashMap<&str, &RenderedPage>,
+) -> serde_json::Value {
+    let pages: Vec<_> = public_pages.iter().filter_map(|page| {
+        let item = html_by_id.get(page.id.as_str())?;
+        Some(serde_json::json!({
+            "title": page.title,
+            "url": filename(&page.id),
+            "text": item.search_text.chars().take(15_000).collect::<String>()
+        }))
+    }).collect();
+    serde_json::json!({"version": 1, "pages": pages})
+}
+
 
 fn render_site_page(
     settings: &SiteSettings,
@@ -524,6 +564,7 @@ fn render_site_page(
 </div>
 {footer}
 <script defer src="paglora.js"></script>
+<script defer src="paglora-search.js"></script>
 </body>
 </html>"##)
 }
@@ -570,7 +611,7 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
     );
     // Studio preview is intentionally script-disabled; remove the exported
     // runtime reference. Site interactions are tested in the built website.
-    let doc = doc.replace(SITE_RUNTIME_SCRIPT, "");
+    let doc = doc.replace(SITE_RUNTIME_SCRIPT, "").replace(SITE_SEARCH_SCRIPT, "");
     // Project-owned CSS always comes last, overriding designer presets.
     Ok(doc.replace("</head>", &format!("{override_css}</head>")))
 }
@@ -602,6 +643,7 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
     let write_result = (|| -> Result<(), String> {
         fs::write(staged.join("styles.css"), SITE_CSS).map_err(|e| e.to_string())?;
         fs::write(staged.join("paglora.js"), SITE_RUNTIME_JS).map_err(|e| e.to_string())?;
+        fs::write(staged.join("paglora-search.js"), SITE_SEARCH_JS).map_err(|e| e.to_string())?;
         // Bundle the default Geist font; optional hosted Google Fonts remain supported.
         fs::create_dir(staged.join("fonts")).map_err(|e| e.to_string())?;
         fs::write(staged.join("fonts/geist-latin.woff2"), include_bytes!("../assets/geist-latin.woff2"))
@@ -611,6 +653,13 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
         if let Some(css) = &theme {
             fs::write(staged.join("custom.css"), css).map_err(|e| e.to_string())?;
         }
+        // Index only explicitly public, already sanitized page content.
+        // Never copy private Markdown or raw user HTML into the search index.
+        let index = public_search_index(&public_pages, &html_by_id);
+        fs::write(staged.join("search-index.json"),
+            serde_json::to_vec(&index)
+                .map_err(|error| error.to_string())?)
+            .map_err(|error| error.to_string())?;
         for page in &public_pages {
             let rendered_page = html_by_id.get(page.id.as_str()).ok_or("Missing public page")?;
             let mut output = render_site_page(&settings, &pages, page, &rendered_page.html, &rendered_page.toc);
@@ -654,7 +703,30 @@ mod website_font_tests {
         assert!(output.contains("</div></details>"));
         assert!(output.contains("aria-current=\"page\""));
         assert!(output.contains(SITE_RUNTIME_SCRIPT));
+        assert!(output.contains(SITE_SEARCH_SCRIPT));
+        assert!(SITE_SEARCH_JS.contains("search-index.json"));
         assert!(SITE_RUNTIME_JS.contains("paglora:theme:"));
+    }
+
+    #[test]
+    fn search_index_includes_only_public_pages() {
+        let pages = vec![
+            crate::pages::Page { id: "index".into(), title: "Public".into(), is_public: true, layout: "docs".into(), nav_group: "Docs".into() },
+            crate::pages::Page { id: "draft".into(), title: "Secret Draft".into(), is_public: false, layout: "docs".into(), nav_group: "Internal".into() },
+        ];
+        let rendered = vec![
+            RenderedPage { id: "index".into(), html: "<p>Visible</p>".into(), toc: vec![], search_text: "Visible page".into() },
+            RenderedPage { id: "draft".into(), html: "<p>Secret</p>".into(), toc: vec![], search_text: "Private content".into() },
+        ];
+        let refs = pages.iter().filter(|p| p.is_public).collect::<Vec<_>>();
+        let by_id = rendered.iter().map(|p| (p.id.as_str(), p)).collect::<HashMap<_, _>>();
+        let index = public_search_index(&refs, &by_id);
+        assert_eq!(index["version"], 1);
+        assert_eq!(index["pages"].as_array().unwrap().len(), 1);
+        assert_eq!(index["pages"][0]["url"], "index.html");
+        let json = serde_json::to_string(&index).unwrap();
+        assert!(!json.contains("Secret"));
+        assert!(!json.contains("Private content"));
     }
 
     #[test]
