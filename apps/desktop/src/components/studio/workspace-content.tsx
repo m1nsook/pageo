@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import type { ProjectSummary } from "@pageo/core";
-import { ArrowRight, BookOpen, ChevronRight, Clock3, FolderOpen, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronRight, Clock3, Copy, FolderOpen, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -31,6 +32,8 @@ function WorkspaceHeader({ section }: { section: string }) {
 
 function ProjectCard({ project, onOpen }: { project: ProjectSummary; onOpen: () => void }) {
   return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
     <Card className="group gap-0 py-0 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-lg">
       <button className="flex h-full min-h-48 flex-col rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
         <CardHeader className="w-full pt-5">
@@ -48,6 +51,19 @@ function ProjectCard({ project, onOpen }: { project: ProjectSummary; onOpen: () 
         </CardFooter>
       </button>
     </Card>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="min-w-48">
+        <ContextMenuItem onSelect={onOpen}><BookOpen /> Open project</ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => {
+          if (navigator.clipboard?.writeText) {
+            void navigator.clipboard.writeText(project.name).catch((error: unknown) => {
+              console.warn("Could not copy project name", error);
+            });
+          }
+        }}><Copy /> Copy project name</ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
