@@ -1,0 +1,58 @@
+name: Auto-label
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+  issues:
+    types: [opened, edited]
+
+jobs:
+  pull-request:
+    # Fork PRs use read-only tokens; same-repository PRs can be labeled.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout PR configuration
+        uses: actions/checkout@v4
+      - name: Label PR from files and branch name
+        uses: actions/labeler@v6
+        with:
+          sync-labels: false
+
+  issue-area:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      # The issue templates already assign bug/enhancement and needs-triage.
+      # This maps their "Area" dropdown to the corresponding area:* label.
+      - name: Label issue using selected area
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const body = context.payload.issue.body || '';
+            const match = body.match(/^### (?:Affected area|Area)\s*\r?\n+\s*([^\r\n]+)/mi);
+            if (!match) return;
+
+            const areas = {
+              'Desktop app': 'area:desktop',
+              'Visual editor': 'area:editor',
+              'Project files / backups': 'area:project',
+              'Static export': 'area:export',
+              'npm package / CLI': 'area:cli',
+              'UI / theming': 'area:ui',
+            };
+            const label = areas[match[1].trim()];
+            if (!label) return;
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const existing = (context.payload.issue.labels || []).map(l => l.name);
+            if (existing.includes(label)) return;
+            await github.rest.issues.addLabels({
+              owner, repo, issue_number, labels: [label],
+            });
