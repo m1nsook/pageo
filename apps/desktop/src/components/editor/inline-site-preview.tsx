@@ -134,7 +134,7 @@ export function InlineSitePreview({
       const href = anchor.getAttribute("href") ?? "";
       if (href.startsWith("#")) return;
       click.preventDefault();
-      const match = /^(?:\\.\\/)?([a-z0-9-]+)\\.html(?:#[a-z0-9_-]+)?$/i.exec(href);
+      const match = /^(?:\.\/)?([a-z0-9-]+)\.html(?:#[a-z0-9_-]+)?$/i.exec(href);
       if (match && pages.some(item => item.id === match[1] && item.isPublic)) {
         onNavigate(match[1]);
       }
