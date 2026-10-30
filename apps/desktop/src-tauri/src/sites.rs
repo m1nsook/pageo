@@ -135,7 +135,7 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs .paglora-copy-code:hover{background:#354359}
 .docs .paglora-copy-code:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .docs .paglora-heading-link{margin-left:12px;display:inline-block;font-size:.7em;font-weight:550;color:var(--brand);text-decoration:none;opacity:0;vertical-align:baseline}
-.docs :is(h2,h3):hover .paglora-heading-link,.docs .paglora-heading-link:focus-visible{opacity:1}
+.docs :is(h2,h3,h4):hover .paglora-heading-link,.docs .paglora-heading-link:focus-visible{opacity:1}
 @media(hover:none){.docs .paglora-heading-link{opacity:.8}}
 .docs .paglora-heading-link:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 .docs a{color:var(--brand);text-decoration-color:color-mix(in srgb,var(--brand) 40%,transparent);text-decoration-thickness:1px;text-underline-offset:3px}
@@ -147,7 +147,7 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs tr:last-child td{border-bottom:0}
 .docs th:last-child,.docs td:last-child{border-right:0}
 .docs hr{border:0;border-top:1px solid var(--line);margin:38px 0}
-.docs :is(h2,h3) a{color:inherit}
+.docs :is(h2,h3,h4) a{color:inherit}
 .on-this-page{grid-column:3;min-width:0;padding:35px clamp(18px,2.2vw,32px) 40px 14px}
 .toc-inner{position:sticky;top:105px;max-height:calc(100vh - 125px);overflow-y:auto;scrollbar-width:thin}
 .toc-inner h2{margin:0 0 13px;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:750}
