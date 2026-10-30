@@ -52,19 +52,30 @@
     copy.className = "paglora-copy-code";
     copy.textContent = "Copy";
     copy.setAttribute("aria-label", "Copy code block");
+    copy.setAttribute("aria-live", "polite");
     pre.appendChild(copy);
     pre.classList.add("paglora-has-copy");
+    let resetTimer;
+    function showFeedback(text, label) {
+      copy.textContent = text;
+      copy.setAttribute("aria-label", label);
+      if (resetTimer !== undefined) clearTimeout(resetTimer);
+      resetTimer = setTimeout(() => {
+        copy.textContent = "Copy";
+        copy.setAttribute("aria-label", "Copy code block");
+        resetTimer = undefined;
+      }, 2000);
+    }
     copy.addEventListener("click", async () => {
       if (!navigator.clipboard?.writeText) {
-        copy.textContent = "Unavailable";
+        showFeedback("Unavailable", "Clipboard unavailable");
         return;
       }
       try {
         await navigator.clipboard.writeText(code.textContent ?? "");
-        copy.textContent = "Copied";
-        copy.setAttribute("aria-label", "Code copied to clipboard");
+        showFeedback("Copied", "Code copied to clipboard");
       } catch {
-        copy.textContent = "Unavailable";
+        showFeedback("Unavailable", "Clipboard unavailable");
       }
     });
   }
