@@ -412,6 +412,13 @@ fn safe_link(raw: &str, https_only: bool) -> bool {
     )
 }
 
+fn valid_site_page_entry(page: &crate::pages::Page) -> bool {
+    valid_id(&page.id) && crate::pages::valid_navigation_group(&page.nav_group) &&
+        ["docs", "wide", "landing"].contains(&page.layout.as_str()) &&
+        !page.title.trim().is_empty() && page.title.chars().count() <= 100 &&
+        !page.title.chars().any(char::is_control)
+}
+
 fn read_pages(dir: &Path) -> Result<Vec<crate::pages::Page>, String> {
     let manifest: PageManifest = serde_json::from_str(
         &fs::read_to_string(dir.join("pages.json")).map_err(|e| e.to_string())?
@@ -423,7 +430,7 @@ fn read_pages(dir: &Path) -> Result<Vec<crate::pages::Page>, String> {
     }
     let mut seen = HashSet::new();
     for page in &manifest.pages {
-        if !valid_id(&page.id) || !crate::pages::valid_navigation_group(&page.nav_group) || !["docs", "wide", "landing"].contains(&page.layout.as_str()) || !seen.insert(page.id.as_str()) || page.title.trim().is_empty() {
+        if !valid_site_page_entry(page) || !seen.insert(page.id.as_str()) {
             return Err("Invalid page identifier in site".into());
         }
     }
@@ -712,6 +719,23 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
 #[cfg(test)]
 mod website_font_tests {
     use super::*;
+
+    #[test]
+    fn exported_page_titles_obey_manifest_character_and_control_limits() {
+        let mut page = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Documentation".into(),
+        };
+        assert!(valid_site_page_entry(&page));
+        page.title = "📘".repeat(100);
+        assert!(valid_site_page_entry(&page));
+        page.title.push('📘');
+        assert!(!valid_site_page_entry(&page));
+        page.title = "Docs\\u{85}Internal".replace("\\u{85}", "\u{85}");
+        assert!(!valid_site_page_entry(&page));
+        page.title = "   ".into();
+        assert!(!valid_site_page_entry(&page));
+    }
 
     #[test]
     fn page_navigation_groups_appear_in_generated_html() {
