@@ -40,7 +40,7 @@ Paglora is a **free, open-source, local-first documentation studio** built with 
 
 ### Run the desktop Studio
 
-Paglora Desktop is currently developed and checked on **Windows**. You'll need [Bun](https://bun.sh/), [Rust](https://rustup.rs/), and the required Windows C++ tools and WebView2 dependencies listed in the [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/).
+Paglora Desktop is currently developed and checked on **Windows**. You'll need [Bun](https://bun.sh/), [Rust](https://rustup.rs/), and the required Windows C++ tools and WebView2 dependencies listed in the [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/). Install [Node.js 20+](https://nodejs.org/) if you also want to run the standalone Node test commands below.
 
 Open the repository in GitHub Desktop, then from the repository root:
 
