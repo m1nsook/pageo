@@ -94,25 +94,35 @@
 
   // Highlight the TOC heading the reader is currently passing. This is a
   // progressive enhancement: anchor links work without JavaScript.
-  const outline = document.querySelector(".toc-inner");
-  if (!outline) return;
-  const items = [...outline.querySelectorAll('a[href^="#"]')]
+  const mobileOutline = document.querySelector(".mobile-toc");
+  const outlines = [document.querySelector(".toc-inner"), mobileOutline].filter(Boolean);
+  if (!outlines.length) return;
+  // Desktop and mobile outlines point to the same headings. Keep both sets
+  // of links synchronized, even when the desktop sidebar is CSS-hidden.
+  const items = outlines.flatMap(outline => [...outline.querySelectorAll('a[href^="#"]')])
     .map(link => {
-      const heading = document.getElementById(link.getAttribute("href").slice(1));
+      let id = link.getAttribute("href").slice(1);
+      try { id = decodeURIComponent(id); } catch { return null; }
+      const heading = document.getElementById(id);
       return heading ? { link, heading } : null;
     })
     .filter(Boolean);
   if (!items.length) return;
 
+  // Close the mobile "On this page" drawer after a heading is selected.
+  mobileOutline?.addEventListener("click", event => {
+    if (event.target?.closest?.('a[href^="#"]')) mobileOutline.open = false;
+  });
+
   let scheduled = false;
   function markActiveHeading() {
     scheduled = false;
-    let active = items[0];
+    let activeHeading = items[0].heading;
     for (const item of items) {
-      if (item.heading.getBoundingClientRect().top <= 140) active = item;
+      if (item.heading.getBoundingClientRect().top <= 140) activeHeading = item.heading;
     }
     for (const item of items) {
-      if (item === active) item.link.setAttribute("aria-current", "location");
+      if (item.heading === activeHeading) item.link.setAttribute("aria-current", "location");
       else item.link.removeAttribute("aria-current");
     }
   }
