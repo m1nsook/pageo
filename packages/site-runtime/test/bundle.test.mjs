@@ -28,3 +28,12 @@ test("bundled site runtime activates without external libraries", () => {
   assert.equal(appended.length,1);
   assert.match(appended[0].textContent,/System/);
 });
+
+test("build output is independent of build timestamp and has no source map references", () => {
+  for (const filename of ["index.js", "search.js"]) {
+    const output = bundle(filename);
+    assert.doesNotMatch(output, /sourceMappingURL|\/\/\# sourceURL/);
+    assert.doesNotMatch(output, /Date\.now\(\)|new Date\(\)/);
+    assert.doesNotMatch(output, /https?:\/\/[^\s"']+\.js/);
+  }
+});
