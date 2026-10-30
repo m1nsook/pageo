@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest an improvement to Pageo.
+title: "[Feature]: "
+labels: ["enhancement", "status:needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Explain the need or workflow.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should Pageo do?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Desktop app
+        - Visual editor
+        - Project files / backups
+        - Static export
+        - npm package / CLI
+        - UI / theming
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional.

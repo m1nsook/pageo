@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions, ideas and support
+    url: https://github.com/m1nsook/pageo/discussions
+    about: Use Discussions for open-ended questions and community conversations.
