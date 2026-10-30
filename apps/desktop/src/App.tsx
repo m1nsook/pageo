@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { createProject, isTauri, listProjects, loadProject, projectsDirectory, saveDocument } from "@/lib/projects";
+import { createProject, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
+import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, type Page, type PageDocument } from "@/lib/pages";
 
 type View = "home" | "projects" | "settings";
 
@@ -154,8 +155,8 @@ function ToolbarButton({ title, active, onClick, children }: { title: string; ac
   return <button type="button" title={title} aria-label={title} aria-pressed={Boolean(active)} className={cn("flex size-9 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900", active && "bg-indigo-50 text-indigo-700")} onMouseDown={(event) => event.preventDefault()} onClick={onClick}>{children}</button>;
 }
 
-function ProjectEditor({ document, onBack, onSaved }: { document: ProjectDocument; onBack: () => void; onSaved: (project: ProjectSummary) => void }) {
-  const latest = useRef(document.markdown);
+function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange, onModify }: { document: ProjectDocument; current: PageDocument; pages: Page[]; onBack: () => void; onSaved: (project: ProjectSummary) => void; onChange: (id: string) => Promise<void>; onModify: (action: "create"|"rename"|"duplicate"|"delete"|"reorder", id?: string, target?: string) => Promise<void> }) {
+  const latest = useRef(current.markdown);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const revision = useRef(0);
@@ -169,7 +170,7 @@ function ProjectEditor({ document, onBack, onSaved }: { document: ProjectDocumen
     const content = latest.current;
     const capturedRevision = revision.current;
     setSaveState("saving");
-    const run = queue.current.catch(() => undefined).then(() => saveDocument(document.project.id, content));
+    const run = queue.current.catch(() => undefined).then(() => savePage(document.project.id, current.page.id, content));
     queue.current = run.then(() => undefined, () => undefined);
     try {
       const updated = await run;
@@ -179,11 +180,11 @@ function ProjectEditor({ document, onBack, onSaved }: { document: ProjectDocumen
       setSaveState("error"); setSaveError(friendlyError(error));
       throw error;
     }
-  }, [document.project.id, onSaved]);
+  }, [document.project.id, current.page.id, onSaved]);
 
   const editor = useEditor({
     extensions: [StarterKit, Markdown],
-    content: document.markdown,
+    content: current.markdown,
     contentType: "markdown",
     editorProps: { attributes: { class: "editor-content focus:outline-none" } },
     onUpdate: ({ editor: current }) => {
@@ -198,16 +199,23 @@ function ProjectEditor({ document, onBack, onSaved }: { document: ProjectDocumen
   useEffect(() => { editor?.setEditable(!preview); }, [editor, preview]);
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
-  async function back() {
+  async function runAfterSave(action: () => Promise<void>) {
+    if (leaving) return;
     setLeaving(true);
-    try { await persist(); onBack(); }
-    catch { setLeaving(false); }
+    try { await persist(); await action(); }
+    catch (cause) { setSaveState("error"); setSaveError(friendlyError(cause)); }
+    finally { setLeaving(false); }
   }
+  async function back() { await runAfterSave(async () => onBack()); }
+  const [dragged, setDragged] = useState<string | null>(null);
+  const modify = (action: "create"|"rename"|"duplicate"|"delete"|"reorder", id?: string, target?: string) => {
+    void runAfterSave(() => onModify(action, id, target));
+  };
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-[#fbfbfc]">
       <div className="flex h-[74px] shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-6">
-        <div className="flex min-w-0 items-center gap-3"><Button onClick={() => void back()} variant="ghost" size="icon" disabled={leaving} aria-label="Back to projects"><ArrowLeft size={19}/></Button><span className="h-6 w-px bg-zinc-200"/><span className="flex size-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"><BookOpen size={19}/></span><div className="min-w-0"><div className="truncate text-sm font-semibold text-zinc-900">{document.project.name}</div><div className="text-xs text-zinc-400">Overview / Home</div></div></div>
+        <div className="flex min-w-0 items-center gap-3"><Button onClick={() => void back()} variant="ghost" size="icon" disabled={leaving} aria-label="Back to projects"><ArrowLeft size={19}/></Button><span className="h-6 w-px bg-zinc-200"/><span className="flex size-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"><BookOpen size={19}/></span><div className="min-w-0"><div className="truncate text-sm font-semibold text-zinc-900">{document.project.name}</div><div className="text-xs text-zinc-400">{current.page.title}</div></div></div>
         <div className="flex items-center gap-3"><span className={cn("flex items-center gap-1.5 text-xs", saveState === "error" ? "text-red-600" : "text-zinc-500")}>{saveState === "saving" ? <LoaderCircle className="size-3.5 animate-spin"/> : saveState === "saved" ? <Check className="size-3.5 text-emerald-600"/> : <span className="size-2 rounded-full bg-amber-400"/>}{saveState === "saving" ? "Saving" : saveState === "saved" ? "Saved locally" : saveState === "error" ? "Save failed" : "Unsaved changes"}</span>
           <span className="mx-1 h-6 w-px bg-zinc-200"/>
           <Button variant="outline" size="sm" onClick={() => setPreview(!preview)}>{preview ? <WandSparkles/> : <BookOpen/>}{preview ? "Edit" : "Preview"}</Button>
@@ -215,7 +223,16 @@ function ProjectEditor({ document, onBack, onSaved }: { document: ProjectDocumen
         </div>
       </div>
       <div className="flex min-h-0 flex-1">
-        <aside className="w-[224px] shrink-0 border-r border-zinc-200 bg-white p-4"><div className="px-2 py-3 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Pages</div><div className="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2.5 text-sm font-medium text-indigo-700"><FileText size={16}/> Overview</div><div className="mt-4 rounded-lg border border-dashed border-zinc-200 px-3 py-3 text-xs leading-5 text-zinc-400">Multiple pages and drag-and-drop navigation are coming next.</div></aside>
+        <aside className="w-[224px] shrink-0 overflow-y-auto border-r border-zinc-200 bg-white p-3">
+          <div className="mb-2 flex items-center justify-between px-2 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Pages <button title="Create page" className="rounded-md p-1 text-indigo-600 hover:bg-indigo-50" onClick={() => modify("create")} disabled={leaving}><Plus size={16}/></button></div>
+          {pages.map(page => <div key={page.id} onDragOver={event => { if(dragged && page.id!=="index") event.preventDefault(); }} onDrop={event => { event.preventDefault(); if(dragged && dragged!==page.id) modify("reorder",dragged,page.id); setDragged(null); }} className={cn("group mb-1 flex items-center rounded-lg",current.page.id===page.id ? "bg-indigo-50 text-indigo-700" : "hover:bg-zinc-50")}>
+            <span draggable={page.id!=="index"} onDragStart={()=>setDragged(page.id)} onDragEnd={()=>setDragged(null)} className="cursor-grab px-1 text-zinc-300">⋮</span>
+            <button disabled={leaving} onClick={() => page.id!==current.page.id && void runAfterSave(() => onChange(page.id))} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm"><FileText size={14}/><span className="truncate">{page.title}</span></button>
+            <button title="Rename" disabled={leaving} onClick={()=>modify("rename",page.id)} className="hidden px-1 text-xs group-hover:block">✎</button>
+            <button title="Duplicate" disabled={leaving} onClick={()=>modify("duplicate",page.id)} className="hidden px-1 text-xs group-hover:block">⧉</button>
+            {page.id!=="index" && <button title="Delete" disabled={leaving} onClick={()=>modify("delete",page.id)} className="hidden px-1 text-xs text-red-600 group-hover:block">×</button>}
+          </div>)}
+        </aside>
         <div className="min-w-0 flex-1 overflow-y-auto">
           {!preview && <div className="sticky top-0 z-10 flex h-14 items-center gap-0.5 border-b border-zinc-200 bg-white px-8"><ToolbarButton title="Heading 1" active={editor?.isActive("heading", { level: 1 })} onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 size={18}/></ToolbarButton><ToolbarButton title="Heading 2" active={editor?.isActive("heading", { level: 2 })} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={18}/></ToolbarButton><div className="mx-2 h-5 w-px bg-zinc-200"/><ToolbarButton title="Bold" active={editor?.isActive("bold")} onClick={() => editor?.chain().focus().toggleBold().run()}><Bold size={17}/></ToolbarButton><ToolbarButton title="Italic" active={editor?.isActive("italic")} onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic size={17}/></ToolbarButton><div className="mx-2 h-5 w-px bg-zinc-200"/><ToolbarButton title="Bulleted list" active={editor?.isActive("bulletList")} onClick={() => editor?.chain().focus().toggleBulletList().run()}><List size={18}/></ToolbarButton><ToolbarButton title="Numbered list" active={editor?.isActive("orderedList")} onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered size={18}/></ToolbarButton><ToolbarButton title="Code block" active={editor?.isActive("codeBlock")} onClick={() => editor?.chain().focus().toggleCodeBlock().run()}><Code2 size={17}/></ToolbarButton><span className="ml-auto text-xs text-zinc-400">Visual editor · Markdown source</span></div>}
           <div className="mx-auto max-w-3xl px-12 py-12">{saveError && <p role="alert" className="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">Couldn't save: {saveError}. Check disk permissions before leaving.</p>}<EditorContent editor={editor}/></div>
@@ -223,6 +240,47 @@ function ProjectEditor({ document, onBack, onSaved }: { document: ProjectDocumen
       </div>
     </main>
   );
+}
+
+function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; onSaved: (project: ProjectSummary) => void }) {
+  const { document } = props;
+  const [pages, setPages] = useState<Page[]>([{id:"index",title:"Overview"}]);
+  const [current, setCurrent] = useState<PageDocument>({page:{id:"index",title:"Overview"},markdown:document.markdown});
+  const [failure, setFailure] = useState("");
+  const id = document.project.id;
+  useEffect(() => {
+    let alive=true;
+    void listPages(id).then(result => {if(alive) setPages(result);}).catch(e=>{if(alive)setFailure(friendlyError(e));});
+    return ()=>{alive=false;};
+  },[id]);
+  const change = async (pageId: string) => { setCurrent(await loadPage(id,pageId)); };
+  const modify = async (action: "create"|"rename"|"duplicate"|"delete"|"reorder", pageId?: string, target?: string) => {
+    if(action==="create"){
+      const name=window.prompt("New page title:");
+      if(!name?.trim())return;
+      setCurrent(await createPage(id,name));
+    } else if(action==="rename" && pageId){
+      const old=pages.find(p=>p.id===pageId);
+      const name=window.prompt("Rename page:",old?.title);
+      if(!name?.trim())return;
+      const updated=await renamePage(id,pageId,name);
+      if(current.page.id===pageId)setCurrent(p=>({...p,page:updated}));
+    } else if(action==="duplicate" && pageId) setCurrent(await duplicatePage(id,pageId));
+    else if(action==="delete" && pageId){
+      if(!window.confirm("Remove this page from navigation? Its Markdown will remain in .trash."))return;
+      await deletePage(id,pageId);
+      if(current.page.id===pageId)setCurrent(await loadPage(id,"index"));
+    } else if(action==="reorder" && pageId && target){
+      const ids=pages.map(p=>p.id); const from=ids.indexOf(pageId),to=ids.indexOf(target);
+      if(from<=0 || to<=0 || from===to)return;
+      ids.splice(from,1);ids.splice(to,0,pageId);
+      setPages(await reorderPages(id,ids));return;
+    }
+    setPages(await listPages(id));
+  };
+  return <>{failure && <div role="alert" className="fixed bottom-4 right-4 z-50 rounded-lg bg-red-50 p-3 text-red-600">{failure}</div>}
+    <SinglePageEditor key={current.page.id} document={document} current={current} pages={pages}
+      onBack={props.onBack} onSaved={props.onSaved} onChange={change} onModify={modify}/></>;
 }
 
 export default function App() {
