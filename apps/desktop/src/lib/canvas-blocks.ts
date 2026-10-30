@@ -34,8 +34,11 @@ export function findCanvasSourcePosition(
     if (!expected.includes(node.type.name)) return;
     if (node.type.name === "heading" &&
         node.attrs.level !== Number(selection.tagName.slice(1))) return;
-    if (selection.tagName === "p" &&
-        node.descendants(child => child.type.name !== "image")) return;
+    if (selection.tagName === "p") {
+      let containsImage = false;
+      node.descendants(child => { if (child.type.name === "image") containsImage = true; });
+      if (containsImage) return;
+    }
     if (normalize(node.textContent) !== selection.text) return;
     candidates.push({ position: offset + 1, index });
   });
