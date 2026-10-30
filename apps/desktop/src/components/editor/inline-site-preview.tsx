@@ -14,8 +14,9 @@ const deviceNames: Record<Device, string> = { desktop: "Desktop", tablet: "Table
 
 const selectable = new Set(["h1","h2","h3","h4","h5","h6","p","ul","ol","blockquote","pre","table","hr"]);
 function selectedSourceBlock(article: Element | null, target: EventTarget | null): { index: number; block: Element } | null {
-  if (!article || !(target instanceof Element)) return null;
-  let node: Element | null = target;
+  // iframe elements belong to its own realm, so parent-window instanceof Element fails.
+  if (!article || !target || (target as Node).nodeType !== 1) return null;
+  let node: Element | null = target as Element;
   while (node && node.parentElement !== article) node = node.parentElement;
   if (!node || node.parentElement !== article || !selectable.has(node.tagName.toLowerCase())) return null;
   const index = Array.from(article.children).indexOf(node);
