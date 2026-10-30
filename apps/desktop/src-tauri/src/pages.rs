@@ -5,7 +5,6 @@ use tauri::{AppHandle, Manager};
 const MANIFEST: &str = "pages.json";
 const HOME: &str = "index";
 
-fn visible_by_default() -> bool { true }
 fn layout_default() -> String { "docs".into() }
 fn valid_layout(value: &str) -> bool { matches!(value, "docs" | "wide" | "landing") }
 
@@ -14,11 +13,7 @@ fn valid_layout(value: &str) -> bool { matches!(value, "docs" | "wide" | "landin
 pub struct Page {
     pub id: String,
     pub title: String,
-    // Existing v0.1 / v0.2 page manifests have no visibility flag.
-    #[serde(default = "visible_by_default")]
     pub is_public: bool,
-    // Existing project manifests and pages without a layout remain ordinary docs.
-    #[serde(default = "layout_default")]
     pub layout: String,
 }
 
@@ -38,7 +33,7 @@ fn folder(app: &AppHandle, id: &str) -> Result<PathBuf, String> {
     if !valid_id(id) { return Err("Invalid project identifier".into()); }
     let path = app.path().app_data_dir().map_err(|e| e.to_string())?.join("projects").join(id);
     let config: serde_json::Value = serde_json::from_str(
-        &fs::read_to_string(path.join("pageo.json")).map_err(|e| e.to_string())?
+        &fs::read_to_string(path.join("paglora.json")).map_err(|e| e.to_string())?
     ).map_err(|e| e.to_string())?;
     if config["id"].as_str() != Some(id) { return Err("Project configuration mismatch".into()); }
     Ok(path)
@@ -48,13 +43,6 @@ fn document(folder: &Path, id: &str) -> Result<PathBuf, String> {
     Ok(folder.join("docs").join(format!("{id}.md")))
 }
 fn read_pages(folder: &Path) -> Result<Manifest, String> {
-    if !folder.join(MANIFEST).exists() {
-        // Backward compatibility: v0.1 projects only have docs/index.md.
-        if !folder.join("docs/index.md").is_file() { return Err("Project overview missing".into()); }
-        return Ok(Manifest { format_version: 1, pages: vec![
-            Page { id: HOME.into(), title: "Overview".into(), is_public: true, layout: layout_default() }
-        ] });
-    }
     let manifest: Manifest = serde_json::from_str(
         &fs::read_to_string(folder.join(MANIFEST)).map_err(|e| e.to_string())?
     ).map_err(|e| e.to_string())?;
@@ -67,6 +55,12 @@ fn read_pages(folder: &Path) -> Result<Manifest, String> {
             !known.insert(&page.id) { return Err("Invalid page entry".into()); }
     }
     Ok(manifest)
+}
+pub(crate) fn initialize_pages(folder: &Path) -> Result<(), String> {
+    let manifest = Manifest { format_version: 1, pages: vec![
+        Page { id: HOME.into(), title: "Overview".into(), is_public: true, layout: layout_default() }
+    ] };
+    save_pages(folder, &manifest)
 }
 fn save_pages(folder: &Path, manifest: &Manifest) -> Result<(), String> {
     let json = serde_json::to_string_pretty(manifest).map_err(|e| e.to_string())?;
@@ -97,7 +91,7 @@ fn slug(pages: &[Page], title: &str) -> Result<String, String> {
     Err("Too many pages with similar titles".into())
 }
 fn touch(folder: &Path) -> Result<serde_json::Value, String> {
-    let path = folder.join("pageo.json");
+    let path = folder.join("paglora.json");
     let mut config: serde_json::Value = serde_json::from_str(
         &fs::read_to_string(&path).map_err(|e| e.to_string())?
     ).map_err(|e| e.to_string())?;
@@ -233,9 +227,10 @@ pub fn set_page_layout(app: AppHandle, project_id: String, page_id: String, layo
 mod tests {
     use super::*;
     #[test]
-    fn legacy_page_defaults_to_docs() {
-        let page: Page = serde_json::from_str(r#"{"id":"index","title":"Overview","isPublic":true}"#).unwrap();
+    fn page_manifest_requires_layout_and_visibility() {
+        let page: Page = serde_json::from_str(r#"{"id":"index","title":"Overview","isPublic":true,"layout":"docs"}"#).unwrap();
         assert_eq!(page.layout, "docs");
+        assert!(serde_json::from_str::<Page>(r#"{"id":"index","title":"Overview"}"#).is_err());
     }
     #[test]
     fn explicit_layout_round_trip() {

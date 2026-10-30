@@ -4,8 +4,7 @@ use tauri::{AppHandle, Manager};
 
 const FORMAT_VERSION: u8 = 1;
 const DOC_FILE: &str = "docs/index.md";
-// Keep the original v1 filename so existing projects open without migration.
-const CONFIG_FILE: &str = "pageo.json";
+const CONFIG_FILE: &str = "paglora.json";
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -134,6 +133,7 @@ pub fn create_project(app: AppHandle, name: String) -> Result<ProjectDocument, S
         fs::write(folder.join("theme/custom.css"), crate::source::STARTER_CSS).map_err(|e| e.to_string())?;
         fs::write(folder.join(DOC_FILE), &markdown).map_err(|e| e.to_string())?;
         write_config(&folder, &config)?;
+        crate::pages::initialize_pages(&folder)?;
         Ok(())
     })();
     if let Err(error) = result { let _ = fs::remove_dir_all(&folder); return Err(error); }
@@ -162,4 +162,21 @@ pub fn save_document(app: AppHandle, id: String, markdown: String) -> Result<Pro
     config.updated_at = now()?;
     write_config(&folder, &config)?;
     Ok(config.into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn project_manifest_uses_paglora_filename() {
+        assert_eq!(CONFIG_FILE, "paglora.json");
+        let config = ProjectConfig {
+            format_version: FORMAT_VERSION, id: "test-docs".into(),
+            name: "Test".into(), created_at: 1, updated_at: 1,
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        let saved: ProjectConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(saved.id, "test-docs");
+        assert_eq!(saved.format_version, FORMAT_VERSION);
+    }
 }
