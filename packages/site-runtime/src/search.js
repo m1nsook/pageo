@@ -142,7 +142,9 @@
   }
 
   function find(query) {
-    const terms = [...new Set(normalize(query).trim().split(/\s+/).filter(Boolean))].slice(0, 8);
+    // Search terms from pasted sentences or punctuation-separated phrases.
+    // Keep +, # and - intact for common documentation terms such as C++ and C#.
+    const terms = [...new Set(normalize(query).trim().split(/[\s.,;:!?()[\]{}\/\\]+/u).filter(Boolean))].slice(0, 8);
     const phrase = terms.join(" ");
     if (!terms.length || !loaded) return [];
     const matches = [];
