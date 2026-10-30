@@ -1,5 +1,6 @@
 import { BookOpen, FolderOpen, Home, LayoutTemplate, Settings2, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ThemeSwitcher } from "@/components/studio/theme-switcher";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -70,8 +71,9 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
           <div className="flex items-center gap-2 text-xs font-medium"><ShieldCheck className="size-4" /> Private by design</div>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Stored on this computer. No account or cloud required.</p>
         </div>
-        <div className="flex items-center justify-between px-2 text-[11px] text-muted-foreground group-data-[collapsible=icon]:hidden">
-          <span>Paglora Studio</span><span>Local preview</span>
+        <div className="flex items-center justify-between gap-2 px-2 text-[11px] text-muted-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <span className="group-data-[collapsible=icon]:hidden">Paglora Studio</span>
+          <ThemeSwitcher />
         </div>
       </SidebarFooter>
     </Sidebar>
