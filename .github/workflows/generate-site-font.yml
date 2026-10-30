@@ -1,0 +1,39 @@
+name: Generate bundled website Geist font
+
+on:
+  push:
+    branches: [feat/bundled-website-typography]
+    paths:
+      - .github/workflows/generate-site-font.yml
+      - apps/desktop/src-tauri/src/sites.rs
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Copy installed Geist font and its license
+        run: |
+          set -eu
+          mkdir -p apps/desktop/src-tauri/assets
+          find node_modules/@fontsource-variable/geist/files -maxdepth 1 -name 'geist-latin-wght-normal.woff2' -print
+          cp node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2 apps/desktop/src-tauri/assets/geist-latin.woff2
+          LICENSE_FILE=$(find node_modules/@fontsource-variable/geist -maxdepth 2 -iname '*license*' -type f | head -n 1)
+          if [ -z "$LICENSE_FILE" ]; then echo "Missing font license"; exit 1; fi
+          cp "$LICENSE_FILE" apps/desktop/src-tauri/assets/GEIST-LICENSE.txt
+      - name: Commit font asset
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/desktop/src-tauri/assets/geist-latin.woff2 apps/desktop/src-tauri/assets/GEIST-LICENSE.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "assets: bundle offline licensed Geist website font"
+            git push origin HEAD:feat/bundled-website-typography
+          fi
