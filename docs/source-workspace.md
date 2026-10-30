@@ -4,7 +4,7 @@ Paglora projects are **source-owned**. The visual website designer does not own 
 
 ## Working today: custom CSS
 
-Open a project and choose **Source** in the editor toolbar. Paglora opens a split view with a real editable source file on the left and its generated HTML preview on the right.
+Open a project and choose **Source** in the editor toolbar. Paglora opens a split view with **Monaco Editor** (the editor engine used by VS Code) on the left and the actual published-site preview on the right. Monaco provides CSS syntax highlighting, folding, completion and diagnostics; Ctrl+S saves the real project file. Its language workers are built by Vite as part of the app instead of relying on a CDN.
 
 The file is stored in the project's local data directory:
 
@@ -43,4 +43,6 @@ The live preview is a script-disabled iframe. Custom CSS may import external fon
 
 ## Planned next
 
-This milestone **does not** compile React/TSX themes yet. The full source workspace will add a project file tree, a dedicated code editor (CodeMirror or Monaco), TSX component overrides, a sandboxed Vite build pipeline, and synchronized visual/source editing. We deliberately avoid shipping pretend TSX overrides that have no effect on output.
+This milestone **does not** compile React/TSX themes yet. The full source workspace will add a project file tree, Markdown/MDX/TSX file editing with this existing Monaco component, TSX component overrides, a safely isolated Vite build pipeline, and synchronized visual/source editing. We deliberately avoid shipping pretend TSX overrides that have no effect on output.
+
+Monaco is an embedded source **editor**, not a full VS Code installation. This milestone edits `theme/custom.css`; installing Monaco does **not** automatically enable importing or compiling custom TSX site components. Built sites may continue loading Google Fonts, HTTPS images and other user-selected hosted resources.

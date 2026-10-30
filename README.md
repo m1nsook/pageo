@@ -66,7 +66,7 @@ docs/                  Architecture, compatibility and publishing instructions
 
 ## Project source customization
 
-Each project can edit its own `theme/custom.css` through **Source** in the editor. This is a real local stylesheet applied after the built-in styles in both site preview and static export. TSX component and layout compilation is not yet implemented. See [source workspace](docs/source-workspace.md).
+Each project can edit its own `theme/custom.css` through the integrated **Monaco Code Editor** in **Source**. This is a real local stylesheet applied after the built-in styles in both site preview and static export. TSX component and layout compilation is not yet implemented. See [source workspace](docs/source-workspace.md).
 
 ## Existing Pageo projects remain supported
 
@@ -86,7 +86,7 @@ See [Compatibility and rebranding](docs/REBRANDING.md), [architecture](docs/ARCH
 
 ## Static site workflow
 
-Open a project → choose which pages are public → **Design site** → **Preview site** → **Website → Build static site**. Upload the generated directory contents to a static host. No server runtime or account is needed for the published site.
+Open a project → choose which pages are public → **Design site** → **Preview site** → **Website → Build static site**. Upload the generated directory contents to a static host. No Paglora server runtime or account is needed for the published site. Optional Google Fonts and external resources work when the hosting/visitor network allows them.
 
 ## CLI
 
