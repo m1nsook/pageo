@@ -1,0 +1,30 @@
+name: TEMP — inspect installed Monaco worker paths
+
+on:
+  push:
+    branches: [feat/monaco-source-editor]
+    paths: [.github/workflows/inspect-monaco.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+      - run: bun install --frozen-lockfile
+      - name: Inspect actual Monaco npm package layout
+        shell: bash
+        run: |
+          set -eux
+          pwd
+          ROOT=$(realpath apps/desktop/node_modules/monaco-editor)
+          echo "MONACO_ROOT=$ROOT"
+          ls -la "$ROOT"
+          find "$ROOT" -maxdepth 8 -iname '*worker*' -type f | head -80
+          find "$ROOT/esm/vs" -maxdepth 4 -type f | head -60
+          cat "$ROOT/package.json"
