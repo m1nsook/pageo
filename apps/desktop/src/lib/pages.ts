@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { ProjectSummary } from "@paglora/core";
-export type Page = { id: string; title: string; isPublic: boolean };
+export type Page = { id: string; title: string; isPublic: boolean; layout: "docs" | "wide" | "landing" };
 export type PageDocument = { page: Page; markdown: string };
 export const listPages = (projectId: string) => invoke<Page[]>("list_pages", { projectId });
 export const loadPage = (projectId: string, pageId: string) => invoke<PageDocument>("load_page", { projectId, pageId });
@@ -12,3 +12,5 @@ export const reorderPages = (projectId: string, ids: string[]) => invoke<Page[]>
 export const savePage = (projectId: string, pageId: string, markdown: string) => invoke<ProjectSummary>("save_page", { projectId, pageId, markdown });
 
 export const setPageVisibility = (projectId: string, pageId: string, isPublic: boolean) => invoke<Page>("set_page_visibility", { projectId, pageId, isPublic });
+
+export const setPageLayout = (projectId: string, pageId: string, layout: Page["layout"]) => invoke<Page>("set_page_layout", { projectId, pageId, layout });

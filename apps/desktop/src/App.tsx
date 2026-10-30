@@ -22,7 +22,7 @@ import { ThemeSourceEditor } from "@/components/editor/theme-source-editor";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { createProject, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
-import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, type Page, type PageDocument } from "@/lib/pages";
+import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, setPageLayout, type Page, type PageDocument } from "@/lib/pages";
 
 function friendlyError(error: unknown) { return error instanceof Error ? error.message : String(error); }
 
@@ -185,8 +185,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
 
 function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; onSaved: (project: ProjectSummary) => void }) {
   const { document } = props;
-  const [pages, setPages] = useState<Page[]>([{id:"index",title:"Overview",isPublic:true}]);
-  const [current, setCurrent] = useState<PageDocument>({page:{id:"index",title:"Overview",isPublic:true},markdown:document.markdown});
+  const [pages, setPages] = useState<Page[]>([{id:"index",title:"Overview",isPublic:true,layout:"docs"}]);
+  const [current, setCurrent] = useState<PageDocument>({page:{id:"index",title:"Overview",isPublic:true,layout:"docs"},markdown:document.markdown});
   const [failure, setFailure] = useState("");
   const id = document.project.id;
   useEffect(() => {
@@ -206,6 +206,10 @@ function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; o
     } else if(action==="duplicate" && pageId) setCurrent(await duplicatePage(id,pageId));
     else if(action==="visibility" && pageId && target){
       const updated = await setPageVisibility(id,pageId,target==="true");
+      if(current.page.id===pageId)setCurrent(p=>({...p,page:updated}));
+    }
+    else if(action==="layout" && pageId && (target==="docs" || target==="wide" || target==="landing")){
+      const updated = await setPageLayout(id,pageId,target);
       if(current.page.id===pageId)setCurrent(p=>({...p,page:updated}));
     }
     else if(action==="delete" && pageId){

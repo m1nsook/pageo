@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import type { Page } from "@/lib/pages";
 
-export type PageAction = "create" | "rename" | "duplicate" | "delete" | "reorder" | "visibility";
+export type PageAction = "create" | "rename" | "duplicate" | "delete" | "reorder" | "visibility" | "layout";
 
 function PageTitleDialog({ open, setOpen, initial = "", mode, onSubmit }: {
   open: boolean; setOpen: (value: boolean) => void; initial?: string;
@@ -108,6 +109,14 @@ function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, can
         <DropdownMenuContent align="end" side="right" className="w-44">
           <DropdownMenuItem onSelect={() => setRenameOpen(true)}><Pencil /> Rename</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onAction("duplicate", page.id)}><Copy /> Duplicate</DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Page layout: {page.layout === "landing" ? "Landing" : page.layout === "wide" ? "Wide" : "Docs"}</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem onSelect={() => onAction("layout", page.id, "docs")}>Docs · sidebar + TOC</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onAction("layout", page.id, "wide")}>Wide · article-focused</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onAction("layout", page.id, "landing")}>Landing · full width</DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           {page.id !== "index" && <DropdownMenuItem onSelect={() => onAction("visibility", page.id, String(!page.isPublic))}>
             {page.isPublic ? <EyeOff /> : <Eye />} {page.isPublic ? "Make private" : "Make public"}
           </DropdownMenuItem>}

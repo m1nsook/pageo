@@ -6,6 +6,8 @@ const MANIFEST: &str = "pages.json";
 const HOME: &str = "index";
 
 fn visible_by_default() -> bool { true }
+fn layout_default() -> String { "docs".into() }
+fn valid_layout(value: &str) -> bool { matches!(value, "docs" | "wide" | "landing") }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,6 +17,9 @@ pub struct Page {
     // Existing v0.1 / v0.2 page manifests have no visibility flag.
     #[serde(default = "visible_by_default")]
     pub is_public: bool,
+    // Existing project manifests and pages without a layout remain ordinary docs.
+    #[serde(default = "layout_default")]
+    pub layout: String,
 }
 
 #[derive(Serialize)]
@@ -47,7 +52,7 @@ fn read_pages(folder: &Path) -> Result<Manifest, String> {
         // Backward compatibility: v0.1 projects only have docs/index.md.
         if !folder.join("docs/index.md").is_file() { return Err("Project overview missing".into()); }
         return Ok(Manifest { format_version: 1, pages: vec![
-            Page { id: HOME.into(), title: "Overview".into(), is_public: true }
+            Page { id: HOME.into(), title: "Overview".into(), is_public: true, layout: layout_default() }
         ] });
     }
     let manifest: Manifest = serde_json::from_str(
@@ -57,7 +62,7 @@ fn read_pages(folder: &Path) -> Result<Manifest, String> {
         manifest.pages[0].id != HOME { return Err("Invalid pages manifest".into()); }
     let mut known = HashSet::new();
     for page in &manifest.pages {
-        if !valid_id(&page.id) || page.title.trim().is_empty() ||
+        if !valid_id(&page.id) || !valid_layout(&page.layout) || page.title.trim().is_empty() ||
             page.title.chars().count() > 100 || page.title.chars().any(char::is_control) ||
             !known.insert(&page.id) { return Err("Invalid page entry".into()); }
     }
@@ -121,7 +126,7 @@ pub fn create_page(app: AppHandle, project_id: String, name: String) -> Result<P
     let dir = folder(&app, &project_id)?;
     let mut manifest = read_pages(&dir)?;
     if manifest.pages.len() >= 500 { return Err("Project page limit reached".into()); }
-    let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: true };
+    let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: true, layout: layout_default() };
     let markdown = format!("# {}\n\n", page.title);
     let path = document(&dir, &page.id)?;
     fs::write(&path, &markdown).map_err(|e| e.to_string())?;
@@ -150,7 +155,7 @@ pub fn duplicate_page(app: AppHandle, project_id: String, page_id: String) -> Re
     let source = manifest.pages.iter().find(|p| p.id == page_id).ok_or("Page not found")?;
     let markdown = fs::read_to_string(document(&dir, &source.id)?).map_err(|e| e.to_string())?;
     let name = title(&format!("{} (Copy)", source.title))?;
-    let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: source.is_public };
+    let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: source.is_public, layout: source.layout.clone() };
     let path = document(&dir, &page.id)?;
     fs::write(&path, &markdown).map_err(|e| e.to_string())?;
     manifest.pages.push(page.clone());
@@ -209,6 +214,35 @@ pub fn set_page_visibility(app: AppHandle, project_id: String, page_id: String, 
     save_pages(&dir, &manifest)?;
     touch(&dir)?;
     Ok(updated)
+}
+
+#[tauri::command]
+pub fn set_page_layout(app: AppHandle, project_id: String, page_id: String, layout: String) -> Result<Page, String> {
+    if !valid_layout(&layout) { return Err("Unsupported page layout".into()); }
+    let dir = folder(&app, &project_id)?;
+    let mut manifest = read_pages(&dir)?;
+    let page = manifest.pages.iter_mut().find(|p| p.id == page_id).ok_or("Page not found")?;
+    page.layout = layout;
+    let updated = page.clone();
+    save_pages(&dir, &manifest)?;
+    touch(&dir)?;
+    Ok(updated)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn legacy_page_defaults_to_docs() {
+        let page: Page = serde_json::from_str(r#"{"id":"index","title":"Overview","isPublic":true}"#).unwrap();
+        assert_eq!(page.layout, "docs");
+    }
+    #[test]
+    fn explicit_layout_round_trip() {
+        let page: Page = serde_json::from_str(r#"{"id":"intro","title":"Hello","isPublic":true,"layout":"landing"}"#).unwrap();
+        assert_eq!(page.layout, "landing");
+        assert!(serde_json::to_string(&page).unwrap().contains("landing"));
+    }
 }
 
 #[tauri::command]
