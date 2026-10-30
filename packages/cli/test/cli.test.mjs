@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, unlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, unlinkSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { inspectProject, run } from "../bin/paglora.mjs";
+import { inspectProject, initProject, run } from "../bin/paglora.mjs";
 
 function fixture(fn) {
   const root = mkdtempSync(join(tmpdir(), "paglora-cli-"));
@@ -97,3 +97,55 @@ test("invalid group metadata fails CLI validation", () => fixture(folder => {
   }));
   assert.throws(() => inspectProject(folder), /Invalid navigation group/);
 }));
+
+test("init creates a fully valid Paglora project with source files", () => {
+  const root = mkdtempSync(join(tmpdir(), "paglora-init-"));
+  const target = join(root, "new-docs");
+  try {
+    const project = initProject(target, "My New Docs");
+    assert.equal(project.name, "My New Docs");
+    assert.equal(project.pages[0].layout, "docs");
+    assert.equal(project.pages[0].navGroup, "Documentation");
+    assert.equal(project.pageCount, 1);
+    assert.match(readFileSync(join(target, "docs", "index.md"), "utf8"), /# My New Docs/);
+    assert.match(readFileSync(join(target, "theme", "custom.css"), "utf8"), /Paglora/);
+    assert.deepEqual(inspectProject(target), project);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("init never overwrites an existing directory", () => {
+  const root = mkdtempSync(join(tmpdir(), "paglora-init-"));
+  try {
+    const target = join(root, "existing");
+    mkdirSync(target);
+    writeFileSync(join(target, "do-not-touch.txt"), "keep");
+    assert.throws(() => initProject(target), /already exists/);
+    assert.equal(readFileSync(join(target, "do-not-touch.txt"), "utf8"), "keep");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("init validates folder names and display names before writing", () => {
+  const root = mkdtempSync(join(tmpdir(), "paglora-init-"));
+  try {
+    assert.throws(() => initProject(join(root, "Bad Name")), /lowercase slug/);
+    assert.throws(() => initProject(join(root, "valid"), "   "), /Project name/);
+    assert.equal(existsSync(join(root, "Bad Name")), false);
+    assert.equal(existsSync(join(root, "valid")), false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("init CLI and validate --json round trip", () => {
+  const root = mkdtempSync(join(tmpdir(), "paglora-init-"));
+  const target = join(root, "my-docs");
+  try {
+    let out = "", err = "";
+    const output = { write: value => { out += value; } };
+    const errors = { write: value => { err += value; } };
+    assert.equal(run(["init", target, "--name", "My Docs"], output, errors), 0);
+    assert.match(out, /Created Paglora project: My Docs/);
+    out = "";
+    assert.equal(run(["validate", target, "--json"], output, errors), 0);
+    assert.equal(JSON.parse(out).pages[0].navGroup, "Documentation");
+    assert.equal(err, "");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
