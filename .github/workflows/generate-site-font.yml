@@ -23,16 +23,17 @@ jobs:
         run: |
           set -eu
           mkdir -p apps/desktop/src-tauri/assets
-          find node_modules/@fontsource-variable/geist/files -maxdepth 1 -name 'geist-latin-wght-normal.woff2' -print
-          cp node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2 apps/desktop/src-tauri/assets/geist-latin.woff2
-          LICENSE_FILE=$(find node_modules/@fontsource-variable/geist -maxdepth 2 -iname '*license*' -type f | head -n 1)
+          find apps/desktop/node_modules/@fontsource-variable/geist/files -maxdepth 1 -name 'geist-latin-wght-normal.woff2' -print
+          cp apps/desktop/node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2 apps/desktop/src-tauri/assets/geist-latin.woff2
+          LICENSE_FILE=$(find apps/desktop/node_modules/@fontsource-variable/geist -maxdepth 2 -iname '*license*' -type f | head -n 1)
           if [ -z "$LICENSE_FILE" ]; then echo "Missing font license"; exit 1; fi
           cp "$LICENSE_FILE" apps/desktop/src-tauri/assets/GEIST-LICENSE.txt
+          base64 -w 0 apps/desktop/src-tauri/assets/geist-latin.woff2 > apps/desktop/src-tauri/assets/geist-latin.b64
       - name: Commit font asset
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/desktop/src-tauri/assets/geist-latin.woff2 apps/desktop/src-tauri/assets/GEIST-LICENSE.txt
+          git add apps/desktop/src-tauri/assets/geist-latin.woff2 apps/desktop/src-tauri/assets/geist-latin.b64 apps/desktop/src-tauri/assets/GEIST-LICENSE.txt
           if ! git diff --cached --quiet; then
             git commit -m "assets: bundle offline licensed Geist website font"
             git push origin HEAD:feat/bundled-website-typography
