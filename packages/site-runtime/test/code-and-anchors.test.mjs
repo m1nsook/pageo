@@ -35,13 +35,20 @@ function createDom({ clipboardAvailable = true } = {}) {
     },
   };
   const clipboard = [];
+  const timers = new Map();
+  let nextTimer = 0;
   const context = {
     document, URL, location: { href: "https://example.test/docs/index.html" },
+    setTimeout(fn, delay) { assert.equal(delay, 2000); const id = ++nextTimer; timers.set(id, fn); return id; },
+    clearTimeout(id) { timers.delete(id); },
     localStorage: { getItem() { return null; }, setItem() {} },
     navigator: { clipboard: clipboardAvailable ? { async writeText(value) { clipboard.push(value); } } : undefined },
   };
   vm.runInNewContext(source, context);
-  return { pre, code, heading, controls, clipboard, attributes };
+  return { pre, code, heading, controls, clipboard, attributes,
+    flushTimers() { const pending = [...timers.values()]; timers.clear(); for (const fn of pending) fn(); },
+    get pendingTimers() { return timers.size; },
+  };
 }
 
 test("runtime adds a copy button to code with exact text", async () => {
@@ -65,4 +72,25 @@ test("heading links use stable sanitized IDs and accessible names", () => {
   assert.equal(link.href, "#getting-started");
   assert.equal(link.textContent, "#");
   assert.equal(link.attributes.get("aria-label"), "Link to Getting Started");
+});
+
+test("copy feedback resets after two seconds, including unavailable clipboard", async () => {
+  const app = createDom();
+  const button = app.pre.children[0];
+  await button.listeners.click();
+  assert.equal(button.textContent, "Copied");
+  assert.equal(button.attributes.get("aria-label"), "Code copied to clipboard");
+  await button.listeners.click();
+  assert.equal(app.pendingTimers, 1, "repeated clicks replace the existing reset timer");
+  app.flushTimers();
+  assert.equal(button.textContent, "Copy");
+  assert.equal(button.attributes.get("aria-label"), "Copy code block");
+
+  const missing = createDom({ clipboardAvailable: false });
+  const missingButton = missing.pre.children[0];
+  await missingButton.listeners.click();
+  assert.equal(missingButton.textContent, "Unavailable");
+  assert.equal(missingButton.attributes.get("aria-label"), "Clipboard unavailable");
+  missing.flushTimers();
+  assert.equal(missingButton.textContent, "Copy");
 });
