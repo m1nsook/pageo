@@ -6,7 +6,7 @@ The initial release supports **Light / Dark / System** appearance preferences (s
 
 The build exports `paglora.js` alongside every public page, and each exported HTML page loads it with `<script defer src="paglora.js"></script>`. Studio previews intentionally remove that tag because the current same-origin iframe is script-disabled, pending a separate secure interactive-preview design.
 
-Run `node --test packages/site-runtime/test/*.test.mjs` for focused tests.
+Run `bun packages/site-runtime/build.mjs` followed by `node --test packages/site-runtime/test/*.test.mjs` for focused tests. The bundler validates both entries in a staging directory before replacing `dist/`, so a failed build preserves the last successful output.
 
 The runtime is original Paglora source, **informed by VitePress's interaction patterns**, not copied Vue code. VitePress source is MIT-licensed (Copyright 2019–present Yuxi (Evan) You). If actual source is reused in the future, preserve the required notices in the distributed artifacts.
 
