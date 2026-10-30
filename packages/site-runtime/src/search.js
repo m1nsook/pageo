@@ -20,7 +20,6 @@
   let shell;
   let input;
   let results;
-  let status;
   let closeButton;
   let previousFocus;
   let loaded = null;
@@ -59,8 +58,7 @@
     results = element("div", "paglora-search-results");
     results.id = "paglora-search-results";
     results.setAttribute("aria-live", "polite");
-    status = element("p", "paglora-search-status", "Type to search documentation");
-    results.appendChild(status);
+    results.appendChild(element("p", "paglora-search-status", "Type to search documentation"));
     const foot = element("div", "paglora-search-footnote", "↑ ↓ Navigate  ·  Enter Open  ·  Esc Close");
     modal.append(bar, results, foot);
     shell.appendChild(modal);
@@ -71,6 +69,9 @@
     closeButton.addEventListener("click", close);
     input.addEventListener("input", render);
     input.addEventListener("keydown", event => {
+      // Enter confirms an IME candidate for Korean, Japanese and Chinese;
+      // it must not navigate away before composition has finished.
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         if (!currentResults.length) return;
@@ -103,7 +104,7 @@
     shell.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
     document.body.classList.remove("paglora-search-open");
-    previousFocus?.focus?.();
+    (previousFocus?.focus ? previousFocus : trigger).focus?.();
   }
 
   function normalize(value) {
@@ -114,19 +115,23 @@
     if (loaded) return loaded;
     if (!pending) {
       loadError = false;
-      pending = fetch("search-index.json", { cache: "force-cache" })
+      // Revalidate after a deployment instead of reusing an indefinitely stale index.
+      pending = fetch("search-index.json", { cache: "no-cache" })
         .then(response => {
           if (!response.ok) throw new Error("Search index unavailable");
           return response.json();
         })
         .then(data => {
           if (!data || data.version !== 1 || !Array.isArray(data.pages)) throw new Error("Invalid search index");
-          loaded = data.pages.slice(0, 500).filter(page =>
-            typeof page.title === "string" &&
-            typeof page.text === "string" &&
-            typeof page.url === "string" &&
-            /^[a-z0-9-]+\.html$/.test(page.url)
-          ).map(page => ({
+          const seenUrls = new Set();
+          loaded = data.pages.slice(0, 500).filter(page => {
+            if (!page || typeof page.title !== "string" || page.title.length > 200 ||
+                typeof page.text !== "string" || page.text.length > 30_000 ||
+                typeof page.url !== "string" || !/^[a-z0-9-]+\.html$/.test(page.url) ||
+                seenUrls.has(page.url)) return false;
+            seenUrls.add(page.url);
+            return true;
+          }).map(page => ({
             title: page.title, text: page.text, url: page.url,
             titleSearch: normalize(page.title), bodySearch: normalize(page.text),
           }));
@@ -226,6 +231,7 @@
 
   trigger.addEventListener("click", () => { void open(); });
   document.addEventListener("keydown", event => {
+    if (event.isComposing || event.keyCode === 229) return;
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
       if (shell && !shell.hidden) close();

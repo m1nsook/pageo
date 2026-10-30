@@ -10,6 +10,7 @@ function fixture(pages, { responseOk = true, waitForIndex = false } = {}) {
   const gate = new Promise(resolve => { releaseFetch = resolve; });
   const docListeners = {};
   let requested = "";
+  let requestOptions;
   let navigated = "";
   const document = {
     activeElement: null,
@@ -48,8 +49,9 @@ function fixture(pages, { responseOk = true, waitForIndex = false } = {}) {
     document, window: {
       location: { assign(url) { navigated = url; } },
     },
-    fetch: async url => {
+    fetch: async (url, options) => {
       requested = url;
+      requestOptions = options;
       if (waitForIndex) await gate;
       return { ok: responseOk, json: async () => ({ version: 1, pages }) };
     },
@@ -65,7 +67,7 @@ function fixture(pages, { responseOk = true, waitForIndex = false } = {}) {
     const bar = modal.children[0];
     return { backdrop, modal, input: bar.children[0], results: modal.children[1] };
   }
-  return { button, open, document, docListeners, releaseFetch, get requested() { return requested; }, get navigated() { return navigated; } };
+  return { button, open, document, docListeners, releaseFetch, get requested() { return requested; }, get requestOptions() { return requestOptions; }, get navigated() { return navigated; } };
 }
 
 test("Ctrl+K search fetches only the local static index", async () => {
@@ -151,4 +153,39 @@ test("search dialog exposes its state and restores focus on close", async () => 
   app.docListeners.keydown({ key: "Escape", preventDefault() {} });
   assert.equal(backdrop.hidden, true);
   assert.equal(app.button.attrs.get("aria-expanded"), "false");
+});
+
+test("IME candidate confirmation does not navigate or close search", async () => {
+  const app = fixture([{ title: "Korean", url: "korean.html", text: "한국어 docs" }]);
+  const { input, backdrop } = await app.open();
+  input.value = "docs";
+  input.events.input();
+  let prevented = 0;
+  input.events.keydown({ key: "Enter", isComposing: true, preventDefault() { prevented++; } });
+  input.events.keydown({ key: "Enter", keyCode: 229, preventDefault() { prevented++; } });
+  app.docListeners.keydown({ key: "Escape", isComposing: true, preventDefault() { prevented++; } });
+  app.docListeners.keydown({ key: "k", ctrlKey: true, keyCode: 229, preventDefault() { prevented++; } });
+  assert.equal(app.navigated, "");
+  assert.equal(backdrop.hidden, false);
+  assert.equal(prevented, 0);
+  input.events.keydown({ key: "Enter", isComposing: false, preventDefault() { prevented++; } });
+  assert.equal(app.navigated, "korean.html");
+  assert.equal(prevented, 1);
+});
+
+test("search rejects malformed, oversized and duplicate index entries", async () => {
+  const app = fixture([
+    null,
+    { title: "Guide", url: "guide.html", text: "docs" },
+    { title: "Duplicate", url: "guide.html", text: "docs" },
+    { title: "Huge", url: "huge.html", text: "docs".repeat(8000) },
+    { title: "Long title".repeat(30), url: "long.html", text: "docs" },
+    { title: "Unsafe", url: "../private.html", text: "docs" },
+  ]);
+  const { input, results } = await app.open();
+  input.value = "docs";
+  input.events.input();
+  assert.equal(results.children.length, 1);
+  assert.equal(results.children[0].href, "guide.html");
+  assert.equal(app.requestOptions.cache, "no-cache");
 });
