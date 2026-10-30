@@ -61,12 +61,15 @@ npm pack --dry-run
 apps/desktop/          Paglora desktop application and Rust Tauri backend
 packages/core/         Internal shared types and format helpers
 packages/cli/          Published `paglora` npm CLI (early alpha)
-docs/                  Architecture, compatibility and publishing instructions
 ```
+
+## Documentation
+
+The official Paglora documentation website is being developed in the separate `m1nsook/paglora-docs` repository. It will be built **with Paglora itself** and published using GitHub Pages, serving as user documentation and a live demo of Paglora-generated sites. The documentation repository is private during development; this README covers the current build and publishing workflow.
 
 ## Project source customization
 
-Each project can edit its own `theme/custom.css` through the integrated **Monaco Code Editor** in **Source**. This is a real local stylesheet applied after the built-in styles in both site preview and static export. TSX component and layout compilation is not yet implemented. See [source workspace](docs/source-workspace.md).
+Each project can edit its own `theme/custom.css` through the integrated **Monaco Code Editor** in **Source**. This is a real local stylesheet applied after the built-in styles in both site preview and static export. TSX component and layout compilation is not yet implemented. See [Documentation](#documentation) for the planned official guide.
 
 ## Project files and application storage
 
@@ -85,7 +88,7 @@ theme/custom.css      User-owned site stylesheet
 
 **Breaking change during early development:** Paglora no longer reads the former prototype's project manifest or application storage location. Existing local files in that older directory are not deleted, but are not automatically imported into the new app. Back up any earlier test projects before switching. The previously published npm alpha package may use the old format until a new version is published.
 
-See the [architecture](docs/ARCHITECTURE.md) and [static site publishing](docs/static-site-publishing.md) guides.
+For current capabilities and publishing workflow, see [What works today](#what-works-today) and [Static site workflow](#static-site-workflow).
 
 ## Static site workflow
 
