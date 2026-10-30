@@ -6,6 +6,10 @@ const MANIFEST: &str = "pages.json";
 const HOME: &str = "index";
 
 fn layout_default() -> String { "docs".into() }
+fn navigation_group_default() -> String { "Documentation".into() }
+pub(crate) fn valid_navigation_group(group: &str) -> bool {
+    !group.trim().is_empty() && group.trim() == group && group.chars().count() <= 60 && !group.chars().any(char::is_control)
+}
 fn valid_layout(value: &str) -> bool { matches!(value, "docs" | "wide" | "landing") }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -15,6 +19,8 @@ pub struct Page {
     pub title: String,
     pub is_public: bool,
     pub layout: String,
+    #[serde(default = "navigation_group_default")]
+    pub nav_group: String,
 }
 
 #[derive(Serialize)]
@@ -50,7 +56,7 @@ fn read_pages(folder: &Path) -> Result<Manifest, String> {
         manifest.pages[0].id != HOME { return Err("Invalid pages manifest".into()); }
     let mut known = HashSet::new();
     for page in &manifest.pages {
-        if !valid_id(&page.id) || !valid_layout(&page.layout) || page.title.trim().is_empty() ||
+        if !valid_id(&page.id) || !valid_layout(&page.layout) || !valid_navigation_group(&page.nav_group) || page.title.trim().is_empty() ||
             page.title.chars().count() > 100 || page.title.chars().any(char::is_control) ||
             !known.insert(&page.id) { return Err("Invalid page entry".into()); }
     }
@@ -58,7 +64,7 @@ fn read_pages(folder: &Path) -> Result<Manifest, String> {
 }
 pub(crate) fn initialize_pages(folder: &Path) -> Result<(), String> {
     let manifest = Manifest { format_version: 1, pages: vec![
-        Page { id: HOME.into(), title: "Overview".into(), is_public: true, layout: layout_default() }
+        Page { id: HOME.into(), title: "Overview".into(), is_public: true, layout: layout_default(), nav_group: navigation_group_default() }
     ] };
     save_pages(folder, &manifest)
 }
@@ -120,7 +126,7 @@ pub fn create_page(app: AppHandle, project_id: String, name: String) -> Result<P
     let dir = folder(&app, &project_id)?;
     let mut manifest = read_pages(&dir)?;
     if manifest.pages.len() >= 500 { return Err("Project page limit reached".into()); }
-    let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: true, layout: layout_default() };
+    let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: true, layout: layout_default(), nav_group: navigation_group_default() };
     let markdown = format!("# {}\n\n", page.title);
     let path = document(&dir, &page.id)?;
     fs::write(&path, &markdown).map_err(|e| e.to_string())?;
@@ -149,7 +155,7 @@ pub fn duplicate_page(app: AppHandle, project_id: String, page_id: String) -> Re
     let source = manifest.pages.iter().find(|p| p.id == page_id).ok_or("Page not found")?;
     let markdown = fs::read_to_string(document(&dir, &source.id)?).map_err(|e| e.to_string())?;
     let name = title(&format!("{} (Copy)", source.title))?;
-    let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: source.is_public, layout: source.layout.clone() };
+    let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: source.is_public, layout: source.layout.clone(), nav_group: source.nav_group.clone() };
     let path = document(&dir, &page.id)?;
     fs::write(&path, &markdown).map_err(|e| e.to_string())?;
     manifest.pages.push(page.clone());
@@ -223,6 +229,19 @@ pub fn set_page_layout(app: AppHandle, project_id: String, page_id: String, layo
     Ok(updated)
 }
 
+#[tauri::command]
+pub fn set_page_navigation_group(app: AppHandle, project_id: String, page_id: String, group: String) -> Result<Page, String> {
+    if !valid_navigation_group(&group) { return Err("Navigation group must be 1–60 characters".into()); }
+    let dir = folder(&app, &project_id)?;
+    let mut manifest = read_pages(&dir)?;
+    let page = manifest.pages.iter_mut().find(|p| p.id == page_id).ok_or("Page not found")?;
+    page.nav_group = group;
+    let updated = page.clone();
+    save_pages(&dir, &manifest)?;
+    touch(&dir)?;
+    Ok(updated)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -231,6 +250,19 @@ mod tests {
         let page: Page = serde_json::from_str(r#"{"id":"index","title":"Overview","isPublic":true,"layout":"docs"}"#).unwrap();
         assert_eq!(page.layout, "docs");
         assert!(serde_json::from_str::<Page>(r#"{"id":"index","title":"Overview"}"#).is_err());
+    }
+    #[test]
+    fn navigation_group_defaults_and_validation() {
+        let page: Page = serde_json::from_str(r#"{"id":"index","title":"Overview","isPublic":true,"layout":"docs"}"#).unwrap();
+        assert_eq!(page.nav_group, "Documentation");
+        assert!(valid_navigation_group("Getting Started"));
+        assert!(valid_navigation_group("API Reference"));
+        assert!(!valid_navigation_group(""));
+        assert!(!valid_navigation_group(" Leading"));
+        assert!(!valid_navigation_group("Bad\nGroup"));
+        let updated = Page { nav_group: "Examples".into(), ..page };
+        let json = serde_json::to_string(&updated).unwrap();
+        assert!(json.contains(r#""navGroup":"Examples""#));
     }
     #[test]
     fn explicit_layout_round_trip() {

@@ -32,6 +32,13 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .site-nav{grid-column:1;min-width:0;min-height:0;border-right:1px solid var(--line);padding:32px 16px 40px clamp(18px,2.5vw,42px)}
 .site-nav-inner{position:sticky;top:100px;max-height:calc(100vh - 115px);overflow:auto;scrollbar-width:thin}
 .site-nav h2{padding:0 13px;margin:0 0 12px;font-size:11px;line-height:1.5;letter-spacing:.095em;text-transform:uppercase;color:var(--muted);font-weight:750}
+.site-nav .nav-group{margin-bottom:26px}
+.site-nav .nav-group:last-child{margin-bottom:0}
+.mobile-nav .nav-group{min-width:0}
+.mobile-nav .nav-group h2{margin:9px 10px 5px;font-size:11px;letter-spacing:.05em;color:var(--muted)}
+.mobile-nav .nav-group-links{display:grid;gap:3px}
+.site-body.nav-top .site-nav .nav-group{display:flex;align-items:center;gap:8px;margin:0}
+.site-body.nav-top .site-nav .nav-group-links{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
 .site-nav a{display:block;padding:8px 13px;margin:2px 0;border-radius:9px;text-decoration:none;font-size:13px;font-weight:500;line-height:1.55;color:var(--muted);overflow-wrap:anywhere;transition:background-color .13s,color .13s}
 .site-nav a:hover{background:var(--hover);color:var(--fg)}
 .site-nav a[aria-current=page]{background:var(--brand-light);color:var(--brand);font-weight:700}
@@ -359,7 +366,7 @@ fn read_pages(dir: &Path) -> Result<Vec<crate::pages::Page>, String> {
     }
     let mut seen = HashSet::new();
     for page in &manifest.pages {
-        if !valid_id(&page.id) || !["docs", "wide", "landing"].contains(&page.layout.as_str()) || !seen.insert(page.id.as_str()) || page.title.trim().is_empty() {
+        if !valid_id(&page.id) || !crate::pages::valid_navigation_group(&page.nav_group) || !["docs", "wide", "landing"].contains(&page.layout.as_str()) || !seen.insert(page.id.as_str()) || page.title.trim().is_empty() {
             return Err("Invalid page identifier in site".into());
         }
     }
@@ -382,13 +389,24 @@ fn render_site_page(
 ) -> String {
     let public_pages: Vec<_> = pages.iter().filter(|p| p.is_public).collect();
     let mut links = String::new();
+    let mut previous_group: Option<&str> = None;
     for item in &public_pages {
+        let group = item.nav_group.as_str();
+        if previous_group != Some(group) {
+            if previous_group.is_some() { links.push_str("</div></section>"); }
+            links.push_str(&format!(
+                "<section class=\"nav-group\"><h2>{}</h2><div class=\"nav-group-links\">",
+                escape(group)
+            ));
+            previous_group = Some(group);
+        }
         let current = if item.id == page.id { " aria-current=\"page\"" } else { "" };
         links.push_str(&format!(
             "<a href=\"{}\"{}>{}</a>",
             filename(&item.id), current, escape(&item.title)
         ));
     }
+    if previous_group.is_some() { links.push_str("</div></section>"); }
     let mut toc_links = String::new();
     for heading in toc.iter().take(100) {
         // All heading metadata comes from the frontend's sanitized Markdown DOM.
@@ -479,7 +497,7 @@ fn render_site_page(
 <header class="site-header {header_class}"><div class="top-bar"><a class="brand brand-wrap" href="index.html">{logo}{brand_title}</a>{header_links}</div></header>
 <details class="mobile-nav"><summary>Browse documentation</summary><nav class="mobile-nav-inner" aria-label="Mobile page navigation">{links}</nav></details>
 <div class="site-body nav-{nav_position} layout-{layout}">
-<nav class="site-nav" aria-label="Documentation navigation"><div class="site-nav-inner"><h2>Documentation</h2>{links}</div></nav>
+<nav class="site-nav" aria-label="Documentation navigation"><div class="site-nav-inner">{links}</div></nav>
 <main class="site-main" id="content" style="--paglora-content-width:{content_width}px">
 <div class="article-wrap">
 <div class="page-heading"><a href="index.html">Docs</a><span class="crumb-separator">/</span><strong>{breadcrumb_title}</strong></div>
@@ -600,6 +618,22 @@ mod website_font_tests {
     use super::*;
 
     #[test]
+    fn page_navigation_groups_appear_in_generated_html() {
+        let settings = default_settings("Docs");
+        let pages = vec![
+            crate::pages::Page { id: "index".into(), title: "Overview".into(), is_public: true, layout: "docs".into(), nav_group: "Getting Started".into() },
+            crate::pages::Page { id: "api".into(), title: "API Guide".into(), is_public: true, layout: "docs".into(), nav_group: "API Reference".into() },
+            crate::pages::Page { id: "private".into(), title: "Draft".into(), is_public: false, layout: "docs".into(), nav_group: "Secret".into() },
+        ];
+        let output = render_site_page(&settings, &pages, &pages[0], "<p>Docs</p>", &[]);
+        assert!(output.contains("<h2>Getting Started</h2>"));
+        assert!(output.contains("<h2>API Reference</h2>"));
+        assert!(output.contains("api.html"));
+        assert!(!output.contains("Secret"));
+        assert!(!output.contains("private.html"));
+    }
+
+    #[test]
     fn google_fonts_are_opt_in_and_default_projects_keep_geist() {
         let settings = default_settings("Test Project");
         assert_eq!(settings.google_font_family, "");
@@ -613,7 +647,7 @@ mod website_font_tests {
         settings.google_font_family = "Noto Sans KR".into();
         assert!(validate_settings(&settings).is_ok());
         let page = crate::pages::Page {
-            id: "index".into(), title: "Overview".into(), is_public: true, layout: "docs".into()
+            id: "index".into(), title: "Overview".into(), is_public: true, layout: "docs".into(), nav_group: "Documentation".into()
         };
         let output = render_site_page(&settings, &[page.clone()], &page, "<p>Test</p>", &[]);
         assert!(output.contains("https://fonts.googleapis.com/css2?family=Noto+Sans+KR&amp;display=swap"));

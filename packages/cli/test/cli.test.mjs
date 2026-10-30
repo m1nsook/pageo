@@ -80,3 +80,20 @@ test("a pages manifest is required", () => fixture(folder => {
   unlinkSync(join(folder, "pages.json"));
   assert.throws(() => inspectProject(folder), /No pages\.json found/);
 }));
+
+test("navigation group metadata can be inspected", () => fixture(folder => {
+  writeFileSync(join(folder, "pages.json"), JSON.stringify({
+    formatVersion: 1,
+    pages: [{ id: "index", title: "Overview", isPublic: true, layout: "docs", navGroup: "Getting Started" }],
+  }));
+  const info = inspectProject(folder);
+  assert.equal(info.pageCount, 1);
+}));
+
+test("invalid group metadata fails CLI validation", () => fixture(folder => {
+  writeFileSync(join(folder, "pages.json"), JSON.stringify({
+    formatVersion: 1,
+    pages: [{ id: "index", title: "Overview", isPublic: true, layout: "docs", navGroup: "" }],
+  }));
+  assert.throws(() => inspectProject(folder), /Invalid navigation group/);
+}));

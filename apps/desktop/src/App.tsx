@@ -25,7 +25,7 @@ import { PageInspector } from "@/components/editor/page-inspector";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { createProject, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
-import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, setPageLayout, type Page, type PageDocument } from "@/lib/pages";
+import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, setPageLayout, setPageNavigationGroup, type Page, type PageDocument } from "@/lib/pages";
 
 function friendlyError(error: unknown) { return error instanceof Error ? error.message : String(error); }
 
@@ -269,13 +269,23 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
 
 function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; onSaved: (project: ProjectSummary) => void }) {
   const { document } = props;
-  const [pages, setPages] = useState<Page[]>([{id:"index",title:"Overview",isPublic:true,layout:"docs"}]);
-  const [current, setCurrent] = useState<PageDocument>({page:{id:"index",title:"Overview",isPublic:true,layout:"docs"},markdown:document.markdown});
+  const [pages, setPages] = useState<Page[]>([{id:"index",title:"Overview",isPublic:true,layout:"docs",navGroup:"Documentation"}]);
+  const [current, setCurrent] = useState<PageDocument>({page:{id:"index",title:"Overview",isPublic:true,layout:"docs",navGroup:"Documentation"},markdown:document.markdown});
   const [failure, setFailure] = useState("");
   const id = document.project.id;
   useEffect(() => {
     let alive=true;
-    void listPages(id).then(result => {if(alive) setPages(result);}).catch(e=>{if(alive)setFailure(friendlyError(e));});
+    void listPages(id).then(result => {
+      if (!alive) return;
+      setPages(result);
+      // Hydrate the selected page's persisted title/layout/navigation metadata.
+      // The initial Markdown comes from loadProject, but page metadata comes
+      // from pages.json and must not remain a hard-coded placeholder.
+      setCurrent(previous => {
+        const loaded = result.find(page => page.id === previous.page.id);
+        return loaded ? { ...previous, page: loaded } : previous;
+      });
+    }).catch(e => { if (alive) setFailure(friendlyError(e)); });
     return ()=>{alive=false;};
   },[id]);
   const change = async (pageId: string) => { setCurrent(await loadPage(id,pageId)); };
@@ -294,6 +304,10 @@ function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; o
     }
     else if(action==="layout" && pageId && (target==="docs" || target==="wide" || target==="landing")){
       const updated = await setPageLayout(id,pageId,target);
+      if(current.page.id===pageId)setCurrent(p=>({...p,page:updated}));
+    }
+    else if(action==="group" && pageId && target){
+      const updated = await setPageNavigationGroup(id,pageId,target);
       if(current.page.id===pageId)setCurrent(p=>({...p,page:updated}));
     }
     else if(action==="delete" && pageId){
