@@ -1,0 +1,61 @@
+# Existing repository labels are reused; this file does not create them.
+# PR labels based on the branch name (GitHub Desktop names) or modified files.
+
+bug:
+  - head-branch: '^fix/'
+
+enhancement:
+  - head-branch: '^feat/'
+
+maintenance:
+  - head-branch: '^(chore|ci|refactor|build|deps)/'
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'bun.lock'
+          - 'apps/desktop/src-tauri/Cargo.lock'
+
+documentation:
+  - head-branch: '^docs/'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '**/*.md'
+          - '**/*.mdx'
+
+area:desktop:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/desktop/**'
+
+area:editor:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'apps/desktop/src/editor/**'
+          - 'apps/desktop/src/components/editor/**'
+          - 'apps/desktop/src/**/*Editor.tsx'
+          - 'apps/desktop/src/**/*editor.ts'
+
+area:project:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'apps/desktop/src/lib/projects.ts'
+          - 'apps/desktop/src-tauri/src/projects.rs'
+          - 'packages/core/src/**'
+
+area:ui:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'apps/desktop/src/components/ui/**'
+          - 'apps/desktop/src/index.css'
+          - 'apps/desktop/components.json'
+
+area:export:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/export/**'
+          - 'apps/desktop/src/export/**'
+          - 'apps/desktop/src-tauri/src/export/**'
+
+area:cli:
+  - changed-files:
+      - any-glob-to-any-file: 'packages/cli/**'
