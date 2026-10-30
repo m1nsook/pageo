@@ -40,7 +40,7 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-  const [width, setWidth] = useState<"desktop" | "mobile">("desktop");
+  const [width, setWidth] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const editVersion = useRef(0);
 
   useEffect(() => {
@@ -247,14 +247,15 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
           <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-3 py-2">
             <div className="flex items-center gap-2 text-xs text-muted-foreground"><Eye className="size-4" /> Live public website</div>
             <div className="flex gap-1">
-              <Button type="button" variant={width === "desktop" ? "secondary" : "ghost"} size="sm" onClick={() => setWidth("desktop")}>Desktop</Button>
-              <Button type="button" variant={width === "mobile" ? "secondary" : "ghost"} size="sm" onClick={() => setWidth("mobile")}>Mobile</Button>
+              <Button type="button" aria-pressed={width === "desktop"} variant={width === "desktop" ? "secondary" : "ghost"} size="sm" onClick={() => setWidth("desktop")}>Desktop</Button>
+              <Button type="button" aria-pressed={width === "tablet"} variant={width === "tablet" ? "secondary" : "ghost"} size="sm" onClick={() => setWidth("tablet")}>Tablet</Button>
+              <Button type="button" aria-pressed={width === "mobile"} variant={width === "mobile" ? "secondary" : "ghost"} size="sm" onClick={() => setWidth("mobile")}>Mobile</Button>
             </div>
           </div>
           <div className="flex min-h-0 flex-1 justify-center overflow-auto p-3">
             {preview ? <iframe title="Live website layout preview" sandbox="allow-same-origin" srcDoc={preview}
-              style={{ width: width === "desktop" ? "100%" : "min(100%,390px)" }}
-              className="h-full min-h-72 rounded-md border border-border bg-white shadow-md transition-[width] duration-200"/> :
+              style={{ width: width === "desktop" ? "100%" : width === "tablet" ? "min(100%,768px)" : "min(100%,390px)" }}
+              className="h-full min-h-72 rounded-md border border-border bg-white shadow-md transition-[width] duration-200 motion-reduce:transition-none"/> :
               <p className="flex items-center gap-2 self-center text-xs text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/> Rendering site...</p>}
           </div>
           <p className="flex shrink-0 items-center gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground"><ArrowRight className="size-3.5"/> The same renderer produces the website you export.</p>
