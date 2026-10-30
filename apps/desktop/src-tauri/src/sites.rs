@@ -285,9 +285,9 @@ pub fn save_site_settings(app: AppHandle, project_id: String, settings: SiteSett
 /// Preview uses the exact same HTML and CSS renderer as static export.
 /// The caller supplies already sanitized HTML; no files are written.
 #[tauri::command]
-pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedPage) -> Result<String, String> {
+pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedPage, settings_override: Option<SiteSettings>) -> Result<String, String> {
     let (dir, project_name) = project_folder(&app, &project_id)?;
-    let settings = read_settings(&dir, &project_name)?;
+    let settings = if let Some(value) = settings_override { value } else { read_settings(&dir, &project_name)? };
     validate_settings(&settings)?;
     let pages = read_pages(&dir)?;
     let page = pages.iter().find(|p| p.id == rendered.id && p.is_public)
