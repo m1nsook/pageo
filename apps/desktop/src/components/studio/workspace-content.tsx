@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ProjectSummary } from "@pageo/core";
-import { ArrowRight, BookOpen, ChevronRight, Clock3, FolderOpen, LoaderCircle, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronRight, Clock3, FolderOpen, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
