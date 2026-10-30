@@ -1,0 +1,35 @@
+name: Temporary official icon generation
+
+# One-time developer utility; removed from the PR after assets are generated.
+on:
+  push:
+    branches:
+      - feat/official-brand-assets
+    paths:
+      - apps/desktop/public/paglora.svg
+      - .github/workflows/generate-official-icons.yml
+
+permissions:
+  contents: write
+
+jobs:
+  generate-icons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked workspace tooling
+        run: bun install --frozen-lockfile
+      - name: Generate official Tauri icon files
+        run: bunx tauri icon apps/desktop/public/paglora.svg --output apps/desktop/src-tauri/icons
+      - name: Commit icon files to PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/desktop/src-tauri/icons/
+          if ! git diff --cached --quiet; then
+            git commit -m "assets: generate official Paglora Windows icons from user SVG"
+            git push origin HEAD:feat/official-brand-assets
+          fi
