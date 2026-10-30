@@ -26,7 +26,7 @@ if (!result.success) {
 for (const file of ["index.js", "search.js"]) {
   const bytes = await readFile(join(output, file));
   if (!bytes.length || bytes.length > 65_536) {
-    throw new Error(\`Unexpected runtime bundle size for \${file}: \${bytes.length} bytes\`);
+    throw new Error(`Unexpected runtime bundle size for ${file}: ${bytes.length} bytes`);
   }
-  console.log(\`Runtime bundle: \${file} (\${bytes.length} bytes)\`);
+  console.log(`Runtime bundle: ${file} (${bytes.length} bytes)`);
 }
