@@ -5,7 +5,7 @@ import vm from "node:vm";
 
 const source = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
 
-function fixture() {
+function fixture({ reverseMobile = false } = {}) {
   const listeners = {};
   const headings = new Map();
   const links = [];
@@ -21,9 +21,10 @@ function fixture() {
     return node;
   }
   const desktopLinks = [link("#first"), link("#cafe%CC%81"), link("#%ZZ")];
-  const mobileLinks = [link("#first"), link("#cafe%CC%81")];
+  const mobileLinks = (reverseMobile ? ["#cafe%CC%81", "#first"] : ["#first", "#cafe%CC%81"]).map(link);
+  let firstTop = 50;
   let secondTop = 200;
-  headings.set("first", { getBoundingClientRect() { return { top: 50 }; } });
+  headings.set("first", { getBoundingClientRect() { return { top: firstTop }; } });
   headings.set("café", { getBoundingClientRect() { return { top: secondTop }; } });
   const desktop = { querySelectorAll() { return desktopLinks; } };
   const mobile = {
@@ -51,6 +52,7 @@ function fixture() {
     requestAnimationFrame(fn) { fn(); },
   });
   return { desktopLinks, mobileLinks, mobile, listeners,
+    moveFirst(top) { firstTop = top; listeners.scroll(); },
     moveSecond(top) { secondTop = top; listeners.scroll(); } };
 }
 
@@ -70,4 +72,20 @@ test("mobile TOC closes after selecting a heading", () => {
   const app = fixture();
   app.mobile.events.click({ target: { closest(selector) { assert.equal(selector, 'a[href^="#"]'); return app.mobileLinks[1]; } } });
   assert.equal(app.mobile.open, false);
+});
+
+test("out-of-order mobile TOC cannot override the nearest passed heading", () => {
+  const app = fixture({ reverseMobile: true });
+  app.moveSecond(90);
+  assert.equal(app.desktopLinks[1].attrs.get("aria-current"), "location");
+  assert.equal(app.mobileLinks[0].attrs.get("aria-current"), "location");
+  assert.equal(app.mobileLinks[1].attrs.has("aria-current"), false);
+});
+
+test("when no heading has passed the header, select the nearest upcoming heading", () => {
+  const app = fixture();
+  app.moveFirst(320);
+  app.moveSecond(220);
+  assert.equal(app.desktopLinks[1].attrs.get("aria-current"), "location");
+  assert.equal(app.mobileLinks[1].attrs.get("aria-current"), "location");
 });
