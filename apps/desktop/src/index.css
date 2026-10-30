@@ -7,8 +7,6 @@
 
 :root {
   font-family: "Geist Variable", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #18181b;
-  background: #f8f9fb;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -51,9 +49,9 @@ body { margin: 0; min-width: 560px; }
 button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
-::selection { background: #ddd6fe; }
+::selection { background: var(--accent); color: var(--accent-foreground); }
 
-.editor-content { min-height: 50vh; outline: none; line-height: 1.85; font-size: 16px; color: #27272a; }
+.editor-content { min-height: 50vh; outline: none; line-height: 1.85; font-size: 16px; color: var(--foreground); }
 .editor-content > * + * { margin-top: 1em; }
 .editor-content h1 { font-size: 2.25rem; line-height: 1.2; font-weight: 750; letter-spacing: -0.04em; margin: 0 0 1.35rem; }
 .editor-content h2 { font-size: 1.55rem; line-height: 1.3; font-weight: 680; letter-spacing: -0.03em; margin-top: 2rem; }
@@ -61,12 +59,13 @@ button:disabled { cursor: not-allowed; }
 .editor-content p { margin-block: 0.9em; }
 .editor-content ul { list-style: disc; padding-left: 1.6rem; }
 .editor-content ol { list-style: decimal; padding-left: 1.6rem; }
-.editor-content blockquote { border-left: 3px solid #b7b3f5; padding: 0.3rem 0 0.3rem 1.1rem; color: #656574; background: #fafaff; }
-.editor-content pre { padding: 1rem; background: #18181b; color: #f3f4f6; border-radius: 12px; overflow-x: auto; }
-.editor-content code { font-family: "Cascadia Code", "JetBrains Mono", ui-monospace, monospace; background: #f1f1f4; border-radius: 4px; padding: 0.1rem 0.3rem; }
-.editor-content pre code { background: transparent; padding: 0; }
-.editor-content a { color: #5753d7; text-decoration: underline; }
-.editor-content .is-empty:first-child::before { color: #aaa8b5; float: left; height: 0; pointer-events: none; }
+.editor-content blockquote { border-left: 3px solid var(--border); padding: 0.3rem 0 0.3rem 1.1rem; color: var(--muted-foreground); background: var(--muted); }
+.editor-content pre { padding: 1rem; background: oklch(0.18 0 0); color: oklch(0.96 0 0); border-radius: 12px; overflow-x: auto; }
+.editor-content code { font-family: "Cascadia Code", "JetBrains Mono", ui-monospace, monospace; background: var(--muted); color: var(--foreground); border-radius: 4px; padding: 0.1rem 0.3rem; }
+.editor-content pre code { background: transparent; color: inherit; padding: 0; }
+.editor-content a { color: #2196f3; text-decoration: underline; text-underline-offset: 2px; }
+.dark .editor-content a { color: #73c3ff; }
+.editor-content .is-empty:first-child::before { color: var(--muted-foreground); float: left; height: 0; pointer-events: none; }
 
 @theme inline {
   --font-heading: var(--font-sans);
