@@ -16,17 +16,18 @@ function readJson(file) {
 
 export function inspectProject(folder) {
   const directory = resolve(folder);
-  const configFile = join(directory, "pageo.json");
-  if (!existsSync(configFile)) throw new Error("No pageo.json found. Pass a Paglora project directory.");
+  const configFile = join(directory, "paglora.json");
+  if (!existsSync(configFile)) throw new Error("No paglora.json found. Pass a Paglora project directory.");
   const config = readJson(configFile);
   if (config.formatVersion !== 1 || typeof config.id !== "string" || !ID.test(config.id) ||
     config.id !== basename(directory) || typeof config.name !== "string" || !config.name.trim()) {
-    throw new Error("Invalid pageo.json: expected format version 1 and matching project identifier.");
+    throw new Error("Invalid paglora.json: expected format version 1 and matching project identifier.");
   }
   const manifestFile = join(directory, "pages.json");
-  const pages = existsSync(manifestFile)
-    ? readJson(manifestFile).pages
-    : [{ id: "index", title: "Overview", isPublic: true }];
+  if (!existsSync(manifestFile)) throw new Error("No pages.json found in Paglora project.");
+  const pagesManifest = readJson(manifestFile);
+  if (pagesManifest.formatVersion !== 1) throw new Error("Unsupported pages.json format version.");
+  const pages = pagesManifest.pages;
 
   if (!Array.isArray(pages) || pages.length < 1 || pages.length > 500 || pages[0]?.id !== "index") {
     throw new Error("Invalid page manifest: Overview must be the first page.");
@@ -37,14 +38,17 @@ export function inspectProject(folder) {
       typeof page.title !== "string" || !page.title.trim() || page.title.length > 100) {
       throw new Error("Invalid page identifier, title or duplicate entry in pages.json.");
     }
-    if (page.isPublic !== undefined && typeof page.isPublic !== "boolean") {
+    if (typeof page.isPublic !== "boolean") {
       throw new Error(`Invalid public/private flag for page ${page.id}.`);
     }
-    if (page.id === "index" && page.isPublic === false) {
+    if (page.id === "index" && !page.isPublic) {
       throw new Error("Overview must remain public.");
     }
     if (!existsSync(join(directory, "docs", `${page.id}.md`))) {
       throw new Error(`Missing docs/${page.id}.md`);
+    }
+    if (!["docs", "wide", "landing"].includes(page.layout)) {
+      throw new Error(`Unsupported page layout for ${page.id}.`);
     }
     seen.add(page.id);
   }
@@ -58,8 +62,8 @@ export function inspectProject(folder) {
     id: config.id,
     folder: directory,
     pageCount: pages.length,
-    publicCount: pages.filter(page => page.isPublic !== false).length,
-    pages: pages.map(page => ({ id: page.id, title: page.title, isPublic: page.isPublic !== false })),
+    publicCount: pages.filter(page => page.isPublic).length,
+    pages: pages.map(page => ({ id: page.id, title: page.title, isPublic: page.isPublic })),
     siteTitle: site?.title ?? config.name,
   };
 }

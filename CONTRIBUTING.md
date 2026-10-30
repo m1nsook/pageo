@@ -14,7 +14,7 @@ Thanks for helping make Paglora better.
 
 The active stack is Bun, React 19, TypeScript, Vite, Tailwind 4, official shadcn/ui, Tiptap Markdown and Tauri 2/Rust. Run `bun install`, `bun run check` and `bun run build` at the root. For the desktop backend, Rust/Tauri checks run in CI on Windows. For the npm CLI, run `cd packages/cli && bun run test` and `npm pack --dry-run`.
 
-Keep the internal legacy Tauri identifier `com.m1nsook.pageo` and the `pageo.json` project manifest filename unchanged until a separately tested compatibility migration is ready. See [REBRANDING.md](docs/REBRANDING.md).
+Use the canonical Tauri identifier `com.m1nsook.paglora` and project manifest filename `paglora.json`. Changes to persistent project formats must update Rust, CLI validation, tests, and documentation together.
 
 ## Pull requests
 

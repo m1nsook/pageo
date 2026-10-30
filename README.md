@@ -68,21 +68,24 @@ docs/                  Architecture, compatibility and publishing instructions
 
 Each project can edit its own `theme/custom.css` through the integrated **Monaco Code Editor** in **Source**. This is a real local stylesheet applied after the built-in styles in both site preview and static export. TSX component and layout compilation is not yet implemented. See [source workspace](docs/source-workspace.md).
 
-## Existing Pageo projects remain supported
+## Project files and application storage
 
-Paglora was previously called **Pageo**. This rename **does not relocate projects, overwrite files, or change the project format**:
+Paglora uses its own Tauri application identifier, `com.m1nsook.paglora`. New projects are stored in the app-specific local data folder. In **Settings → Local project storage**, you can see the exact folder on your machine.
+
+Each project contains:
 
 ```text
-pageo.json             Legacy v1 project metadata filename (retained)
-pages.json             Page IDs, titles, order and public/private visibility
-site.json              Public website configuration (when saved)
-docs/index.md          Overview Markdown file
-docs/<page-id>.md      Additional pages
+paglora.json          Project metadata (format version 1)
+pages.json            Page IDs, titles, layouts, order, and visibility
+site.json             Website settings (created when saved)
+docs/index.md         Overview Markdown
+docs/<page-id>.md     Additional Markdown pages
+theme/custom.css      User-owned site stylesheet
 ```
 
-The Tauri identifier stays `com.m1nsook.pageo` to preserve existing Windows application-data storage; this is an internal compatibility setting, **not** a visual brand. In Paglora Desktop, go to **Settings → Local project storage** for the exact folder. Do **not** rename `pageo.json` or move existing project directories manually.
+**Breaking change during early development:** Paglora no longer reads the former prototype's project manifest or application storage location. Existing local files in that older directory are not deleted, but are not automatically imported into the new app. Back up any earlier test projects before switching. The previously published npm alpha package may use the old format until a new version is published.
 
-See [Compatibility and rebranding](docs/REBRANDING.md), [architecture](docs/ARCHITECTURE.md), and [static site publishing](docs/static-site-publishing.md).
+See the [architecture](docs/ARCHITECTURE.md) and [static site publishing](docs/static-site-publishing.md) guides.
 
 ## Static site workflow
 

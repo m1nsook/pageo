@@ -2,7 +2,6 @@ use std::{fs, path::{Path, PathBuf}};
 use tauri::{AppHandle, Manager};
 
 /// A local project controls its own site CSS; no system-wide stylesheet is edited.
-/// Intentionally keep the legacy project manifest and Tauri identifier unchanged.
 const MAX_CSS_BYTES: usize = 256_000;
 
 pub const STARTER_CSS: &str = "/* Paglora project theme.
@@ -25,7 +24,7 @@ fn project_dir(app: &AppHandle, id: &str) -> Result<PathBuf, String> {
     if fs::symlink_metadata(&path).map_err(|e| e.to_string())?.file_type().is_symlink() {
         return Err("Project directory cannot be a symlink".into());
     }
-    let metadata = fs::read_to_string(path.join("pageo.json")).map_err(|e| e.to_string())?;
+    let metadata = fs::read_to_string(path.join("paglora.json")).map_err(|e| e.to_string())?;
     let json: serde_json::Value = serde_json::from_str(&metadata).map_err(|e| e.to_string())?;
     if json["id"].as_str() != Some(id) { return Err("Project ID does not match its manifest".into()); }
     Ok(path)

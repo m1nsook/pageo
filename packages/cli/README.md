@@ -19,7 +19,7 @@ Or without installing:
 bunx --bun paglora@alpha inspect .\projects\my-docs
 ```
 
-`inspect --json` returns machine-readable project metadata, including public and private page information. Existing `pageo.json` project files remain supported; the CLI does not rewrite user files.
+`inspect --json` returns machine-readable project metadata, including public and private page information. The CLI reads `paglora.json` and `pages.json`, without rewriting project files. A new npm release is required before these changes reach the published alpha.
 
 ## Release notes
 

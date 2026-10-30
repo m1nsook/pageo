@@ -10,7 +10,7 @@ The file is stored in the project's local data directory:
 
 ```text
 <project-directory>/
-├── pageo.json             (legacy v1 metadata; do not rename)
+├── paglora.json           (Paglora project metadata)
 ├── docs/
 │   └── index.md
 ├── pages.json
@@ -19,7 +19,7 @@ The file is stored in the project's local data directory:
     └── custom.css         (your editable source stylesheet)
 ```
 
-New projects contain `theme/custom.css` with commented examples. Existing Pageo/Paglora projects are compatible: missing CSS is treated as optional until you save it from Source.
+New projects contain `theme/custom.css` with commented examples. New Paglora projects contain a starter stylesheet. Missing CSS is treated as optional until you save from Source.
 
 CSS is applied after the generated `styles.css`, so the user project overrides default selectors. Save CSS to refresh the preview.
 
@@ -37,7 +37,7 @@ Every exported HTML page links to `custom.css` when the project contains it. Do 
 
 ## Permissions and security
 
-File operations use dedicated Rust Tauri commands restricted to the selected project and `theme/custom.css`. The frontend cannot provide arbitrary output paths. A project ID must match its existing local `pageo.json` file. Stylesheets are limited to 256 KB.
+File operations use dedicated Rust Tauri commands restricted to the selected project and `theme/custom.css`. The frontend cannot provide arbitrary output paths. A project ID must match its existing local `paglora.json` file. Stylesheets are limited to 256 KB.
 
 The live preview is a script-disabled iframe. Custom CSS may import external fonts or images just as normal CSS can. Keep a project's source code trusted, and do not execute user-authored JavaScript/TSX in Paglora's privileged desktop WebView.
 

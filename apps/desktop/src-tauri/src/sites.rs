@@ -224,7 +224,7 @@ fn project_folder(app: &AppHandle, project_id: &str) -> Result<(PathBuf, String)
     if !valid_id(project_id) { return Err("Invalid project identifier".into()); }
     let dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("projects").join(project_id);
     let data: serde_json::Value = serde_json::from_str(
-        &fs::read_to_string(dir.join("pageo.json")).map_err(|e| e.to_string())?
+        &fs::read_to_string(dir.join("paglora.json")).map_err(|e| e.to_string())?
     ).map_err(|e| e.to_string())?;
     if data["id"].as_str() != Some(project_id) { return Err("Project configuration mismatch".into()); }
     let name = data["name"].as_str().ok_or("Project name missing")?.to_string();
@@ -333,10 +333,6 @@ fn safe_link(raw: &str, https_only: bool) -> bool {
 }
 
 fn read_pages(dir: &Path) -> Result<Vec<crate::pages::Page>, String> {
-    if !dir.join("pages.json").exists() {
-        if !dir.join("docs/index.md").exists() { return Err("Overview document missing".into()); }
-        return Ok(vec![crate::pages::Page { id: "index".into(), title: "Overview".into(), is_public: true, layout: "docs".into() }]);
-    }
     let manifest: PageManifest = serde_json::from_str(
         &fs::read_to_string(dir.join("pages.json")).map_err(|e| e.to_string())?
     ).map_err(|e| e.to_string())?;
@@ -552,7 +548,7 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
     fs::create_dir(&staged).map_err(|e| e.to_string())?;
     let write_result = (|| -> Result<(), String> {
         fs::write(staged.join("styles.css"), SITE_CSS).map_err(|e| e.to_string())?;
-        // Ship the exact font used by the local preview; exported sites are offline-first.
+        // Bundle the default Geist font; optional hosted Google Fonts remain supported.
         fs::create_dir(staged.join("fonts")).map_err(|e| e.to_string())?;
         fs::write(staged.join("fonts/geist-latin.woff2"), include_bytes!("../assets/geist-latin.woff2"))
             .map_err(|e| e.to_string())?;
@@ -588,7 +584,7 @@ mod website_font_tests {
     use super::*;
 
     #[test]
-    fn google_fonts_are_opt_in_and_legacy_projects_keep_geist() {
+    fn google_fonts_are_opt_in_and_default_projects_keep_geist() {
         let settings = default_settings("Test Project");
         assert_eq!(settings.google_font_family, "");
         assert!(google_font_markup(&settings.google_font_family).is_empty());

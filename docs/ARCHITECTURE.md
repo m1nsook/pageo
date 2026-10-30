@@ -9,21 +9,22 @@ Paglora is a local-first documentation studio with a Tauri 2 desktop shell, Reac
 - `packages/core`: internal `@paglora/core` package with shared project types and validation.
 - `packages/cli`: public npm package `paglora`, currently implementing read-only `inspect` and `validate` commands. Its static build command is not implemented yet.
 
-## Local persistence and backwards compatibility
+## Local persistence
 
-The previous application was called Pageo. For v1 project format compatibility, existing directories still contain:
+Paglora Desktop uses Tauri application identifier `com.m1nsook.paglora` and stores projects in the application's own local data directory under `projects/`.
 
 ```text
-pageo.json
+paglora.json
 pages.json
-site.json
 docs/index.md
-docs/<page-id>.md
+theme/custom.css
+site.json                (written when site settings are saved)
+docs/<page-id>.md       (created for additional pages)
 ```
 
-The unchanged Tauri app identifier `com.m1nsook.pageo` controls its per-user application-data path on Windows. Changing that identifier without a careful migration would hide existing user projects under a different folder. The visible desktop title, Rust crate, npm package and UI brand are Paglora; the storage key and project manifest filename remain intentionally legacy.
+`paglora.json` contains the project ID, name, format version 1, and timestamps. `pages.json` is created with the project, with an explicit visibility flag and layout for every page. `site.json` is optional until the user saves site settings.
 
-The project format version is still 1. All existing page IDs, Markdown contents, and site settings are retained. Do not change the on-disk filename or app identifier in routine brand edits. See [REBRANDING.md](REBRANDING.md).
+The abandoned prototype's storage identifier and manifest are no longer recognized. Changing to Paglora's application identifier does not delete earlier files on disk, but older projects will not appear automatically in the new app. Because this project is in early development, this is an intentional breaking change, not an automatic migration.
 
 ## Editor and backend
 
@@ -37,4 +38,4 @@ Private pages are excluded from the HTML output; privacy is not an access-contro
 
 ## Current limits
 
-The public site layout offers configurable header/footer/nav and limited links; it is not yet a fully freeform React/shadcn builder. Local assets are not copied during export, and interactive shadcn components do not currently survive conversion to plain Markdown static HTML. A future structured document format will be required, with backward compatibility.
+The public site layout offers configurable header/footer/nav and limited links; it is not yet a fully freeform React/shadcn builder. Local assets are not copied during export, and interactive shadcn components do not currently survive conversion to plain Markdown static HTML. A future structured document format will require an explicit, tested upgrade path.

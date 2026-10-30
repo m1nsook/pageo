@@ -31,7 +31,7 @@ Only pages marked **Public** are exported; pages marked **Private** remain in th
 
 **Important:** This is not access control on a web server. If you upload private source files yourself, Paglora cannot prevent exposure. Only upload Paglora's generated `site-exports/<project-id>/` contents.
 
-Existing projects remain compatible. Pages written before the visibility feature are treated as public by default; mark sensitive pages private before publishing.
+The canonical Paglora project has explicit page visibility in `pages.json`; mark sensitive pages private before publishing.
 
 ## Header, navigation and footer
 
