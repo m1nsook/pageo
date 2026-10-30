@@ -112,6 +112,35 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
   .docs h1{font-size:2.15rem}.docs h2{font-size:1.45rem}.page-pager{gap:10px}.page-pager a{padding:12px}
 }
 @media(max-width:460px){.top-bar{gap:12px}.header-links a:nth-child(n+3){display:none}.page-pager{display:flex;flex-direction:column}.page-pager a.next{align-items:flex-end}}
+
+/* Per-page public layout modes. Source CSS in theme/custom.css may override these. */
+.site-body.layout-wide .on-this-page{display:none}
+.site-body.layout-wide .site-main{grid-column:2/4}
+.site-body.nav-right.layout-wide .site-main{grid-column:1/3}
+.site-body.nav-top.layout-wide .site-main{grid-column:1/-1}
+.layout-wide .article-wrap{max-width:1100px}
+.layout-wide .docs{font-size:16px}
+.site-body.layout-landing{display:block}
+.site-body.layout-landing .site-nav,.site-body.layout-landing .on-this-page{display:none}
+.layout-landing .site-main{width:100%;padding:76px clamp(24px,5vw,86px) 110px}
+.layout-landing .article-wrap{max-width:1150px}
+.layout-landing .page-heading,.layout-landing .page-pager{display:none}
+.layout-landing .docs>h1:first-child{max-width:950px;margin:16px auto 28px;text-align:center;font-size:clamp(2.8rem,6vw,5.1rem);font-weight:770;line-height:1.06;letter-spacing:-.07em}
+.layout-landing .docs>h1:first-child + p{max-width:700px;margin:0 auto 58px;text-align:center;color:var(--muted);font-size:clamp(1.05rem,1.7vw,1.32rem);line-height:1.7}
+.layout-landing .docs h2{margin-top:68px;font-size:2rem}
+.page-layout-landing .mobile-nav{display:none}
+@media(max-width:1180px){
+  .site-body.layout-wide .site-main,.site-body.nav-right.layout-wide .site-main{grid-column:2}
+  .site-body.nav-right.layout-wide .site-main{grid-column:1}
+  .site-body.nav-top.layout-wide .site-main{grid-column:1}
+}
+@media(max-width:800px){
+  .site-body.layout-wide,.site-body.layout-landing{display:block}
+  .site-body.layout-wide .site-main,.site-body.nav-right.layout-wide .site-main,.site-body.nav-top.layout-wide .site-main{display:block;width:100%}
+  .layout-landing .site-main{padding:48px 22px 74px}
+  .layout-landing .docs>h1:first-child{font-size:clamp(2.5rem,9vw,3.6rem)}
+  .layout-landing .docs>h1:first-child + p{margin-bottom:42px}
+}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important}}
 
 "#;
@@ -266,7 +295,7 @@ fn safe_link(raw: &str, https_only: bool) -> bool {
 fn read_pages(dir: &Path) -> Result<Vec<crate::pages::Page>, String> {
     if !dir.join("pages.json").exists() {
         if !dir.join("docs/index.md").exists() { return Err("Overview document missing".into()); }
-        return Ok(vec![crate::pages::Page { id: "index".into(), title: "Overview".into(), is_public: true }]);
+        return Ok(vec![crate::pages::Page { id: "index".into(), title: "Overview".into(), is_public: true, layout: "docs".into() }]);
     }
     let manifest: PageManifest = serde_json::from_str(
         &fs::read_to_string(dir.join("pages.json")).map_err(|e| e.to_string())?
@@ -278,7 +307,7 @@ fn read_pages(dir: &Path) -> Result<Vec<crate::pages::Page>, String> {
     }
     let mut seen = HashSet::new();
     for page in &manifest.pages {
-        if !valid_id(&page.id) || !seen.insert(page.id.as_str()) || page.title.trim().is_empty() {
+        if !valid_id(&page.id) || !["docs", "wide", "landing"].contains(&page.layout.as_str()) || !seen.insert(page.id.as_str()) || page.title.trim().is_empty() {
             return Err("Invalid page identifier in site".into());
         }
     }
@@ -376,6 +405,7 @@ fn render_site_page(
     let header_links = link_html(&settings.header_links, "header-links");
     let nav_position = &settings.navigation_position;
     let content_width = settings.content_width;
+    let layout = &page.layout;
     format!(r##"<!doctype html>
 <html lang="en">
 <head>
@@ -386,11 +416,11 @@ fn render_site_page(
 <title>{page_title}</title>
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="page-layout-{layout}">
 <a class="skip-link" href="#content">Skip to content</a>
 <header class="site-header {header_class}"><div class="top-bar"><a class="brand brand-wrap" href="index.html">{logo}{brand_title}</a>{header_links}</div></header>
 <details class="mobile-nav"><summary>Browse documentation</summary><nav class="mobile-nav-inner" aria-label="Mobile page navigation">{links}</nav></details>
-<div class="site-body nav-{nav_position}">
+<div class="site-body nav-{nav_position} layout-{layout}">
 <nav class="site-nav" aria-label="Documentation navigation"><div class="site-nav-inner"><h2>Documentation</h2>{links}</div></nav>
 <main class="site-main" id="content" style="--paglora-content-width:{content_width}px">
 <div class="article-wrap">
