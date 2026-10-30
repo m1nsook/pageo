@@ -182,3 +182,35 @@ test("CLI counts Unicode characters rather than UTF-16 units", () => fixture(fol
   assert.equal(info.pages[0].title, manifest.pages[0].title);
   assert.equal(info.pages[0].navGroup, manifest.pages[0].navGroup);
 }));
+
+
+test("init accepts --name before the project folder without confusing its value for a path", () => {
+  const root = mkdtempSync(join(tmpdir(), "paglora-init-flags-"));
+  const target = join(root, "flagged-docs");
+  try {
+    let output = "", errors = "";
+    assert.equal(run(["init", "--name", "My Flagged Docs", target], { write: text => { output += text; } }, { write: text => { errors += text; } }), 0);
+    assert.equal(inspectProject(target).name, "My Flagged Docs");
+    assert.match(output, /Created Paglora project/);
+    assert.equal(errors, "");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("init rejects missing folders, duplicate flags and extra positional arguments before writing", () => {
+  const root = mkdtempSync(join(tmpdir(), "paglora-init-flags-"));
+  const target = join(root, "safe-docs");
+  try {
+    for (const args of [
+      ["init", "--name", "Only a name"],
+      ["init", target, "--name"],
+      ["init", target, "--name", "First", "--name", "Second"],
+      ["init", target, "--unknown"],
+      ["init", target, "extra-folder"],
+    ]) {
+      let errors = "";
+      assert.equal(run(args, { write() {} }, { write: text => { errors += text; } }), 1);
+      assert.match(errors, /Usage: paglora init/);
+      assert.equal(existsSync(target), false);
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

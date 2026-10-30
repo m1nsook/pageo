@@ -134,10 +134,25 @@ export function run(args, output = process.stdout, errors = process.stderr) {
     return 0;
   }
   if (command === "init") {
-    const folder = rest.find(value => !value.startsWith("--"));
-    const nameIndex = rest.indexOf("--name");
-    const name = nameIndex >= 0 ? rest[nameIndex + 1] : undefined;
-    if (!folder || (nameIndex >= 0 && (!name || name.startsWith("--")))) {
+    let folder;
+    let name;
+    let invalid = false;
+    for (let index = 0; index < rest.length; index++) {
+      const value = rest[index];
+      if (value === "--name") {
+        if (name !== undefined || !rest[index + 1] || rest[index + 1].startsWith("--")) {
+          invalid = true;
+          break;
+        }
+        name = rest[++index];
+      } else if (value.startsWith("--") || folder !== undefined) {
+        invalid = true;
+        break;
+      } else {
+        folder = value;
+      }
+    }
+    if (invalid || !folder) {
       errors.write('Usage: paglora init <new-folder> [--name "My Docs"]\n');
       return 1;
     }
