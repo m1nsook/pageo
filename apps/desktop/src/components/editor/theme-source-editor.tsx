@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Check, Code2, LoaderCircle, RefreshCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,11 +33,13 @@ export function ThemeSourceEditor({
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const dirty = value !== savedValue;
+  const beforePreviewRef = useRef(onBeforePreview);
+  beforePreviewRef.current = onBeforePreview;
 
   const refresh = useCallback(async () => {
-    await onBeforePreview();
+    await beforePreviewRef.current();
     setHtml(await previewPublicPage(projectId, currentPageId));
-  }, [onBeforePreview, projectId, currentPageId]);
+  }, [projectId, currentPageId]);
 
   useEffect(() => {
     if (!open) return;
@@ -46,7 +48,7 @@ export function ThemeSourceEditor({
     setHtml("");
     setError("");
     setMessage("");
-    void Promise.all([loadThemeCss(projectId), onBeforePreview()])
+    void Promise.all([loadThemeCss(projectId), beforePreviewRef.current()])
       .then(async ([css]) => {
         if (!active) return;
         setValue(css);
@@ -57,7 +59,7 @@ export function ThemeSourceEditor({
       .catch(cause => { if (active) setError(errorMessage(cause)); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [open, projectId, currentPageId, onBeforePreview]);
+  }, [open, projectId, currentPageId]);
 
   const save = useCallback(async () => {
     if (saving || loading) return;
