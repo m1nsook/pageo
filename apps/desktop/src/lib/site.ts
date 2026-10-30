@@ -132,7 +132,7 @@ export type TocHeading = { id: string; title: string; level: 2 | 3 };
  * Explicit IDs are generated after sanitization so neither raw HTML nor an
  * unsanitized Markdown heading can inject attributes into the exported site.
  */
-function renderPageContent(markdownHtml: string): { html: string; toc: TocHeading[] } {
+function renderPageContent(markdownHtml: string): { html: string; toc: TocHeading[]; searchText: string } {
   const container = document.createElement("div");
   container.innerHTML = renderSafeMarkdown(markdownHtml);
   enhanceCallouts(container);
@@ -150,7 +150,10 @@ function renderPageContent(markdownHtml: string): { html: string; toc: TocHeadin
     heading.setAttribute("id", id);
     toc.push({ id, title, level: heading.tagName === "H2" ? 2 : 3 });
   }
-  return { html: container.innerHTML, toc: toc.slice(0, 100) };
+  // The index contains plain text extracted AFTER HTML sanitization.
+  // Private documents are never passed to build_site by buildPublicSite.
+  const searchText = Array.from(container.textContent ?? "").slice(0, 15_000).join("").replace(/\s+/g, " ").trim();
+  return { html: container.innerHTML, toc: toc.slice(0, 100), searchText };
 }
 
 export async function buildPublicSite(projectId: string): Promise<string> {

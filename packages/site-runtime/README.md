@@ -11,3 +11,9 @@ Run `node --test packages/site-runtime/test/*.test.mjs` for focused tests.
 The runtime is original Paglora source, **informed by VitePress's interaction patterns**, not copied Vue code. VitePress source is MIT-licensed (Copyright 2019–present Yuxi (Evan) You). If actual source is reused in the future, preserve the required notices in the distributed artifacts.
 
 Future PRs will implement static-page search indexing and Ctrl+K command search, and later multilingual navigation/search. This PR does **not** claim search or language switching.
+
+## Local documentation search
+
+The exported `paglora-search.js` adds a Ctrl+K / Cmd+K search interface. It lazy-loads `search-index.json`, generated **only from public pages** at build time using sanitized source content. Results link to local `.html` pages; all titles, excerpts and queries are inserted with `textContent`, not raw HTML. No user accounts, external services or JavaScript are required for ordinary page browsing.
+
+This is a first search implementation using native browser substring ranking. VitePress uses MiniSearch for advanced relevance/fuzzy matching; a future PR can switch the engine to bundled MiniSearch (MIT) after its dependency and distribution tests are ready. The UI intentionally does not claim fuzzy matching yet.
