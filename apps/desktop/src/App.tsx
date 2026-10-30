@@ -4,7 +4,7 @@ import { validateProjectName } from "@pageo/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
-import { ArrowLeft, BookOpen, Check, LoaderCircle, PanelRightClose, PanelRightOpen, Plus, Upload, WandSparkles } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, LoaderCircle, PanelRightClose, PanelRightOpen, Plus, WandSparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,10 +15,11 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { PageNavigation, type PageAction } from "@/components/editor/page-navigation";
 import { FormatToolbar } from "@/components/editor/format-toolbar";
 import { BlockPalette } from "@/components/editor/block-palette";
+import { SiteBuilder } from "@/components/editor/site-builder";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { createProject, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
-import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, type Page, type PageDocument } from "@/lib/pages";
+import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, type Page, type PageDocument } from "@/lib/pages";
 
 function friendlyError(error: unknown) { return error instanceof Error ? error.message : String(error); }
 
@@ -147,7 +148,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block"/>
           <Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} title={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button>
           <Button variant="outline" size="sm" onClick={() => setPreview(!preview)}><WandSparkles />{preview ? "Edit" : "Preview"}</Button>
-          <Button size="sm" disabled title="Static publishing is planned for a later release"><Upload /> Publish</Button>
+          <SiteBuilder projectId={document.project.id} onBeforeBuild={persist} />
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
@@ -178,8 +179,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
 
 function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; onSaved: (project: ProjectSummary) => void }) {
   const { document } = props;
-  const [pages, setPages] = useState<Page[]>([{id:"index",title:"Overview"}]);
-  const [current, setCurrent] = useState<PageDocument>({page:{id:"index",title:"Overview"},markdown:document.markdown});
+  const [pages, setPages] = useState<Page[]>([{id:"index",title:"Overview",isPublic:true}]);
+  const [current, setCurrent] = useState<PageDocument>({page:{id:"index",title:"Overview",isPublic:true},markdown:document.markdown});
   const [failure, setFailure] = useState("");
   const id = document.project.id;
   useEffect(() => {
@@ -188,7 +189,7 @@ function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; o
     return ()=>{alive=false;};
   },[id]);
   const change = async (pageId: string) => { setCurrent(await loadPage(id,pageId)); };
-  const modify = async (action: "create"|"rename"|"duplicate"|"delete"|"reorder", pageId?: string, target?: string) => {
+  const modify = async (action: PageAction, pageId?: string, target?: string) => {
     if(action==="create"){
       if(!target?.trim())return;
       setCurrent(await createPage(id,target.trim()));
@@ -197,6 +198,10 @@ function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; o
       const updated=await renamePage(id,pageId,target.trim());
       if(current.page.id===pageId)setCurrent(p=>({...p,page:updated}));
     } else if(action==="duplicate" && pageId) setCurrent(await duplicatePage(id,pageId));
+    else if(action==="visibility" && pageId && target){
+      const updated = await setPageVisibility(id,pageId,target==="true");
+      if(current.page.id===pageId)setCurrent(p=>({...p,page:updated}));
+    }
     else if(action==="delete" && pageId){
       await deletePage(id,pageId);
       if(current.page.id===pageId)setCurrent(await loadPage(id,"index"));
