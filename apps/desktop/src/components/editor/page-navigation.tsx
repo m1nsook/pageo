@@ -1,5 +1,5 @@
-import { Fragment, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, FilePlus2, FileText, GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Fragment, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { ArrowDown, ArrowUp, ChevronDown, Copy, Eye, EyeOff, FilePlus2, FileText, GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -174,6 +174,28 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
   const [createOpen, setCreateOpen] = useState(false);
   const [dragged, setDragged] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
+  const activeGroup = pages.find(page => page.id === currentId)?.navGroup;
+  // If navigation or a page's group assignment changes, make its new section
+  // visible without expanding unrelated groups.
+  useEffect(() => {
+    if (!activeGroup) return;
+    setCollapsedGroups(previous => {
+      if (!previous.has(activeGroup)) return previous;
+      const next = new Set(previous);
+      next.delete(activeGroup);
+      return next;
+    });
+  }, [currentId, activeGroup]);
+  function toggleGroup(group: string) {
+    resetDrag();
+    setCollapsedGroups(previous => {
+      const next = new Set(previous);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
+  }
   // Pointer capture works in the Tauri WebView more reliably than the
   // native HTML5 draggable/drop events inside Radix ContextMenu + ScrollArea.
   const pointer = useRef<{ id: string; x: number; y: number; active: boolean } | null>(null);
@@ -244,15 +266,27 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
           {pages.map((page, index) => (
             <Fragment key={page.id}>
               {(index === 0 || pages[index - 1].navGroup !== page.navGroup) && (
-                <p className="px-2 pb-1 pt-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground first:pt-1">
-                  {page.navGroup}
-                </p>
+                <button
+                  type="button"
+                  aria-expanded={!collapsedGroups.has(page.navGroup)}
+                  onClick={() => toggleGroup(page.navGroup)}
+                  className="flex w-full items-center gap-2 rounded-md px-2 pb-1 pt-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                  title={collapsedGroups.has(page.navGroup) ? `Expand ${page.navGroup}` : `Collapse ${page.navGroup}`}
+                >
+                  <ChevronDown aria-hidden className={`size-3 shrink-0 transition-transform ${collapsedGroups.has(page.navGroup) ? "-rotate-90" : ""}`} />
+                  <span className="min-w-0 flex-1 truncate">{page.navGroup}</span>
+                  <span className="text-[10px] font-normal tabular-nums">{pages.filter(item => item.navGroup === page.navGroup).length}</span>
+                </button>
               )}
-              <PageRow page={page} selected={page.id === currentId} disabled={busy}
-                dragged={dragged === page.id} dropTarget={dropTarget === page.id}
-                canMoveUp={index > 1} canMoveDown={index > 0 && index < pages.length - 1}
-                onNavigate={() => onNavigate(page.id)} onAction={onAction}
-                onStartDrag={startDrag} onMove={movePage} />
+              {!collapsedGroups.has(page.navGroup) && (
+                <div>
+                  <PageRow page={page} selected={page.id === currentId} disabled={busy}
+                    dragged={dragged === page.id} dropTarget={dropTarget === page.id}
+                    canMoveUp={index > 1} canMoveDown={index > 0 && index < pages.length - 1}
+                    onNavigate={() => onNavigate(page.id)} onAction={onAction}
+                    onStartDrag={startDrag} onMove={movePage} />
+                </div>
+              )}
             </Fragment>
           ))}
         </nav>
