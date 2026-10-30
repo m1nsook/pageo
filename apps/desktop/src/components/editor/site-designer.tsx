@@ -100,12 +100,52 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
           {loading && <p className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/> Loading website settings...</p>}
           {settings && !loading && <form onSubmit={event => void save(event)} className="flex min-h-0 flex-1 flex-col">
             <Tabs defaultValue="header" className="min-h-0 flex-1 gap-0">
-              <TabsList className="mx-3 mt-3 grid w-[calc(100%-24px)] grid-cols-3">
+              <TabsList className="mx-3 mt-3 grid w-[calc(100%-24px)] grid-cols-4">
+                <TabsTrigger value="theme">Theme</TabsTrigger>
                 <TabsTrigger value="header">Header</TabsTrigger>
                 <TabsTrigger value="navigation">Navigation</TabsTrigger>
                 <TabsTrigger value="footer">Footer</TabsTrigger>
               </TabsList>
               <ScrollArea className="min-h-0 flex-1">
+                <TabsContent value="theme" className="space-y-5 p-4">
+                  <div className="space-y-2">
+                    <Label>Published website color mode</Label>
+                    <Select value={settings.themeMode} onValueChange={value => patch("themeMode", value as SiteSettings["themeMode"])}>
+                      <SelectTrigger className="w-full" aria-label="Website color mode"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="system">System — visitor preference</SelectItem>
+                        <SelectItem value="light">Light — always light</SelectItem>
+                        <SelectItem value="dark">Dark — always dark</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Separate from the Paglora desktop appearance. Applies to real static exports.</p>
+                  </div>
+                  <Separator />
+                  <div className="grid gap-3">
+                    <Label htmlFor="designer-accent">Website accent color</Label>
+                    <div className="flex items-center gap-3">
+                      <Input id="designer-accent" type="color" className="h-10 w-16 cursor-pointer p-1" value={settings.accentColor} onChange={event => patch("accentColor", event.target.value)} />
+                      <code className="text-sm text-muted-foreground">{settings.accentColor.toUpperCase()}</code>
+                    </div>
+                    <div className="flex flex-wrap gap-2" aria-label="Accent color presets">
+                      {[
+                        { name: "Paglora blue", value: "#2196f3" },
+                        { name: "Violet", value: "#7c3aed" },
+                        { name: "Teal", value: "#0d9488" },
+                        { name: "Orange", value: "#ea580c" },
+                        { name: "Rose", value: "#e11d48" },
+                      ].map(color => <button
+                        type="button" key={color.name} title={color.name} aria-label={color.name}
+                        aria-pressed={settings.accentColor.toLowerCase() === color.value}
+                        className="size-9 rounded-full border-2 border-background outline-offset-2 ring-1 ring-border focus-visible:outline-2 focus-visible:outline-ring data-[selected=true]:ring-2 data-[selected=true]:ring-foreground"
+                        data-selected={settings.accentColor.toLowerCase() === color.value}
+                        style={{ backgroundColor: color.value }}
+                        onClick={() => patch("accentColor", color.value)}
+                      />)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Buttons, links, active navigation, and selected states use your accent color. Custom project CSS can still override these values.</p>
+                  </div>
+                </TabsContent>
                 <TabsContent value="header" className="space-y-5 p-4">
                   <div className="grid gap-2"><Label htmlFor="designer-site-name">Website title</Label><Input id="designer-site-name" required maxLength={100} value={settings.title} onChange={e => patch("title", e.target.value)}/></div>
                   <div className="grid gap-2"><Label htmlFor="designer-logo">Logo image URL</Label><Input id="designer-logo" placeholder="https://example.com/logo.svg" value={settings.logoUrl} onChange={e => patch("logoUrl", e.target.value)}/><p className="text-xs text-muted-foreground">HTTPS images only for now. Local asset uploads are planned.</p></div>
