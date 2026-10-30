@@ -1,5 +1,6 @@
 mod projects;
 mod pages;
+mod sites;
 
 pub fn run() {
     tauri::Builder::default()
@@ -11,7 +12,8 @@ pub fn run() {
             projects::projects_directory,
             pages::list_pages, pages::load_page, pages::create_page,
             pages::rename_page, pages::duplicate_page, pages::delete_page,
-            pages::reorder_pages, pages::save_page
+            pages::reorder_pages, pages::save_page, pages::set_page_visibility,
+            sites::load_site_settings, sites::save_site_settings, sites::build_site
         ])
         .run(tauri::generate_context!())
         .expect("error while running Pageo");
