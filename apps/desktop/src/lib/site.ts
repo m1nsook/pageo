@@ -93,6 +93,39 @@ export function renderSafeMarkdown(html: string): string {
   return sanitized.innerHTML;
 }
 
+/** Convert GitHub-style Markdown admonitions into first-party site components
+ * after sanitizing all user HTML. The same transformation runs in preview and
+ * static export, so the project's Markdown stays the source of truth.
+ */
+function enhanceCallouts(container: HTMLElement) {
+  const labels: Record<string, string> = {
+    NOTE: "Note", TIP: "Tip", IMPORTANT: "Important",
+    WARNING: "Warning", CAUTION: "Caution",
+  };
+  for (const quote of Array.from(container.querySelectorAll("blockquote"))) {
+    const first = quote.firstElementChild;
+    if (!first || first.tagName.toLowerCase() !== "p") continue;
+    const marker = first.firstChild;
+    if (!marker || marker.nodeType !== Node.TEXT_NODE) continue;
+    const text = marker.textContent ?? "";
+    const match = /^\\s*\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\\](?:\\s|$)/i.exec(text);
+    if (!match) continue;
+    const type = match[1].toUpperCase();
+    const callout = document.createElement("aside");
+    callout.className = `paglora-callout paglora-callout-${type.toLowerCase()}`;
+    callout.setAttribute("role", "note");
+    const title = document.createElement("div");
+    title.className = "paglora-callout-title";
+    title.textContent = labels[type];
+    callout.appendChild(title);
+    marker.textContent = text.slice(match[0].length);
+    while (quote.firstChild) callout.appendChild(quote.firstChild);
+    // The marker can occupy its own line and leave an empty paragraph.
+    if (!first.textContent?.trim()) first.remove();
+    quote.replaceWith(callout);
+  }
+}
+
 export type TocHeading = { id: string; title: string; level: 2 | 3 };
 
 /** Use the final sanitized DOM as the source of heading anchors and the TOC.
@@ -102,6 +135,7 @@ export type TocHeading = { id: string; title: string; level: 2 | 3 };
 function renderPageContent(markdownHtml: string): { html: string; toc: TocHeading[] } {
   const container = document.createElement("div");
   container.innerHTML = renderSafeMarkdown(markdownHtml);
+  enhanceCallouts(container);
   const seen = new Set<string>();
   const toc: TocHeading[] = [];
   for (const heading of Array.from(container.querySelectorAll("h2, h3"))) {
