@@ -24,28 +24,39 @@ export function SitePreview({ projectId, onBeforePreview }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const frame = useRef<HTMLIFrameElement | null>(null);
+  // Ignore responses from an older page selection or a closed preview.
+  const requestId = useRef(0);
   const publicPages = pages.filter(page => page.isPublic);
 
   const refresh = useCallback(async (pageId?: string) => {
+    const request = ++requestId.current;
     setBusy(true);
     setError("");
     try {
       await onBeforePreview();
+      if (request !== requestId.current) return;
       const available = (await listPages(projectId)).filter(page => page.isPublic);
+      if (request !== requestId.current) return;
       const next = available.some(page => page.id === pageId) ? pageId! : "index";
       const html = await previewPublicPage(projectId, next);
+      if (request !== requestId.current) return;
       setPages(available);
       setSelected(next);
       setSrcDoc(html);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      if (request === requestId.current) setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
-      setBusy(false);
+      if (request === requestId.current) setBusy(false);
     }
   }, [projectId, onBeforePreview]);
 
   useEffect(() => {
     if (open) void refresh();
+    else {
+      // A response completing after close must not overwrite the next session.
+      requestId.current++;
+      setBusy(false);
+    }
   }, [open]); // only open/close triggers a reset; page navigation calls refresh itself
 
   function onFrameLoad() {
