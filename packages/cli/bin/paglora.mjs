@@ -5,6 +5,13 @@ import { fileURLToPath } from "node:url";
 
 const pkg = JSON.parse(readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8"));
 const ID = /^[a-z0-9-]{1,80}$/;
+const CONTROL = /[\x00-\x1f\x7f-\x9f]/;
+
+// Match the desktop/Rust manifest limits: count Unicode scalar values, not UTF-16 units.
+function validLabel(value, max) {
+  return typeof value === "string" && value.trim().length > 0 &&
+    [...value].length <= max && !CONTROL.test(value);
+}
 
 function readJson(file) {
   try {
@@ -22,7 +29,7 @@ export function initProject(folder, name = basename(resolve(folder))) {
   const id = basename(directory);
   const projectName = name.trim();
   if (!ID.test(id)) throw new Error("Project folder must be a lowercase slug (1–80 letters, digits or hyphens).");
-  if (!projectName || [...projectName].length > 80 || /[\x00-\x1f\x7f]/.test(projectName)) {
+  if (!validLabel(projectName, 80)) {
     throw new Error("Project name must be 1–80 characters without control characters.");
   }
   if (existsSync(directory)) throw new Error("Project directory already exists. Choose a new directory.");
@@ -52,7 +59,7 @@ export function inspectProject(folder) {
   if (!existsSync(configFile)) throw new Error("No paglora.json found. Pass a Paglora project directory.");
   const config = readJson(configFile);
   if (config.formatVersion !== 1 || typeof config.id !== "string" || !ID.test(config.id) ||
-    config.id !== basename(directory) || typeof config.name !== "string" || !config.name.trim()) {
+    config.id !== basename(directory) || !validLabel(config.name, 80)) {
     throw new Error("Invalid paglora.json: expected format version 1 and matching project identifier.");
   }
   const manifestFile = join(directory, "pages.json");
@@ -67,7 +74,7 @@ export function inspectProject(folder) {
   const seen = new Set();
   for (const page of pages) {
     if (!page || typeof page.id !== "string" || !ID.test(page.id) || seen.has(page.id) ||
-      typeof page.title !== "string" || !page.title.trim() || page.title.length > 100) {
+      !validLabel(page.title, 100)) {
       throw new Error("Invalid page identifier, title or duplicate entry in pages.json.");
     }
     if (typeof page.isPublic !== "boolean") {
@@ -81,7 +88,7 @@ export function inspectProject(folder) {
     }
     if (page.navGroup !== undefined && (typeof page.navGroup !== "string" ||
       !page.navGroup.trim() || page.navGroup !== page.navGroup.trim() ||
-      page.navGroup.length > 60)) throw new Error(`Invalid navigation group for ${page.id}.`);
+      [...page.navGroup].length > 60 || CONTROL.test(page.navGroup))) throw new Error(`Invalid navigation group for ${page.id}.`);
     if (!["docs", "wide", "landing"].includes(page.layout)) {
       throw new Error(`Unsupported page layout for ${page.id}.`);
     }
@@ -89,7 +96,7 @@ export function inspectProject(folder) {
   }
   const siteFile = join(directory, "site.json");
   const site = existsSync(siteFile) ? readJson(siteFile) : null;
-  if (site !== null && (typeof site.title !== "string" || !site.title.trim())) {
+  if (site !== null && !validLabel(site.title, 100)) {
     throw new Error("Invalid site.json: site title must not be empty.");
   }
   return {

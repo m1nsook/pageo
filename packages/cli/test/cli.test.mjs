@@ -149,3 +149,36 @@ test("init CLI and validate --json round trip", () => {
     assert.equal(err, "");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test("CLI validation rejects control characters and overlong project labels", () => fixture(folder => {
+  const config = JSON.parse(readFileSync(join(folder, "paglora.json"), "utf8"));
+  config.name = "Docs\u0085Secret";
+  writeFileSync(join(folder, "paglora.json"), JSON.stringify(config));
+  assert.throws(() => inspectProject(folder), /Invalid paglora.json/);
+  config.name = "My Docs";
+  writeFileSync(join(folder, "paglora.json"), JSON.stringify(config));
+
+  const manifest = JSON.parse(readFileSync(join(folder, "pages.json"), "utf8"));
+  manifest.pages[0].title = "Title\u0000Hidden";
+  writeFileSync(join(folder, "pages.json"), JSON.stringify(manifest));
+  assert.throws(() => inspectProject(folder), /Invalid page identifier/);
+  manifest.pages[0].title = "Overview";
+  manifest.pages[0].navGroup = "Docs\u0085Secret";
+  writeFileSync(join(folder, "pages.json"), JSON.stringify(manifest));
+  assert.throws(() => inspectProject(folder), /Invalid navigation group/);
+
+  manifest.pages[0].navGroup = "Documentation";
+  writeFileSync(join(folder, "pages.json"), JSON.stringify(manifest));
+  writeFileSync(join(folder, "site.json"), JSON.stringify({ title: "S".repeat(101) }));
+  assert.throws(() => inspectProject(folder), /Invalid site.json/);
+}));
+
+test("CLI counts Unicode characters rather than UTF-16 units", () => fixture(folder => {
+  const manifest = JSON.parse(readFileSync(join(folder, "pages.json"), "utf8"));
+  manifest.pages[0].title = "📘".repeat(100);
+  manifest.pages[0].navGroup = "🗂".repeat(60);
+  writeFileSync(join(folder, "pages.json"), JSON.stringify(manifest));
+  const info = inspectProject(folder);
+  assert.equal(info.pages[0].title, manifest.pages[0].title);
+  assert.equal(info.pages[0].navGroup, manifest.pages[0].navGroup);
+}));
