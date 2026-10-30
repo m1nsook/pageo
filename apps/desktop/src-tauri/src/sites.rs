@@ -4,6 +4,9 @@ use tauri::{AppHandle, Manager};
 
 const CONFIG: &str = "site.json";
 const EXPORTS: &str = "site-exports";
+// First-party, browser-only runtime. The Studio preview deliberately removes it.
+const SITE_RUNTIME_JS: &str = include_str!("../../../../packages/site-runtime/src/index.js");
+const SITE_RUNTIME_SCRIPT: &str = "<script defer src=\"paglora.js\"></script>";
 const SITE_CSS: &str = r#"
 @font-face{font-family:"Geist Website";src:url("fonts/geist-latin.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
 :root{color-scheme:light;--bg:#ffffff;--fg:#151a24;--muted:#626b7c;--line:#e6eaf0;--subtle:#f6f8fb;--hover:#edf3fa;--brand:#2196f3;--brand-light:#eaf5ff;--code-bg:#101828;--code-fg:#e9eef8;--header-bg:rgba(255,255,255,.96)}
@@ -19,6 +22,11 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .skip-link:focus{top:10px}
 .site-header{position:sticky;top:0;z-index:30;background:var(--header-bg);border-bottom:1px solid var(--line);backdrop-filter:blur(18px)}
 .site-header.not-sticky{position:relative}
+.paglora-appearance-toggle{flex-shrink:0;appearance:none;border:1px solid var(--line);border-radius:9px;background:var(--subtle);color:var(--fg);font:inherit;font-size:12px;font-weight:650;cursor:pointer;white-space:nowrap;padding:7px 11px;line-height:1.3}
+.paglora-appearance-toggle:hover{border-color:var(--brand);background:var(--hover)}
+.paglora-appearance-toggle:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.toc-inner a[aria-current="location"]{color:var(--brand);font-weight:650}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 .top-bar{max-width:1500px;min-height:72px;margin:auto;padding:0 clamp(22px,3vw,48px);display:flex;align-items:center;justify-content:space-between;gap:28px}
 .brand-wrap{display:inline-flex;align-items:center;gap:12px;min-width:0}
 .brand{font-size:17px;font-weight:750;letter-spacing:-.045em;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -515,6 +523,7 @@ fn render_site_page(
 <aside class="on-this-page" aria-label="Table of contents">{toc_aside}</aside>
 </div>
 {footer}
+<script defer src="paglora.js"></script>
 </body>
 </html>"##)
 }
@@ -559,6 +568,9 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
         "<link rel=\"stylesheet\" href=\"styles.css\">",
         &format!("<style>{site_with_font}</style>"),
     );
+    // Studio preview is intentionally script-disabled; remove the exported
+    // runtime reference. Site interactions are tested in the built website.
+    let doc = doc.replace(SITE_RUNTIME_SCRIPT, "");
     // Project-owned CSS always comes last, overriding designer presets.
     Ok(doc.replace("</head>", &format!("{override_css}</head>")))
 }
@@ -589,6 +601,7 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
     fs::create_dir(&staged).map_err(|e| e.to_string())?;
     let write_result = (|| -> Result<(), String> {
         fs::write(staged.join("styles.css"), SITE_CSS).map_err(|e| e.to_string())?;
+        fs::write(staged.join("paglora.js"), SITE_RUNTIME_JS).map_err(|e| e.to_string())?;
         // Bundle the default Geist font; optional hosted Google Fonts remain supported.
         fs::create_dir(staged.join("fonts")).map_err(|e| e.to_string())?;
         fs::write(staged.join("fonts/geist-latin.woff2"), include_bytes!("../assets/geist-latin.woff2"))
@@ -640,6 +653,8 @@ mod website_font_tests {
         assert!(!output.contains("private.html"));
         assert!(output.contains("</div></details>"));
         assert!(output.contains("aria-current=\"page\""));
+        assert!(output.contains(SITE_RUNTIME_SCRIPT));
+        assert!(SITE_RUNTIME_JS.contains("paglora:theme:"));
     }
 
     #[test]
