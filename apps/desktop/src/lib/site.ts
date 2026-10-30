@@ -17,6 +17,7 @@ export type SiteSettings = {
   headerLinks: SiteLink[];
   footerLinks: SiteLink[];
   themeMode: "system" | "light" | "dark";
+  language: "en" | "ko" | "pl" | "de" | "fr" | "es" | "ja" | "zh-CN" | "zh-TW" | "pt-BR" | "ru" | "uk" | "ar" | "tr" | "it" | "cs" | "hu" | "th";
   accentColor: string;
   googleFontFamily: string;
 };

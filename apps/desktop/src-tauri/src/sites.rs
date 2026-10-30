@@ -236,6 +236,7 @@ fn align_default() -> String { "left".into() }
 fn true_default() -> bool { true }
 fn width_default() -> u16 { 790 }
 fn theme_default() -> String { "system".into() }
+fn language_default() -> String { "en".into() }
 fn accent_default() -> String { "#2196f3".into() }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -264,6 +265,8 @@ pub struct SiteSettings {
     theme_mode: String,
     #[serde(default = "accent_default")]
     accent_color: String,
+    #[serde(default = "language_default")]
+    language: String,
     // Optional remote font on the published site. Blank keeps the default Geist.
     #[serde(default)]
     google_font_family: String,
@@ -326,6 +329,7 @@ fn default_settings(name: &str) -> SiteSettings {
         footer_links: Vec::new(),
         theme_mode: theme_default(),
         accent_color: accent_default(),
+        language: language_default(),
         google_font_family: String::new(),
     }
 }
@@ -372,6 +376,11 @@ fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
     }
     if !["system", "light", "dark"].contains(&settings.theme_mode.as_str()) {
         return Err("Unsupported website color mode".into());
+    }
+    // An explicit allowlist prevents HTML attribute injection in <html lang>.
+    if !["en", "ko", "pl", "de", "fr", "es", "ja", "zh-CN", "zh-TW", "pt-BR",
+         "ru", "uk", "ar", "tr", "it", "cs", "hu", "th"].contains(&settings.language.as_str()) {
+        return Err("Unsupported website content language".into());
     }
     let accent = settings.accent_color.as_bytes();
     if accent.len() != 7 || accent[0] != b'#' || !accent[1..].iter().all(|value| value.is_ascii_hexdigit()) {
@@ -549,6 +558,7 @@ fn render_site_page(
     } else { String::new() };
     let description = escape(&settings.description);
     let theme_mode = &settings.theme_mode;
+    let language = &settings.language;
     let google_font = google_font_markup(&settings.google_font_family);
     // Hex color was checked by validate_settings for both preview and build.
     let accent_style = format!("<style>:root{{--brand:{};--brand-light:color-mix(in srgb,var(--brand) 13%,var(--bg))}}</style>", settings.accent_color);
@@ -561,7 +571,7 @@ fn render_site_page(
     let layout = &page.layout;
     let runtime_scripts = site_runtime_script_tags();
     format!(r##"<!doctype html>
-<html lang="en" data-color-mode="{theme_mode}">
+<html lang="{language}" data-color-mode="{theme_mode}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -759,6 +769,31 @@ mod website_font_tests {
         }
         assert!(SITE_RUNTIME_ASSETS[1].source.contains("search-index.json"));
         assert!(SITE_RUNTIME_ASSETS[0].source.contains("paglora:theme:"));
+    }
+
+    #[test]
+    fn website_language_is_validated_and_defaults_for_existing_projects() {
+        let settings = default_settings("Docs");
+        assert_eq!(settings.language, "en");
+        let mut legacy = serde_json::to_value(&settings).unwrap();
+        legacy.as_object_mut().unwrap().remove("language");
+        let restored: SiteSettings = serde_json::from_value(legacy).unwrap();
+        assert_eq!(restored.language, "en");
+
+        let mut korean = settings.clone();
+        korean.language = "ko".into();
+        assert!(validate_settings(&korean).is_ok());
+        let page = crate::pages::Page {
+            id: "index".into(), title: "개요".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Documentation".into(),
+        };
+        let output = render_site_page(&korean, &[page.clone()], &page, "<p>안녕하세요</p>", &[]);
+        assert!(output.contains(r#"<html lang="ko" data-color-mode="#));
+
+        korean.language = r#"en" onload="alert(1)"#.into();
+        assert!(validate_settings(&korean).is_err());
+        korean.language = "xx".into();
+        assert!(validate_settings(&korean).is_err());
     }
 
     #[test]
