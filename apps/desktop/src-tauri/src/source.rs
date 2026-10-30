@@ -78,11 +78,19 @@ pub fn save_theme_css(app: AppHandle, project_id: String, content: String) -> Re
         return Err("Theme temporary file is not a regular file".into());
     }
     fs::write(&temp, content.as_bytes()).map_err(|e| e.to_string())?;
-    if let Err(e) = fs::rename(&temp, &path) {
-        // Windows does not replace an existing destination with rename.
-        // If a file already exists, write it directly, preserving the original if rename fails.
-        let _ = fs::remove_file(&temp);
-        return Err(format!("Could not atomically replace theme CSS: {e}"));
+    let backup = dir.join("custom.css.previous");
+    if backup.exists() { fs::remove_file(&backup).map_err(|e| e.to_string())?; }
+    if path.exists() {
+        if let Err(error) = fs::rename(&path, &backup) {
+            let _ = fs::remove_file(&temp);
+            return Err(format!("Unable to stage existing theme CSS: {error}"));
+        }
     }
+    if let Err(error) = fs::rename(&temp, &path) {
+        if backup.exists() { let _ = fs::rename(&backup, &path); }
+        let _ = fs::remove_file(&temp);
+        return Err(format!("Could not replace theme CSS: {error}"));
+    }
+    if backup.exists() { let _ = fs::remove_file(&backup); }
     Ok(())
 }
