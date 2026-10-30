@@ -41,6 +41,8 @@ function createDom({ clipboardAvailable = true, headingLevel = 2, waitForClipboa
   let nextTimer = 0;
   const context = {
     document, URL, location: { href: "https://example.test/docs/index.html" },
+    // Browser storage events are tested separately in runtime.test.mjs.
+    addEventListener(name) { assert.equal(name, "storage"); },
     setTimeout(fn, delay) { assert.equal(delay, 2000); const id = ++nextTimer; timers.set(id, fn); return id; },
     clearTimeout(id) { timers.delete(id); },
     localStorage: { getItem() { return null; }, setItem() {} },
