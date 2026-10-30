@@ -32,3 +32,8 @@ jobs:
         run: node --test packages/cli/test/cli.test.mjs
       - name: Check package contents
         run: npm pack --dry-run ./packages/cli
+      - name: Check npm name (informational only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          node -e 'fetch("https://registry.npmjs.org/pageo").then(r => console.log("Exact npm package pageo registry status:", r.status, r.status === 404 ? "(no public package found)" : r.status === 200 ? "(name already exists)" : "(unable to determine)")).catch(e => console.log("Registry check unavailable:", e.message))'
+
