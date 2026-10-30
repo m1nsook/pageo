@@ -5,9 +5,17 @@ use tauri::{AppHandle, Manager};
 const MANIFEST: &str = "pages.json";
 const HOME: &str = "index";
 
+fn visible_by_default() -> bool { true }
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Page { pub id: String, pub title: String }
+pub struct Page {
+    pub id: String,
+    pub title: String,
+    // Existing v0.1 / v0.2 page manifests have no visibility flag.
+    #[serde(default = "visible_by_default")]
+    pub is_public: bool,
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,7 +47,7 @@ fn read_pages(folder: &Path) -> Result<Manifest, String> {
         // Backward compatibility: v0.1 projects only have docs/index.md.
         if !folder.join("docs/index.md").is_file() { return Err("Project overview missing".into()); }
         return Ok(Manifest { format_version: 1, pages: vec![
-            Page { id: HOME.into(), title: "Overview".into() }
+            Page { id: HOME.into(), title: "Overview".into(), is_public: true }
         ] });
     }
     let manifest: Manifest = serde_json::from_str(
@@ -113,7 +121,7 @@ pub fn create_page(app: AppHandle, project_id: String, name: String) -> Result<P
     let dir = folder(&app, &project_id)?;
     let mut manifest = read_pages(&dir)?;
     if manifest.pages.len() >= 500 { return Err("Project page limit reached".into()); }
-    let page = Page { id: slug(&manifest.pages, &name)?, title: name };
+    let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: true };
     let markdown = format!("# {}\n\n", page.title);
     let path = document(&dir, &page.id)?;
     fs::write(&path, &markdown).map_err(|e| e.to_string())?;
@@ -142,7 +150,7 @@ pub fn duplicate_page(app: AppHandle, project_id: String, page_id: String) -> Re
     let source = manifest.pages.iter().find(|p| p.id == page_id).ok_or("Page not found")?;
     let markdown = fs::read_to_string(document(&dir, &source.id)?).map_err(|e| e.to_string())?;
     let name = title(&format!("{} (Copy)", source.title))?;
-    let page = Page { id: slug(&manifest.pages, &name)?, title: name };
+    let page = Page { id: slug(&manifest.pages, &name)?, title: name, is_public: source.is_public };
     let path = document(&dir, &page.id)?;
     fs::write(&path, &markdown).map_err(|e| e.to_string())?;
     manifest.pages.push(page.clone());
@@ -188,6 +196,21 @@ pub fn reorder_pages(app: AppHandle, project_id: String, ids: Vec<String>) -> Re
     touch(&dir)?;
     Ok(reordered)
 }
+#[tauri::command]
+pub fn set_page_visibility(app: AppHandle, project_id: String, page_id: String, is_public: bool) -> Result<Page, String> {
+    let dir = folder(&app, &project_id)?;
+    let mut manifest = read_pages(&dir)?;
+    if page_id == HOME && !is_public {
+        return Err("Overview is the public home page and cannot be hidden".into());
+    }
+    let page = manifest.pages.iter_mut().find(|p| p.id == page_id).ok_or("Page not found")?;
+    page.is_public = is_public;
+    let updated = page.clone();
+    save_pages(&dir, &manifest)?;
+    touch(&dir)?;
+    Ok(updated)
+}
+
 #[tauri::command]
 pub fn save_page(app: AppHandle, project_id: String, page_id: String, markdown: String) -> Result<serde_json::Value, String> {
     if markdown.len() > 5_000_000 { return Err("Page exceeds the 5 MB limit".into()); }
