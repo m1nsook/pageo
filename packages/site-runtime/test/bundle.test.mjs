@@ -22,6 +22,7 @@ test("bundled site runtime activates without external libraries", () => {
       createElement() {return {setAttribute(){},addEventListener(){},textContent:""};},
     },
     URL, location:{href:"https://docs.example.test/index.html"},
+    addEventListener(name) { assert.equal(name, "storage"); },
     localStorage:{getItem(){return null},setItem(){}},
   };
   vm.runInNewContext(bundle("index.js"),context);
