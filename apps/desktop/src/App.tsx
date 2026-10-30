@@ -4,14 +4,14 @@ import { validateProjectName } from "@paglora/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
-import { ArrowLeft, BookOpen, Check, Columns2, LoaderCircle, Monitor, PanelRightClose, PanelRightOpen, PencilLine, Plus } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, Columns2, LoaderCircle, Monitor, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PencilLine, Plus, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { PageNavigation, type PageAction } from "@/components/editor/page-navigation";
 import { FormatToolbar } from "@/components/editor/format-toolbar";
 import { BlockPalette } from "@/components/editor/block-palette";
@@ -20,6 +20,7 @@ import { SitePreview } from "@/components/editor/site-preview";
 import { SiteDesigner } from "@/components/editor/site-designer";
 import { ThemeSourceEditor } from "@/components/editor/theme-source-editor";
 import { InlineSitePreview } from "@/components/editor/inline-site-preview";
+import { PageInspector } from "@/components/editor/page-inspector";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { createProject, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
@@ -71,10 +72,12 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   const revision = useRef(0);
   const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving" | "error">("saved");
   const [saveError, setSaveError] = useState("");
-  const [viewMode, setViewMode] = useState<"edit" | "split" | "site">("edit");
+  const [viewMode, setViewMode] = useState<"edit" | "split" | "site">("site");
   const [switchingView, setSwitchingView] = useState(false);
   const [siteRevision, setSiteRevision] = useState(0);
   const [showBlockTools, setShowBlockTools] = useState(true);
+  const [showPages, setShowPages] = useState(true);
+  const [showInspector, setShowInspector] = useState(true);
   const [leaving, setLeaving] = useState(false);
 
   const persist = useCallback(async () => {
@@ -157,7 +160,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     <main className="flex h-full min-w-0 flex-1 flex-col bg-background">
       <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-3 py-2 lg:px-5">
         <div className="flex min-w-0 items-center gap-2">
-          <SidebarTrigger aria-label="Toggle workspace sidebar"/>
+          <Button variant="ghost" size="icon-sm" aria-label={showPages ? "Hide pages panel" : "Show pages panel"} title={showPages ? "Hide pages panel" : "Show pages panel"} aria-pressed={showPages} onClick={() => setShowPages(value => !value)}>{showPages ? <PanelLeftClose /> : <PanelLeftOpen />}</Button>
           <Separator orientation="vertical" className="mx-1 h-5"/>
           <Button onClick={() => void back()} variant="ghost" size="icon-sm" disabled={leaving} aria-label="Back to projects"><ArrowLeft /></Button>
           <span className="hidden size-8 items-center justify-center rounded-lg bg-primary/10 text-primary sm:flex"><BookOpen className="size-4"/></span>
@@ -170,10 +173,11 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           </Badge>
           <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block"/>
           {viewMode === "edit" && <Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} title={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button>}
+          {viewMode === "site" && <Button variant="ghost" size="icon-sm" aria-label={showInspector ? "Hide page properties" : "Show page properties"} title={showInspector ? "Hide page properties" : "Show page properties"} aria-pressed={showInspector} onClick={() => setShowInspector(value => !value)}><SlidersHorizontal /></Button>}
           <div role="group" aria-label="Editor view" className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
             <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "edit" ? "secondary" : "ghost"} aria-pressed={viewMode === "edit"} onClick={() => void selectView("edit")} className="gap-1.5 px-2.5"><PencilLine />Edit</Button>
             <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "split" ? "secondary" : "ghost"} aria-pressed={viewMode === "split"} onClick={() => void selectView("split")} className="gap-1.5 px-2.5"><Columns2 />Split</Button>
-            <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "site" ? "secondary" : "ghost"} aria-pressed={viewMode === "site"} onClick={() => void selectView("site")} className="gap-1.5 px-2.5"><Monitor />Site</Button>
+            <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "site" ? "secondary" : "ghost"} aria-pressed={viewMode === "site"} onClick={() => void selectView("site")} className="gap-1.5 px-2.5"><Monitor />Canvas</Button>
           </div>
           <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"} onBeforePreview={persist} />
           <SiteDesigner projectId={document.project.id} onBeforePreview={persist} />
@@ -182,9 +186,9 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
-        <PageNavigation pages={pages} currentId={current.page.id} busy={leaving}
+        {showPages && <PageNavigation pages={pages} currentId={current.page.id} busy={leaving}
           onNavigate={(id) => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }}
-          onAction={modify}/>
+          onAction={modify}/>}
         <div className={viewMode === "site" ? "hidden" : viewMode === "split" ? "flex min-h-0 min-w-0 flex-1 flex-col border-r border-border xl:w-1/2" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
         <section className="min-h-0 min-w-0 flex-1 overflow-y-auto" aria-label="Documentation editor">
           <FormatToolbar editor={editor} />
@@ -213,6 +217,9 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
             if (pageId !== current.page.id) void runAfterSave(() => onChange(pageId));
           }}
         />}
+        {viewMode === "site" && showInspector && <PageInspector page={current.page} busy={leaving || switchingView}
+          onChange={(action, id, value) => modify(action, id, value)}
+          onEditContent={() => void selectView("edit")} />}
         {showBlockTools && viewMode === "edit" && <BlockPalette editor={editor} disabled={leaving} />}
       </div>
     </main>
@@ -317,7 +324,7 @@ export default function App() {
 
   return (
     <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
-      <WorkspaceSidebar view={view} onNavigate={navigate} editing={active !== null}/>
+      {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
         {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); void refresh(); }} onSaved={onSaved}/> : view === "settings" ? <Settings desktop={desktop} location={location}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)}/>}
       </SidebarInset>
