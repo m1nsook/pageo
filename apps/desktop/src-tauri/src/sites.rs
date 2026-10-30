@@ -186,6 +186,9 @@ pub struct SiteSettings {
     theme_mode: String,
     #[serde(default = "accent_default")]
     accent_color: String,
+    // Optional remote font on the published site. Blank keeps the default Geist.
+    #[serde(default)]
+    google_font_family: String,
 }
 
 #[derive(Deserialize)]
@@ -243,6 +246,7 @@ fn default_settings(name: &str) -> SiteSettings {
         footer_links: Vec::new(),
         theme_mode: theme_default(),
         accent_color: accent_default(),
+        google_font_family: String::new(),
     }
 }
 
@@ -250,6 +254,23 @@ fn read_settings(dir: &Path, name: &str) -> Result<SiteSettings, String> {
     if !dir.join(CONFIG).exists() { return Ok(default_settings(name)); }
     serde_json::from_str(&fs::read_to_string(dir.join(CONFIG)).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())
+}
+
+fn valid_google_font_family(value: &str) -> bool {
+    value.is_empty() ||
+    (value.len() <= 80 && value.trim() == value &&
+     !value.contains("  ") &&
+     value.bytes().all(|c| c.is_ascii_alphanumeric() || c == b' ' || c == b'-'))
+}
+
+fn google_font_markup(value: &str) -> String {
+    if value.is_empty() { return String::new(); }
+    // This is called only after validate_settings. Use a strict font-name
+    // character allowlist so the name cannot inject HTML, CSS or query args.
+    let family = value.replace(' ', "+");
+    format!(
+        "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n<link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family={family}&amp;display=swap\">\n<style>body{{font-family:\"{value}\",\"Geist Website\",system-ui,-apple-system,\"Segoe UI\",sans-serif}}</style>"
+    )
 }
 
 fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
@@ -275,6 +296,9 @@ fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
     let accent = settings.accent_color.as_bytes();
     if accent.len() != 7 || accent[0] != b'#' || !accent[1..].iter().all(|value| value.is_ascii_hexdigit()) {
         return Err("Accent color must use a six-digit hexadecimal code".into());
+    }
+    if !valid_google_font_family(&settings.google_font_family) {
+        return Err("Google Fonts family may contain only letters, numbers, spaces and hyphens (max 80 characters)".into());
     }
     if !(640..=1100).contains(&settings.content_width) {
         return Err("Content width must be between 640 and 1100 pixels".into());
@@ -416,6 +440,7 @@ fn render_site_page(
     } else { String::new() };
     let description = escape(&settings.description);
     let theme_mode = &settings.theme_mode;
+    let google_font = google_font_markup(&settings.google_font_family);
     // Hex color was checked by validate_settings for both preview and build.
     let accent_style = format!("<style>:root{{--brand:{};--brand-light:color-mix(in srgb,var(--brand) 13%,var(--bg))}}</style>", settings.accent_color);
     let page_title = escape(&page_title);
@@ -434,6 +459,7 @@ fn render_site_page(
 <meta name="theme-color" content="#ffffff">
 <title>{page_title}</title>
 <link rel="stylesheet" href="styles.css">
+{google_font}
 {accent_style}
 </head>
 <body class="page-layout-{layout}">
@@ -555,4 +581,41 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
     }
     if backup.exists() { let _ = fs::remove_dir_all(&backup); }
     Ok(target.display().to_string())
+}
+
+#[cfg(test)]
+mod website_font_tests {
+    use super::*;
+
+    #[test]
+    fn google_fonts_are_opt_in_and_legacy_projects_keep_geist() {
+        let settings = default_settings("Test Project");
+        assert_eq!(settings.google_font_family, "");
+        assert!(google_font_markup(&settings.google_font_family).is_empty());
+        assert!(validate_settings(&settings).is_ok());
+    }
+
+    #[test]
+    fn valid_google_font_appears_in_generated_static_html() {
+        let mut settings = default_settings("Test Project");
+        settings.google_font_family = "Noto Sans KR".into();
+        assert!(validate_settings(&settings).is_ok());
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true, layout: "docs".into()
+        };
+        let output = render_site_page(&settings, &[page.clone()], &page, "<p>Test</p>", &[]);
+        assert!(output.contains("https://fonts.googleapis.com/css2?family=Noto+Sans+KR&amp;display=swap"));
+        assert!(output.contains("body{font-family:\"Noto Sans KR\""));
+        assert!(output.contains("<link rel=\"stylesheet\" href=\"styles.css\">"));
+    }
+
+    #[test]
+    fn custom_font_name_does_not_allow_html_or_query_injection() {
+        for invalid in ["<script>", "Roboto&display=block", "Inter\";body{}", "Noto  Sans", " Noto Sans ", ""] {
+            if !invalid.is_empty() { assert!(!valid_google_font_family(invalid)); }
+        }
+        assert!(valid_google_font_family(""));
+        assert!(valid_google_font_family("Plus Jakarta Sans"));
+        assert!(valid_google_font_family("M PLUS 1"));
+    }
 }

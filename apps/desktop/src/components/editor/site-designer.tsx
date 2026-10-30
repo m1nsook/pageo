@@ -121,6 +121,34 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
                     <p className="text-xs text-muted-foreground">Separate from the Paglora desktop appearance. Applies to real static exports.</p>
                   </div>
                   <Separator />
+                  <div className="space-y-2">
+                    <Label htmlFor="designer-google-font">Website font</Label>
+                    <Input
+                      id="designer-google-font"
+                      placeholder="Geist (default) or Google Fonts family"
+                      maxLength={80}
+                      value={settings.googleFontFamily}
+                      onChange={event => patch("googleFontFamily", event.target.value)}
+                      list="paglora-google-font-families"
+                    />
+                    <datalist id="paglora-google-font-families">
+                      <option value="Inter" />
+                      <option value="Roboto" />
+                      <option value="DM Sans" />
+                      <option value="Outfit" />
+                      <option value="Plus Jakarta Sans" />
+                      <option value="Noto Sans" />
+                      <option value="Noto Sans KR" />
+                    </datalist>
+                    <p className="text-xs text-muted-foreground">
+                      Leave empty for Geist. Enter a Google Fonts family to load it from Google's servers
+                      on the published website. Visitors need an internet connection to fetch it;
+                      Geist remains the fallback. Your site's CSS can override the font.
+                    </p>
+                    {settings.googleFontFamily && <Button type="button" size="sm" variant="ghost"
+                      onClick={() => patch("googleFontFamily", "")}>Use bundled Geist</Button>}
+                  </div>
+                  <Separator />
                   <div className="grid gap-3">
                     <Label htmlFor="designer-accent">Website accent color</Label>
                     <div className="flex items-center gap-3">
