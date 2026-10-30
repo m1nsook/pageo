@@ -130,6 +130,24 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
                   </div>
                   <Separator />
                   <div className="space-y-2">
+                    <Label>Document language</Label>
+                    <Select value={settings.language} onValueChange={value => patch("language", value as SiteSettings["language"])}>
+                      <SelectTrigger className="w-full" aria-label="Document language"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[
+                          ["en", "English"], ["ko", "한국어"], ["pl", "Polski"], ["de", "Deutsch"],
+                          ["fr", "Français"], ["es", "Español"], ["ja", "日本語"],
+                          ["zh-CN", "简体中文"], ["zh-TW", "繁體中文"], ["pt-BR", "Português (Brasil)"],
+                          ["ru", "Русский"], ["uk", "Українська"], ["ar", "العربية"],
+                          ["tr", "Türkçe"], ["it", "Italiano"], ["cs", "Čeština"],
+                          ["hu", "Magyar"], ["th", "ไทย"],
+                        ].map(([code, label]) => <SelectItem key={code} value={code}>{label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Sets the exported HTML language for accessibility and search engines. Does not translate your content.</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
                     <Label htmlFor="designer-google-font">Website font</Label>
                     <Input
                       id="designer-google-font"
