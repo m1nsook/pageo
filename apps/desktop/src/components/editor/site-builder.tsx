@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CheckCircle2, Copy, Globe2, LoaderCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -18,10 +18,17 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [output, setOutput] = useState("");
+  const [copyStatus, setCopyStatus] = useState("");
+  const generation = useRef(0);
 
   useEffect(() => {
     if (!open) return;
     let alive = true;
+    generation.current++;
+    setSettings(null);
+    setOutput("");
+    setCopyStatus("");
+    setBusy(false);
     setLoading(true);
     setError("");
     void loadSiteSettings(projectId)
@@ -34,24 +41,39 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
   function field(key: keyof SiteSettings, value: string) {
     setSettings(current => current ? { ...current, [key]: value } : null);
     setOutput("");
+    setCopyStatus("");
   }
 
   async function saveAndBuild(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!settings || busy) return;
+    const started = generation.current;
     setBusy(true);
     setError("");
     setOutput("");
+    setCopyStatus("");
     try {
       // Save active editor content before reading the files for the site.
       await onBeforeBuild();
       await saveSiteSettings(projectId, settings);
       const path = await buildPublicSite(projectId);
-      setOutput(path);
+      if (generation.current === started) setOutput(path);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      if (generation.current === started) setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
-      setBusy(false);
+      if (generation.current === started) setBusy(false);
+    }
+  }
+
+  async function copyOutput() {
+    if (!output) return;
+    const started = generation.current;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(output);
+      if (generation.current === started) setCopyStatus("Path copied");
+    } catch {
+      if (generation.current === started) setCopyStatus("Clipboard unavailable. Select the path to copy it.");
     }
   }
 
@@ -90,8 +112,9 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
               <p className="text-xs">Open the following folder on your computer. Upload its entire contents to your static host:</p>
               <div className="flex min-w-0 items-center gap-2">
                 <code className="min-w-0 flex-1 break-all rounded-md bg-white/70 p-2 text-xs">{output}</code>
-                <Button type="button" variant="outline" size="icon-sm" title="Copy export directory" aria-label="Copy export directory" onClick={() => void navigator.clipboard.writeText(output)}><Copy /></Button>
+                <Button type="button" variant="outline" size="icon-sm" title="Copy export directory" aria-label="Copy export directory" onClick={() => void copyOutput()}><Copy /></Button>
               </div>
+              {copyStatus && <p role="status" className="text-xs">{copyStatus}</p>}
               <p className="text-xs">Open <code>index.html</code> in the exported folder for a local preview.</p>
             </div>}
             <DialogFooter>
