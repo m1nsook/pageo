@@ -38,8 +38,10 @@ function safeLink(raw: string): string | null {
   const link = raw.trim();
   if (/^(https?:\/\/|mailto:)/i.test(link) || /^#[a-z\d_-]+$/i.test(link)) return link;
   // Link to a published Paglora page. Do not export filesystem paths or JS URLs.
-  if (/^(?:\.\/)?[a-z\d-]+(?:\.md|\.html)?(?:#[a-z\d_-]+)?$/i.test(link)) {
-    return link.replace(/\.md(?=#|$)/i, ".html");
+  const page = /^(\.\/)?([a-z\d-]+)(?:\.(?:md|html))?(#[a-z\d_-]+)?$/i.exec(link);
+  if (page) {
+    // Extensionless Markdown links must resolve to generated .html files too.
+    return `${page[1] ?? ""}${page[2]}.html${page[3] ?? ""}`;
   }
   return null;
 }
