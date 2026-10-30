@@ -36,6 +36,12 @@
     toggle.title = "Appearance: " + mode + ". Change theme";
   }
   setAppearance(readPreference());
+  // Keep separately opened documentation tabs in sync without requiring reload.
+  // Ignore storage changes from other Paglora sites hosted on this origin.
+  addEventListener("storage", event => {
+    if (event.key !== storageKey) return;
+    setAppearance(modes.includes(event.newValue) ? event.newValue : configured);
+  });
   toggle.addEventListener("click", () => {
     const next = modes[(modes.indexOf(root.dataset.colorMode) + 1) % modes.length];
     setAppearance(next);

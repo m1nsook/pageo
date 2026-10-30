@@ -32,7 +32,7 @@ function execute({ mode = "system", stored = null, storageThrows = false } = {})
     requestAnimationFrame(fn) { fn(); },
   };
   vm.runInNewContext(script, context);
-  return { root, button, attributes, storage };
+  return { root, button, attributes, storage, listeners };
 }
 
 test("site runtime restores allowed stored appearance preferences", () => {
@@ -57,5 +57,25 @@ test("site runtime cycles system, light, dark without a server", () => {
 test("site runtime works when browser storage is unavailable", () => {
   const { root, button } = execute({ storageThrows: true });
   button.on_click();
+  assert.equal(root.dataset.colorMode, "light");
+});
+
+test("appearance changes in another tab synchronize only the same site root", () => {
+  const { root, listeners } = execute({ mode: "system" });
+  assert.equal(typeof listeners.storage, "function");
+  listeners.storage({ key: "paglora:theme:/unrelated/", newValue: "dark" });
+  assert.equal(root.dataset.colorMode, "system");
+  listeners.storage({ key: "paglora:theme:/docs/", newValue: "dark" });
+  assert.equal(root.dataset.colorMode, "dark");
+  listeners.storage({ key: "paglora:theme:/docs/", newValue: "bogus" });
+  assert.equal(root.dataset.colorMode, "system");
+  listeners.storage({ key: "paglora:theme:/docs/", newValue: null });
+  assert.equal(root.dataset.colorMode, "system");
+});
+
+test("clearing the cross-tab preference restores the configured default", () => {
+  const { root, listeners } = execute({ mode: "light", stored: "dark" });
+  assert.equal(root.dataset.colorMode, "dark");
+  listeners.storage({ key: "paglora:theme:/docs/", newValue: null });
   assert.equal(root.dataset.colorMode, "light");
 });
