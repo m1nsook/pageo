@@ -66,6 +66,19 @@ export function renderSafeMarkdown(html: string): string {
     const element = node as Element;
     const tag = element.tagName.toLowerCase();
     if (["script", "style", "iframe", "object", "embed", "form", "svg", "math", "template"].includes(tag)) return null;
+    // GFM task lists use <input type="checkbox">. Preserve only a disabled,
+    // read-only checkbox: never pass through name, value, event handlers or
+    // any other attributes from raw Markdown HTML.
+    if (tag === "input") {
+      if (element.getAttribute("type")?.toLowerCase() !== "checkbox") return null;
+      const checkbox = document.createElement("input");
+      checkbox.className = "paglora-task-checkbox";
+      checkbox.setAttribute("type", "checkbox");
+      checkbox.setAttribute("disabled", "");
+      if (element.hasAttribute("checked")) checkbox.setAttribute("checked", "");
+      checkbox.setAttribute("aria-label", element.hasAttribute("checked") ? "Completed task" : "Incomplete task");
+      return checkbox;
+    }
     const next = document.createElement(allowed.has(tag) ? tag : "span");
     if (tag === "a") {
       const href = safeLink(element.getAttribute("href") || "");
@@ -84,6 +97,9 @@ export function renderSafeMarkdown(html: string): string {
     for (const child of Array.from(element.childNodes)) {
       const item = clean(child);
       if (item) next.appendChild(item);
+    }
+    if (tag === "li" && next.querySelector("input.paglora-task-checkbox")) {
+      next.classList.add("paglora-task-item");
     }
     return next;
   }
