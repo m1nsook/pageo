@@ -199,7 +199,7 @@ mod tests {
         sample_project(&source);
         let target = tmp.join("new-projects");
         let moved = migrate_at(&data, &target).unwrap();
-        assert_eq!(moved, target);
+        assert_eq!(fs::canonicalize(&moved).unwrap(), fs::canonicalize(&target).unwrap());
         assert!(source.join("alpha/docs/index.md").exists());
         assert_eq!(fs::read(target.join("alpha/docs/index.md")).unwrap(), fs::read(source.join("alpha/docs/index.md")).unwrap());
         assert_eq!(root_at(&data).unwrap(), fs::canonicalize(target).unwrap());
