@@ -118,6 +118,23 @@
     "studio.pages.documentationPages": "Documentation pages",
     "studio.pages.expandGroup": "Expand {group}",
     "studio.pages.collapseGroup": "Collapse {group}",
-    "studio.pages.dragHint": "Hold the grip to drag a page, or use Move up / Move down in its menu."
+    "studio.pages.dragHint": "Hold the grip to drag a page, or use Move up / Move down in its menu.",
+    "studio.editor.hidePages": "Hide pages panel",
+    "studio.editor.showPages": "Show pages panel",
+    "studio.editor.backToProjects": "Back to projects",
+    "studio.editor.saving": "Saving",
+    "studio.editor.savedLocally": "Saved locally",
+    "studio.editor.saveFailed": "Save failed",
+    "studio.editor.unsaved": "Unsaved",
+    "studio.editor.hideTools": "Hide visual editor tools",
+    "studio.editor.showTools": "Show visual editor tools",
+    "studio.editor.hideProperties": "Hide page properties",
+    "studio.editor.showProperties": "Show page properties",
+    "studio.editor.editorView": "Editor view",
+    "studio.editor.edit": "Edit",
+    "studio.editor.split": "Split",
+    "studio.editor.canvas": "Canvas",
+    "studio.editor.documentationEditor": "Documentation editor",
+    "studio.editor.saveError": "Couldn't save: {message}. Check disk permissions before leaving."
   }
 }

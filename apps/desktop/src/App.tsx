@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import type { ProjectDocument, ProjectSummary } from "@paglora/core";
 import { validateProjectName } from "@paglora/core";
+import { useTranslation } from "@/i18n";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
@@ -33,6 +34,7 @@ function CreateProjectDialog({ open, onOpenChange, onCreate, disabled }: {
   open: boolean; onOpenChange: (value: boolean) => void;
   onCreate: (name: string) => Promise<void>; disabled: boolean;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,7 +43,7 @@ function CreateProjectDialog({ open, onOpenChange, onCreate, disabled }: {
     event.preventDefault();
     const validation = validateProjectName(name);
     if (validation) { setError(validation); return; }
-    if (disabled) { setError("Run Paglora Desktop to create local projects."); return; }
+    if (disabled) { setError(t("studio.projects.desktopRequired")); return; }
     setBusy(true); setError("");
     try { await onCreate(name.trim()); onOpenChange(false); }
     catch (cause) { setError(friendlyError(cause)); }
@@ -52,14 +54,14 @@ function CreateProjectDialog({ open, onOpenChange, onCreate, disabled }: {
       <DialogContent>
         <DialogHeader>
           <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><BookOpen className="size-5"/></div>
-          <DialogTitle>Create a documentation project</DialogTitle>
-          <DialogDescription>Projects are saved locally and can be edited anytime.</DialogDescription>
+          <DialogTitle>{t("studio.projects.createTitle")}</DialogTitle>
+          <DialogDescription>{t("studio.projects.createDescription")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-4">
-          <div className="grid gap-2"><Label htmlFor="paglora-project-name">Project name</Label><Input id="paglora-project-name" autoFocus placeholder="My Project Docs" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} required /></div>
+          <div className="grid gap-2"><Label htmlFor="paglora-project-name">{t("studio.projects.projectName")}</Label><Input id="paglora-project-name" autoFocus placeholder={t("studio.projects.projectName")} value={name} onChange={(e) => setName(e.target.value)} maxLength={100} required /></div>
           {error && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">{error}</p>}
-          <DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" disabled={busy || disabled}>{busy ? <LoaderCircle className="animate-spin"/> : <Plus/>} Create project</Button></DialogFooter>
-          {disabled && <p className="text-xs text-amber-700">Browser preview only. Launch the Tauri desktop app to use local projects.</p>}
+          <DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("studio.projects.cancel")}</Button><Button type="submit" disabled={busy || disabled}>{busy ? <LoaderCircle className="animate-spin"/> : <Plus/>} {t("studio.projects.create")}</Button></DialogFooter>
+          {disabled && <p className="text-xs text-amber-700">{t("studio.projects.browserOnly")}</p>}
         </form>
       </DialogContent>
     </Dialog>
@@ -67,6 +69,7 @@ function CreateProjectDialog({ open, onOpenChange, onCreate, disabled }: {
 }
 
 function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange, onModify }: { document: ProjectDocument; current: PageDocument; pages: Page[]; onBack: () => void; onSaved: (project: ProjectSummary) => void; onChange: (id: string) => Promise<void>; onModify: (action: PageAction, id?: string, target?: string) => Promise<void> }) {
+  const { t } = useTranslation();
   const latest = useRef(current.markdown);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queue = useRef<Promise<void>>(Promise.resolve());
@@ -183,24 +186,24 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     <main className="flex h-full min-w-0 flex-1 flex-col bg-background">
       <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-3 py-2 lg:px-5">
         <div className="flex min-w-0 items-center gap-2">
-          <Button variant="ghost" size="icon-sm" aria-label={showPages ? "Hide pages panel" : "Show pages panel"} title={showPages ? "Hide pages panel" : "Show pages panel"} aria-pressed={showPages} onClick={() => setShowPages(value => !value)}>{showPages ? <PanelLeftClose /> : <PanelLeftOpen />}</Button>
+          <Button variant="ghost" size="icon-sm" aria-label={showPages ? t("studio.editor.hidePages") : t("studio.editor.showPages")} title={showPages ? t("studio.editor.hidePages") : t("studio.editor.showPages")} aria-pressed={showPages} onClick={() => setShowPages(value => !value)}>{showPages ? <PanelLeftClose /> : <PanelLeftOpen />}</Button>
           <Separator orientation="vertical" className="mx-1 h-5"/>
-          <Button onClick={() => void back()} variant="ghost" size="icon-sm" disabled={leaving} aria-label="Back to projects"><ArrowLeft /></Button>
+          <Button onClick={() => void back()} variant="ghost" size="icon-sm" disabled={leaving} aria-label={t("studio.editor.backToProjects")}><ArrowLeft /></Button>
           <span className="hidden size-8 items-center justify-center rounded-lg bg-primary/10 text-primary sm:flex"><BookOpen className="size-4"/></span>
           <div className="min-w-0"><div className="max-w-44 truncate text-sm font-semibold lg:max-w-64">{document.project.name}</div><div className="max-w-44 truncate text-xs text-muted-foreground lg:max-w-64">{current.page.title}</div></div>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={saveState === "error" ? "destructive" : "secondary"} className="gap-1.5 whitespace-nowrap">
             {saveState === "saving" ? <LoaderCircle className="size-3 animate-spin"/> : saveState === "saved" ? <Check className="size-3 text-emerald-600"/> : <span className="size-2 rounded-full bg-amber-400" />}
-            {saveState === "saving" ? "Saving" : saveState === "saved" ? "Saved locally" : saveState === "error" ? "Save failed" : "Unsaved"}
+            {saveState === "saving" ? t("studio.editor.saving") : saveState === "saved" ? t("studio.editor.savedLocally") : saveState === "error" ? t("studio.editor.saveFailed") : t("studio.editor.unsaved")}
           </Badge>
           <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block"/>
-          {viewMode === "edit" && <Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} title={showBlockTools ? "Hide visual editor tools" : "Show visual editor tools"} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button>}
-          {viewMode === "site" && <Button variant="ghost" size="icon-sm" aria-label={showInspector ? "Hide page properties" : "Show page properties"} title={showInspector ? "Hide page properties" : "Show page properties"} aria-pressed={showInspector} onClick={() => setShowInspector(value => !value)}><SlidersHorizontal /></Button>}
-          <div role="group" aria-label="Editor view" className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
-            <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "edit" ? "secondary" : "ghost"} aria-pressed={viewMode === "edit"} onClick={() => void selectView("edit")} className="gap-1.5 px-2.5"><PencilLine />Edit</Button>
-            <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "split" ? "secondary" : "ghost"} aria-pressed={viewMode === "split"} onClick={() => void selectView("split")} className="gap-1.5 px-2.5"><Columns2 />Split</Button>
-            <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "site" ? "secondary" : "ghost"} aria-pressed={viewMode === "site"} onClick={() => void selectView("site")} className="gap-1.5 px-2.5"><Monitor />Canvas</Button>
+          {viewMode === "edit" && <Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? t("studio.editor.hideTools") : t("studio.editor.showTools")} title={showBlockTools ? t("studio.editor.hideTools") : t("studio.editor.showTools")} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button>}
+          {viewMode === "site" && <Button variant="ghost" size="icon-sm" aria-label={showInspector ? t("studio.editor.hideProperties") : t("studio.editor.showProperties")} title={showInspector ? t("studio.editor.hideProperties") : t("studio.editor.showProperties")} aria-pressed={showInspector} onClick={() => setShowInspector(value => !value)}><SlidersHorizontal /></Button>}
+          <div role="group" aria-label={t("studio.editor.editorView")} className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
+            <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "edit" ? "secondary" : "ghost"} aria-pressed={viewMode === "edit"} onClick={() => void selectView("edit")} className="gap-1.5 px-2.5"><PencilLine />{t("studio.editor.edit")}</Button>
+            <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "split" ? "secondary" : "ghost"} aria-pressed={viewMode === "split"} onClick={() => void selectView("split")} className="gap-1.5 px-2.5"><Columns2 />{t("studio.editor.split")}</Button>
+            <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "site" ? "secondary" : "ghost"} aria-pressed={viewMode === "site"} onClick={() => void selectView("site")} className="gap-1.5 px-2.5"><Monitor />{t("studio.editor.canvas")}</Button>
           </div>
           <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"} onBeforePreview={persist} />
           <SiteDesigner projectId={document.project.id} onBeforePreview={persist} />
@@ -213,10 +216,10 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           onNavigate={(id) => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }}
           onAction={modify}/>}
         <div className={viewMode === "site" ? "hidden" : viewMode === "split" ? "flex min-h-0 min-w-0 flex-1 flex-col border-r border-border xl:w-1/2" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
-        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto" aria-label="Documentation editor">
+        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto" aria-label={t("studio.editor.documentationEditor")}>
           <FormatToolbar editor={editor} />
           <div data-editor-drop-zone className="mx-auto min-h-[calc(100%-3rem)] max-w-3xl animate-in fade-in-0 px-6 py-9 duration-200 lg:px-10 lg:py-12">
-            {saveError && <p role="alert" className="mb-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">Couldn't save: {saveError}. Check disk permissions before leaving.</p>}
+            {saveError && <p role="alert" className="mb-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{t("studio.editor.saveError", { message: saveError })}</p>}
             <div onKeyDown={(event) => {
               // ProseMirror handles Ctrl/Cmd+B inside the editor. Keep it from
               // bubbling to shadcn Sidebar's global collapse shortcut.
