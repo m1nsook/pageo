@@ -5,6 +5,7 @@ Paglora is in early development. Desktop milestone numbers are separate from the
 ## Unreleased — desktop source (after 0.2.0)
 
 ### Studio visual editing
+- Added a local image library: import and browse validated project-owned PNG/JPEG/WebP/GIF files, preview images offline, copy portable Markdown, or insert image nodes at the editor caret. Image nodes round-trip to Markdown without changing project formats; private-only images remain excluded from static exports.
 - The Blocks outline now supports duplicating and deleting complete source-owned Markdown blocks, Alt+Up/Down reordering, explicit Undo/Redo, and caret-aware selection after changes. All actions use undoable ProseMirror transactions and existing autosave; no project schema changes.
 
 ### Documentation authoring

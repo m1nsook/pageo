@@ -77,6 +77,10 @@ Paglora-built sites include the static HTML, CSS and browser scripts needed for 
 
 Project backups are different from published website exports: a `.paglora` backup can contain **private pages and source files**. Only share backups with people who should have access to all of their contents.
 
+### Local images in Studio
+
+Open **Images** while editing a page to import PNG, JPEG, WebP or GIF files (up to 5 MiB), browse existing project images and preview them offline. Enter descriptive alternative text, then choose **Insert image** to place ordinary `![alt](assets/name.png)` Markdown at the cursor, or **Copy Markdown** to use the image elsewhere. The text editor shows a labeled image placeholder; the published-site preview displays the image. Assets remain local and only images referenced by public pages or the site logo are exported.
+
 ## Documentation and translations
 
 - **[Paglora Docs](https://m1nsook.github.io/paglora-docs/)** — documentation built and published using Paglora itself.
