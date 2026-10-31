@@ -11,6 +11,9 @@ Paglora is in early development. Desktop milestone numbers are separate from the
 - Added a searchable local image library: import and browse validated project-owned PNG/JPEG/WebP/GIF files, view bounded small-image thumbnails and selected-image previews offline, copy portable Markdown, or insert image nodes at the editor caret. Image nodes round-trip to Markdown without changing project formats; private-only images remain excluded from static exports.
 - The Blocks outline now supports duplicating and deleting complete source-owned Markdown blocks, Alt+Up/Down reordering, explicit Undo/Redo, and caret-aware selection after changes. All actions use undoable ProseMirror transactions and existing autosave; no project schema changes.
 
+### Published documentation navigation
+- Improved small-screen Browse navigation with a scrollable, sticky, RTL-aware panel that overlays content rather than pushing long articles down. Native `<details>` keeps page links usable without scripts; progressive enhancement adds Escape dismissal, outside-click closing, and header-height tracking for wrapped headers.
+
 ### Documentation authoring
 - Added source-owned `[!ACCORDION]` FAQ questions with Studio insertion, native keyboard-accessible `<details>` behavior, compact adjacent-question groups, and matching headless/Studio static output. Malformed markers remain visible Markdown.
 - Added nested Markdown `[!TABS]` / `[!TAB]` content panels with Studio insertion, safe preview/export parity, script-free readable fallback, and keyboard-accessible published tabs (including RTL navigation).

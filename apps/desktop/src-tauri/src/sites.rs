@@ -287,11 +287,20 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
   .site-body,.site-body.nav-right,.site-body.nav-top{display:block;min-height:calc(100vh - 145px)}
   .site-body .site-nav{display:none}
   .site-main,.site-body.nav-right .site-main,.site-body.nav-top .site-main{width:100%;padding:34px 22px 68px}
-  .mobile-nav{display:block;max-width:100%;border-bottom:1px solid var(--line);padding:10px 20px;background:var(--subtle)}
-  .mobile-nav summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:650;padding:7px 0}
+  /* The native details element remains usable with JavaScript disabled.
+     The open navigation floats over the article instead of shifting it. */
+  .mobile-nav{display:block;position:sticky;top:0;z-index:29;max-width:100%;border-bottom:1px solid var(--line);padding:8px 20px;background:var(--bg)}
+  .site-header:not(.not-sticky)+.mobile-nav{top:var(--paglora-header-height,64px)}
+  .mobile-nav[open]{border-color:var(--brand)}
+  .mobile-nav summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;min-height:44px;font-size:13px;font-weight:650;padding:5px 0}
+  .mobile-nav summary::-webkit-details-marker{display:none}
   .mobile-nav summary::after{content:"+";font-size:19px;color:var(--muted)}.mobile-nav[open] summary::after{content:"−"}
-  .mobile-nav-inner{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:5px;padding:9px 0 14px}
-  .mobile-nav a{display:block;padding:9px 11px;border-radius:8px;text-decoration:none;font-size:13px;color:var(--muted)}
+  .mobile-nav summary:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+  .mobile-nav-inner{position:absolute;top:100%;inset-inline:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));align-items:start;gap:8px;padding:16px 20px 22px;max-height:65vh;max-height:min(65vh,calc(100dvh - var(--paglora-header-height,64px) - 64px));overflow-y:auto;overscroll-behavior:contain;background:var(--bg);border-bottom:1px solid var(--line);box-shadow:0 18px 36px rgba(0,0,0,.17)}
+  .mobile-nav:not([open]) .mobile-nav-inner{display:none}
+  .mobile-nav a{display:block;padding:9px 11px;border-radius:8px;text-decoration:none;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+  .mobile-nav a:hover{background:var(--hover);color:var(--fg)}
+  .mobile-nav a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
   .mobile-nav a[aria-current=page]{background:var(--brand-light);color:var(--brand);font-weight:650}
   .mobile-toc{display:block;margin:0 0 30px;border:1px solid var(--line);border-radius:10px;background:var(--subtle);padding:8px 15px}
   .mobile-toc summary{cursor:pointer;font-size:12px;font-weight:650;padding:6px 0}
@@ -1795,6 +1804,11 @@ mod website_font_tests {
         assert!(!output.contains("private.html"));
         assert!(output.contains("</div></details>"));
         assert!(output.contains("aria-current=\"page\""));
+        // The responsive navigation reuses only validated public links and
+        // works as native details even when the browser runtime is disabled.
+        assert!(output.contains("<details class=\"mobile-nav\"><summary>"));
+        assert!(output.contains("<nav class=\"mobile-nav-inner\" aria-label="));
+        assert!(!output.contains("private.html"));
         for asset in SITE_RUNTIME_ASSETS {
             assert!(output.contains(&format!("<script defer src=\"{}\"></script>", asset.filename)));
             assert!(!asset.source.is_empty());
