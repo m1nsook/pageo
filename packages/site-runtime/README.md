@@ -31,3 +31,7 @@ In **Design site → Header**, import a PNG, JPEG, WebP or GIF image (up to 5 Mi
 ## Canonical URLs and sitemap
 
 In **Design site → Header**, optionally set the **Published site URL** to the HTTPS site root (for example, `https://username.github.io/project/`). Include the trailing slash and the GitHub Pages repository subpath when applicable. When configured, exported pages include canonical and Open Graph URL metadata, and the exporter writes `sitemap.xml` containing **only public pages**. Leave this field empty for offline or unknown hosting; no canonical URLs or sitemap will be generated. This setting does not change relative navigation or require a backend.
+
+## Search result highlights
+
+Published Ctrl/Cmd+K search highlights exact query terms in result titles and excerpts with semantic mark elements and text nodes, never executable HTML. Technical terms such as C++, CJK substrings, Unicode ligatures and case-folded matches map back to readable display text. Fuzzy matches remain readable when no exact substring is available. The site accent colors the highlights, with a forced-colors fallback. Search stays offline and public-page-only.

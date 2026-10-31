@@ -220,6 +220,46 @@ import MiniSearch from "minisearch";
     return low;
   }
 
+  // Build safe highlighted excerpts with text nodes, never executable HTML.
+  // Convert NFKC/case-folded offsets back to displayed UTF-16 boundaries.
+  function highlightMatches(target, value, terms) {
+    const folded = normalize(value);
+    const ranges = [];
+    for (const term of terms) {
+      if (!term || term.length > 80) continue;
+      let from = 0;
+      while (from < folded.length) {
+        const at = folded.indexOf(term, from);
+        if (at === -1) break;
+        let start = displayOffset(value, at);
+        if (start > 0 && normalize(value.slice(0, start)).length > at) {
+          const previous = value.charCodeAt(start - 1);
+          start -= previous >= 0xdc00 && previous <= 0xdfff ? 2 : 1;
+        }
+        const end = displayOffset(value, at + term.length);
+        if (end > start) ranges.push([start, end]);
+        if (ranges.length >= 32) break;
+        from = at + Math.max(1, term.length);
+      }
+      if (ranges.length >= 32) break;
+    }
+    if (!ranges.length) { target.textContent = value; return; }
+    ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const merged = [];
+    for (const [start, end] of ranges) {
+      const previous = merged[merged.length - 1];
+      if (previous && start <= previous[1]) previous[1] = Math.max(previous[1], end);
+      else merged.push([start, end]);
+    }
+    let cursor = 0;
+    for (const [start, end] of merged) {
+      if (start > cursor) target.appendChild(document.createTextNode(value.slice(cursor, start)));
+      target.appendChild(element("mark", "paglora-search-match", value.slice(start, end)));
+      cursor = end;
+    }
+    if (cursor < value.length) target.appendChild(document.createTextNode(value.slice(cursor)));
+  }
+
   function updateSelected() {
     const links = results.querySelectorAll(".paglora-search-result");
     links.forEach((link, index) => {
@@ -255,6 +295,7 @@ import MiniSearch from "minisearch";
   function render() {
     const query = input.value.trim();
     currentResults = find(query);
+    const terms = [...new Set(tokenize(query.slice(0, 200)))].slice(0, 8);
     selected = 0;
     input.removeAttribute("aria-activedescendant");
     results.replaceChildren();
@@ -277,12 +318,16 @@ import MiniSearch from "minisearch";
       results.appendChild(element("p", "paglora-search-status", "No matching pages"));
       return;
     }
+    results.setAttribute("aria-label", currentResults.length === 1
+      ? "1 matching documentation page" : currentResults.length + " matching documentation pages");
     for (const item of currentResults) {
       const link = element("a", "paglora-search-result");
       link.id = "paglora-search-option-" + results.children.length;
       link.href = item.url;
-      const title = element("strong", "paglora-search-result-title", item.title);
-      const summary = element("span", "paglora-search-result-summary", item.snippet || "Open page");
+      const title = element("strong", "paglora-search-result-title");
+      const summary = element("span", "paglora-search-result-summary");
+      highlightMatches(title, item.title, terms);
+      highlightMatches(summary, item.snippet || "Open page", terms);
       link.append(title, summary);
       link.addEventListener("mouseenter", () => {
         selected = currentResults.indexOf(item);

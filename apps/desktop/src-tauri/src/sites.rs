@@ -55,6 +55,8 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .paglora-search-results{min-height:100px;max-height:55vh;overflow-y:auto;padding:8px}
 .paglora-search-result{display:block;padding:11px 13px;border:1px solid transparent;border-radius:9px;color:var(--fg);text-decoration:none}
 .paglora-search-result:hover,.paglora-search-result.is-selected{background:var(--hover);border-color:var(--line)}
+.paglora-search-match{background:color-mix(in srgb,var(--brand) 22%,var(--bg));color:var(--fg);font-weight:750;border-radius:3px;padding:0 .03em}
+@media(forced-colors:active){.paglora-search-match{background:Highlight;color:HighlightText}}
 .paglora-search-result-title{display:block;font-size:13px;font-weight:700;line-height:1.5}
 .paglora-search-result-summary{display:block;margin-top:4px;font-size:12px;color:var(--muted);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .paglora-search-status{padding:22px 15px;color:var(--muted);font-size:13px}
