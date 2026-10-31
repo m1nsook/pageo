@@ -234,6 +234,20 @@
     "studio.backup.invalid": "Choose a .paglora file smaller than 96 MiB.",
     "studio.backup.description": "Portable project backups include pages, design settings, CSS and images. Backups stay on your computer.",
     "studio.backup.copyPath": "Copy backup path",
-    "studio.backup.result": "Backup and import result"
+    "studio.backup.result": "Backup and import result",
+    "studio.updater.available": "Paglora Studio v{version} is available",
+    "studio.updater.description": "A newer stable release is available. Review the changes before installing.",
+    "studio.updater.noNotes": "See GitHub Releases for the complete changelog.",
+    "studio.updater.later": "Later",
+    "studio.updater.install": "Install signed update",
+    "studio.updater.installing": "Verifying and installing…",
+    "studio.updater.stableTitle": "Studio updates · Stable channel",
+    "studio.updater.stableDescription": "Only signed, versioned releases are installed. Nightly builds are excluded.",
+    "studio.updater.check": "Check for updates",
+    "studio.updater.checking": "Checking stable releases…",
+    "studio.updater.upToDate": "You're using the latest stable Studio release.",
+    "studio.updater.onlyInstalled": "Update checks are available in installed Studio builds.",
+    "studio.updater.checkError": "Couldn't check for updates: {error}",
+    "studio.updater.installError": "Update installation failed: {error}"
   }
 }

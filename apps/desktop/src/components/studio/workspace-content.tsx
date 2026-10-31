@@ -198,12 +198,12 @@ export function Settings({ location, desktop, updater }: { location: string; des
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Studio updates · Stable channel</CardTitle>
-              <CardDescription>Only signed, versioned releases are installed. Nightly build artifacts are excluded.</CardDescription>
+              <CardTitle>{t("studio.updater.stableTitle")}</CardTitle>
+              <CardDescription>{t("studio.updater.stableDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <Button variant="outline" disabled={!desktop || updater.checking || updater.installing} onClick={() => void updater.check(true)}>
-                {updater.checking ? "Checking stable releases…" : "Check for updates"}
+                {updater.checking ? t("studio.updater.checking") : t("studio.updater.check")}
               </Button>
               {updater.message && <p role="status" className="text-sm text-muted-foreground">{updater.message}</p>}
             </CardContent>

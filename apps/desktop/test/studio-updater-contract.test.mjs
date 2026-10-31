@@ -8,6 +8,7 @@ const lib = src("../src-tauri/src/lib.rs");
 const app = src("../src/App.tsx");
 const frontend = src("../src/components/studio/studio-updater.tsx");
 const settings = src("../src/components/studio/workspace-content.tsx");
+const packs = Object.fromEntries(["en", "pl", "ko"].map(l => [l, JSON.parse(src("../src/i18n/locales/"+l+".json")).messages]));
 test("signed stable updates use a real embedded minisign key, HTTPS and NSIS",()=>{
   assert.equal(config.bundle.createUpdaterArtifacts, true);
   assert.equal(config.plugins.updater.endpoints[0],
@@ -27,8 +28,22 @@ test("Rust validates available release again and downloads only signed update",(
 });
 test("installed Studio checks on launch and offers explicit installation",()=>{
   assert.match(app,/<StudioUpdateDialog updater=\{updater\}\/>/);
-  assert.match(frontend,/useEffect\(\(\) => \{ void check\(false\); \}/);
+  assert.match(frontend,/startupChecked\.current = true; void check\(false\)/);
   assert.match(frontend,/if \(!desktop \|\| import\.meta\.env\.DEV\)/);
   assert.match(frontend,/onClick=\{\(\) => void updater\.install\(\)\}/);
   assert.match(settings,/updater\.check\(true\)/);
+});
+
+test("reviewed updater translations preserve placeholders",()=>{
+ const english=packs.en;
+ const keys=Object.keys(english).filter(k=>k.startsWith("studio.updater."));
+ assert.equal(keys.length,14);
+ const placeholders=s=>[...s.matchAll(/\{([a-z]+)\}/g)].map(x=>x[1]).sort();
+ for(const key of keys){
+   for(const lang of ["pl","ko"]){
+     assert.equal(typeof packs[lang][key],"string",lang+" "+key);
+     assert.deepEqual(placeholders(packs[lang][key]),placeholders(english[key]),key);
+   }
+ }
+ assert.match(frontend,/useTranslation\(\)/);
 });

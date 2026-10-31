@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { checkStudioUpdate, installStudioUpdate, type StudioUpdate } from "@/lib/updates";
@@ -9,6 +10,8 @@ function errorMessage(error: unknown) {
 
 /** Only production installations automatically check the stable release feed. */
 export function useStudioUpdater(desktop: boolean) {
+  const { t } = useTranslation();
+  const startupChecked = useRef(false);
   const [available, setAvailable] = useState<StudioUpdate | null>(null);
   const [open, setOpen] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -17,7 +20,7 @@ export function useStudioUpdater(desktop: boolean) {
 
   const check = useCallback(async (manual: boolean) => {
     if (!desktop || import.meta.env.DEV) {
-      if (manual) setMessage("Update checks are available in installed Studio builds.");
+      if (manual) setMessage(t("studio.updater.onlyInstalled"));
       return;
     }
     setChecking(true);
@@ -26,16 +29,18 @@ export function useStudioUpdater(desktop: boolean) {
       const found = await checkStudioUpdate();
       setAvailable(found);
       if (found) setOpen(true);
-      else if (manual) setMessage("You're using the latest stable Studio release.");
+      else if (manual) setMessage(t("studio.updater.upToDate"));
     } catch (error) {
       // First launch may precede any published stable release. Don't spam dialogs.
-      if (manual) setMessage("Couldn't check for updates: " + errorMessage(error));
+      if (manual) setMessage(t("studio.updater.checkError", {error: errorMessage(error)}));
     } finally {
       setChecking(false);
     }
-  }, [desktop]);
+  }, [desktop, t]);
 
-  useEffect(() => { void check(false); }, [check]);
+  useEffect(() => {
+    if (!startupChecked.current) { startupChecked.current = true; void check(false); }
+  }, [check]);
 
   async function install() {
     if (!available || installing) return;
@@ -45,7 +50,7 @@ export function useStudioUpdater(desktop: boolean) {
       // Tauri validates the signature; on Windows the installer closes the app.
       await installStudioUpdate(available.version);
     } catch (error) {
-      setMessage("Update installation failed: " + errorMessage(error));
+      setMessage(t("studio.updater.installError", {error: errorMessage(error)}));
       setInstalling(false);
     }
   }
@@ -58,20 +63,21 @@ export function useStudioUpdater(desktop: boolean) {
 export type StudioUpdaterControls = ReturnType<typeof useStudioUpdater>;
 
 export function StudioUpdateDialog({ updater }: { updater: StudioUpdaterControls }) {
+  const { t } = useTranslation();
   return <Dialog open={updater.open} onOpenChange={open => { if (!open) updater.dismiss(); }}>
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Paglora Studio v{updater.available?.version} is available</DialogTitle>
-        <DialogDescription>A newer stable release is available. Review the notes before installing.</DialogDescription>
+        <DialogTitle>{t("studio.updater.available", {version: updater.available?.version || ""})}</DialogTitle>
+        <DialogDescription>{t("studio.updater.description")}</DialogDescription>
       </DialogHeader>
       <div className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-sm text-foreground">
-        {updater.available?.notes || "Read the release changelog on GitHub for details."}
+        {updater.available?.notes || t("studio.updater.noNotes")}
       </div>
       {updater.message && <p role="alert" className="text-sm text-destructive">{updater.message}</p>}
       <DialogFooter>
-        <Button variant="outline" disabled={updater.installing} onClick={updater.dismiss}>Later</Button>
+        <Button variant="outline" disabled={updater.installing} onClick={updater.dismiss}>{t("studio.updater.later")}</Button>
         <Button disabled={updater.installing || !updater.available} onClick={() => void updater.install()}>
-          {updater.installing ? "Verifying and installing…" : "Install signed update"}
+          {updater.installing ? t("studio.updater.installing") : t("studio.updater.install")}
         </Button>
       </DialogFooter>
     </DialogContent>

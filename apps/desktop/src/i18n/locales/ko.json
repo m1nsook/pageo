@@ -234,6 +234,20 @@
     "studio.backup.invalid": "96MiB보다 작은 .paglora 파일을 선택하세요.",
     "studio.backup.description": "이식 가능한 프로젝트 백업에는 페이지, 디자인 설정, CSS, 이미지가 포함됩니다. 백업은 로컬에 저장됩니다.",
     "studio.backup.copyPath": "백업 경로 복사",
-    "studio.backup.result": "백업 및 가져오기 결과"
+    "studio.backup.result": "백업 및 가져오기 결과",
+    "studio.updater.available": "Paglora Studio v{version} 업데이트가 있습니다",
+    "studio.updater.description": "새 안정 버전이 있습니다. 설치하기 전에 변경 사항을 확인하세요.",
+    "studio.updater.noNotes": "전체 변경 내역은 GitHub Releases를 확인하세요.",
+    "studio.updater.later": "나중에",
+    "studio.updater.install": "서명된 업데이트 설치",
+    "studio.updater.installing": "검증하고 설치하는 중…",
+    "studio.updater.stableTitle": "Studio 업데이트 · 안정 채널",
+    "studio.updater.stableDescription": "서명된 정식 버전만 설치합니다. 나이틀리 빌드는 제외됩니다.",
+    "studio.updater.check": "업데이트 확인",
+    "studio.updater.checking": "안정 버전 확인 중…",
+    "studio.updater.upToDate": "최신 안정 버전의 Studio를 사용 중입니다.",
+    "studio.updater.onlyInstalled": "업데이트 확인은 설치된 Studio에서 사용할 수 있습니다.",
+    "studio.updater.checkError": "업데이트를 확인할 수 없습니다: {error}",
+    "studio.updater.installError": "업데이트 설치 실패: {error}"
   }
 }
