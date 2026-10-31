@@ -25,6 +25,7 @@ import { SiteDesigner } from "@/components/editor/site-designer";
 import { ThemeSourceEditor } from "@/components/editor/theme-source-editor";
 import { InlineSitePreview } from "@/components/editor/inline-site-preview";
 import { StudioResizableSplit } from "@/components/editor/studio-resizable-split";
+import { StudioNavigationLayout } from "@/components/editor/studio-navigation-layout";
 import { STUDIO_SPLIT_LAYOUT_KEY } from "@/lib/studio-panel-layout";
 import { editableCanvasText, findCanvasSourcePosition, replacePlainCanvasText, type CanvasBlockSelection } from "@/lib/canvas-blocks";
 import { preservePagloraMarkers } from "@/lib/markdown-markers";
@@ -307,16 +308,14 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           <SiteBuilder projectId={document.project.id} onBeforeBuild={persist} />
         </div>
       </header>
-      <div className="flex min-h-0 flex-1">
-        {showPages && <PageNavigation pages={pages} currentId={current.page.id} busy={leaving}
-          onNavigate={(id) => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }}
-          onAction={modify}/>}
-        {viewMode === "split"
+      <StudioNavigationLayout mode={viewMode}
+        left={showPages ? <PageNavigation pages={pages} currentId={current.page.id} busy={leaving} onNavigate={(id) => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }} onAction={modify}/> : undefined}
+        center={{viewMode === "split"
           ? <StudioResizableSplit source={editorPane} preview={previewPane} resetToken={splitResetToken} />
           : viewMode === "edit"
             ? editorPane
-            : <><div className="hidden" aria-hidden="true">{editorPane}</div>{previewPane}</>}
-        {viewMode === "site" && showInspector && <PageInspector page={current.page} busy={leaving || switchingView}
+            : <><div className="hidden" aria-hidden="true">{editorPane}</div>{previewPane}</>}}
+        right={viewMode === "site" && showInspector ? <PageInspector page={current.page} busy={leaving || switchingView}
           selectedBlock={selectedBlock}
           allowTextEdit={Boolean(editor && selectedBlock && selectedBlock.pageId === current.page.id && editableCanvasText(editor, selectedBlock))}
           onSaveText={(nextText) => {
@@ -328,9 +327,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           onEditBlock={() => { if (selectedBlock) editCanvasBlock(selectedBlock); }}
           onClearBlock={() => setSelectedBlock(null)}
           onChange={(action, id, value) => modify(action, id, value)}
-          onEditContent={() => void selectView("edit")} />}
-        {showBlockTools && viewMode === "edit" && <BlockPalette editor={editor} disabled={leaving} />}
-      </div>
+          onEditContent={() => void selectView("edit")} /> : viewMode === "edit" && showBlockTools ? <BlockPalette editor={editor} disabled={leaving} /> : undefined}
+      />
       <StudioQuickFind open={findOpen} onOpenChange={onFindOpenChange}
         projectId={document.project.id} shortcut={findShortcut} entries={pages.map(page => ({ id: page.id, title: page.title, description: page.navGroup, kind: "page" as const }))}
         onSelect={id => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }} />
