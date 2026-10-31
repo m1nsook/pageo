@@ -8,6 +8,7 @@ import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import type { Page } from "@/lib/pages";
 import { normalizeCanvasText, type CanvasBlockSelection } from "@/lib/canvas-blocks";
 import { previewPublicPage } from "@/lib/site";
+import { resolveCanvasLink } from "@/lib/site-preview-links";
 
 type Device = "desktop" | "tablet" | "phone";
 const deviceWidths: Record<Device, number> = { desktop: 1280, tablet: 768, phone: 390 };
@@ -259,6 +260,23 @@ export function InlineSitePreview({
 
     doc.addEventListener("click", (click: MouseEvent) => {
       if (editing) return;
+      const anchor = (click.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (anchor) {
+        // Links inside paragraphs must navigate, not select their parent paragraph.
+        // All navigation stays inside the parent Studio; scripts remain disabled.
+        click.preventDefault();
+        const destination = resolveCanvasLink(anchor.getAttribute("href") ?? "", pages.map(item => item.isPublic ? item.id : ""));
+        if (destination?.kind === "fragment") {
+          doc.getElementById(destination.fragment)?.scrollIntoView({ block: "start" });
+        } else if (destination?.kind === "page") {
+          if (destination.pageId === page.id) {
+            if (destination.fragment) doc.getElementById(destination.fragment)?.scrollIntoView({ block: "start" });
+          } else {
+            onNavigate(destination.pageId);
+          }
+        }
+        return;
+      }
       const source = page.isPublic ? selectedSourceBlock(article, click.target) : null;
       if (source && !click.ctrlKey && !click.metaKey) {
         click.preventDefault();
@@ -271,15 +289,8 @@ export function InlineSitePreview({
         paintSelection(doc, selected);
         return;
       }
-      const anchor = (click.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
-      if (!anchor) { onBlockSelect(null); paintSelection(doc, null); return; }
-      const href = anchor.getAttribute("href") ?? "";
-      if (href.startsWith("#")) return;
-      click.preventDefault();
-      const match = /^(?:\.\/)?([a-z0-9-]+)\.html(?:#[a-z0-9_-]+)?$/i.exec(href);
-      if (match && pages.some(item => item.id === match[1] && item.isPublic)) {
-        onNavigate(match[1]);
-      }
+      onBlockSelect(null);
+      paintSelection(doc, null);
     });
     doc.addEventListener("dblclick", (click: MouseEvent) => {
       if (!page.isPublic) return;
