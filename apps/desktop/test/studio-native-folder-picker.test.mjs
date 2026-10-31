@@ -14,7 +14,8 @@ test("native Windows dialog uses COM STA and no generic renderer file permission
 test("Browse supports parent-folder migration and existing-folder recovery with inert cancellation",()=>{
  const ui=read("src/components/studio/workspace-content.tsx");
  assert.match(ui,/mode: "new" \| "existing"/);
- assert.match(ui,/if \(selected === null\) return/);
+ assert.match(ui,/if \(picked === null\) return/);
+ assert.match(ui,/const selected = readableLocalPath\(picked\)/);
  assert.match(ui,/browseFolder\("existing"\)/);
  assert.match(ui,/browseFolder\("new"\)/);
  assert.match(read("src/lib/projects.ts"),/invoke<string \| null>\("pick_storage_folder"\)/);

@@ -41,6 +41,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { createBackupTaskCoordinator, type BackupTask } from "@/lib/backup-task";
+import { readableLocalPath } from "@/lib/windows-path";
 import { StudioUpdateDialog, useStudioUpdater } from "@/components/studio/studio-updater";
 import { StudioReleaseDialog, LAST_STUDIO_VERSION_KEY } from "@/components/studio/studio-release-dialog";
 import { STUDIO_VERSION } from "@/lib/release-notes";
@@ -556,8 +557,9 @@ export default function App() {
         },
       );
       if (!result.started) return;
-      setBackupPath(result.value);
-      setBackupNotice(t("studio.backup.saved", { path: result.value }));
+      const displayPath = readableLocalPath(result.value);
+      setBackupPath(displayPath);
+      setBackupNotice(t("studio.backup.saved", { path: displayPath }));
       toast.success("Project backup saved", { description: "A portable backup is ready in your local backups folder." });
     } catch (cause) {
       setError(friendlyError(cause));
