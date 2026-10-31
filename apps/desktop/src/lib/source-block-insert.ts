@@ -86,9 +86,10 @@ export function insertComponentAtMarkdownBoundary(
   const offset = sourceBoundary(source, editorBlocks, boundary);
   const before = source.slice(0, offset);
   const after = source.slice(offset);
-  const leading = before.length === 0 || before.endsWith("\n\n") ? ""
-    : before.endsWith("\n") ? "\n" : "\n\n";
-  const trailing = after.length === 0 ? "\n"
-    : after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
-  return before + leading + snippet + trailing + after;
+  const eol = source.includes("\r\n") ? "\r\n" : "\n";
+  const leading = before.length === 0 || before.endsWith(eol + eol) ? ""
+    : before.endsWith(eol) ? eol : eol + eol;
+  const trailing = after.length === 0 ? eol
+    : after.startsWith(eol + eol) ? "" : after.startsWith(eol) ? eol : eol + eol;
+  return before + leading + snippet.replace(/\n/g, eol) + trailing + after;
 }
