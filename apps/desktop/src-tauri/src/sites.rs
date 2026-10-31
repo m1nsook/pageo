@@ -924,7 +924,7 @@ fn theme_color_meta(mode: &str, palette: &str) -> String {
 // Open Graph uses language_region identifiers, unlike HTML's BCP 47 lang.
 fn social_locale(language: &str) -> String {
     let locale = match language {
-        "ko" => "ko_KR", "pl" => "pl_PL", "de" => "de_DE", "fr" => "fr_FR",
+        "en" => "en_US", "ko" => "ko_KR", "pl" => "pl_PL", "de" => "de_DE", "fr" => "fr_FR",
         "es" => "es_ES", "ja" => "ja_JP", "zh-CN" => "zh_CN", "zh-TW" => "zh_TW",
         "pt-BR" => "pt_BR", "ru" => "ru_RU", "uk" => "uk_UA", "ar" => "ar_SA",
         "tr" => "tr_TR", "it" => "it_IT", "cs" => "cs_CZ", "hu" => "hu_HU",
