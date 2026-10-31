@@ -79,7 +79,7 @@ Project backups are different from published website exports: a `.paglora` backu
 
 ### Local images in Studio
 
-Open **Images** while editing a page to import PNG, JPEG, WebP or GIF files (up to 5 MiB), browse existing project images and preview them offline. Enter descriptive alternative text, then choose **Insert image** to place ordinary `![alt](assets/name.png)` Markdown at the cursor, or **Copy Markdown** to use the image elsewhere. The text editor shows a labeled image placeholder; the published-site preview displays the image. Assets remain local and only images referenced by public pages or the site logo are exported.
+Open **Images** while editing a page to import PNG, JPEG, WebP or GIF files (up to 5 MiB), filter existing project images by filename and preview them offline. Small images have gallery thumbnails; large images are loaded only when selected to keep Studio responsive. Enter descriptive alternative text, then choose **Insert image** to place ordinary `![alt](assets/name.png)` Markdown at the cursor, or **Copy Markdown** to use the image elsewhere. The text editor shows a labeled image placeholder; the published-site preview displays the image. Assets remain local and only images referenced by public pages or the site logo are exported.
 
 ## Documentation and translations
 
