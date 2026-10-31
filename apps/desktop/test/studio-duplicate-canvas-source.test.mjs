@@ -10,7 +10,7 @@ const {findCanvasSourcePosition,editableCanvasText,replacePlainCanvasText}=await
  "data:text/javascript;base64,"+Buffer.from(code).toString("base64")
 );
 const p=text=>({type:{name:"paragraph"},attrs:{},textContent:text,nodeSize:text.length+2,
-  content:{childCount:1},firstChild:{isText:true,marks:[]}});
+  content:{childCount:1},firstChild:{isText:true,marks:[]},descendants() {}});
 const h=(text,level=1)=>({...p(text),type:{name:"heading"},attrs:{level}});
 function editor(nodes) {
  let changed=null;
