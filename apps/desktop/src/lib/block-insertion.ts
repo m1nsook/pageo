@@ -28,7 +28,8 @@ export function selectionBlockEnd(editor: Editor): number {
     : editor.state.doc.content.size;
 }
 
-type InsertionFailure = (reason: string) => void;
+export type InsertionFailureCode = "invalidDocument" | "notEditable" | "invalidPosition" | "error";
+type InsertionFailure = (reason: string, code?: InsertionFailureCode) => void;
 
 /** Single click/drag/gallery insertion path.
  *
@@ -41,14 +42,15 @@ type InsertionFailure = (reason: string) => void;
 export function insertBlockIntoEditor(
   editor: Editor, kind: BlockKind, clientY?: number, onFailure?: InsertionFailure,
 ): boolean {
-  const fail = (reason: string) => { onFailure?.(reason); return false; };
-  if (editor.isDestroyed || !editor.isEditable) return fail("The editor is not editable. Switch to Edit view.");
+  const fail = (reason: string, code: InsertionFailureCode = "error") => { onFailure?.(reason, code); return false; };
+  if (editor.isDestroyed || !editor.isEditable) return fail("The editor is not editable. Switch to Edit view.", "notEditable");
   try {
     const { state, view } = editor;
     try {
       state.doc.check();
     } catch {
-      return fail("This page contains invalid editor structure. Inspect its Markdown in Source view; no content was changed.");
+      // This describes the in-memory ProseMirror parse, NOT invalid user Markdown.
+      return fail("The visual editor could not represent this Markdown structure.", "invalidDocument");
     }
 
     // JSON is constructed from the vetted palette, not any external drag MIME.
@@ -63,7 +65,7 @@ export function insertBlockIntoEditor(
     const $position = state.doc.resolve(position);
     if ($position.depth !== 0 ||
       !state.doc.canReplaceWith($position.index(), $position.index(), block.type, block.marks)) {
-      return fail("That location cannot accept the selected component.");
+      return fail("That location cannot accept the selected component.", "invalidPosition");
     }
 
     const previous = state.doc;
