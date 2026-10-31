@@ -175,55 +175,97 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
 
 export function Settings({ location, desktop, updater, onOpenReleaseNotes }: { location: string; desktop: boolean; updater: StudioUpdaterControls; onOpenReleaseNotes: () => void }) {
   const { locale, setLocale, t } = useTranslation();
+  const rows = [
+    { keys: ["Ctrl", "F"], name: "Find projects or pages", detail: "Find by name or navigation group" },
+    { keys: ["Ctrl", "S"], name: "Save current page", detail: "Also saves a file in the source editor" },
+    { keys: ["Alt", "↑ / ↓"], name: "Move Markdown block", detail: "With a selected block in the Blocks outline" },
+    { keys: ["Esc"], name: "Close menu or search", detail: "Dismisses the current overlay" },
+  ];
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden">
       <WorkspaceHeader section={t("studio.nav.settings")} />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl animate-in fade-in-0 space-y-5 px-5 py-10 duration-200 lg:px-10">
-          <div className="mb-8"><h1 className="text-2xl font-semibold tracking-tight">{t("studio.settings.title")}</h1><p className="mt-1 text-sm text-muted-foreground">{t("studio.settings.description")}</p></div>
-          <Card>
-            <CardHeader><CardTitle>{t("studio.settings.appearance")}</CardTitle><CardDescription>{t("studio.settings.appearanceDescription")}</CardDescription></CardHeader>
-            <CardContent><ThemeSwitcher showLabel /></CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("studio.settings.language")}</CardTitle>
-              <CardDescription>{t("studio.settings.languageDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Select value={locale} onValueChange={setLocale}>
-                <SelectTrigger className="w-full max-w-xs" aria-label={t("studio.settings.language")}><SelectValue /></SelectTrigger>
-                <SelectContent>{LANGUAGES.map(item => (
-                  <SelectItem key={item.locale} value={item.locale}>{item.nativeName} ({item.englishName})</SelectItem>
-                ))}</SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">{t("studio.settings.languagePartial")}</p>
-            </CardContent>
-          </Card>
-          <Card><CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="size-4" /> {t("studio.settings.localStorage")}</CardTitle><CardDescription>{t("studio.settings.storageDescription")}</CardDescription></CardHeader>
-            <CardContent><div className="break-all rounded-md bg-muted p-3 font-mono text-xs text-foreground">{desktop ? location || t("studio.settings.storagePending") : t("studio.settings.desktopOnly")}</div><p className="mt-4 text-xs text-muted-foreground">{t("studio.settings.storageFuture")}</p></CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("studio.updater.stableTitle")}</CardTitle>
-              <CardDescription>{t("studio.updater.stableDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="outline" disabled={!desktop || updater.checking || updater.installing} onClick={() => void updater.check(true)}>
-                {updater.checking ? t("studio.updater.checking") : t("studio.updater.check")}
-              </Button>
-              {updater.message && <p role="status" className="text-sm text-muted-foreground">{updater.message}</p>}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("studio.settings.about")}</CardTitle>
-              <CardDescription>{t("studio.settings.aboutDescription")} · Studio v{STUDIO_VERSION}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" onClick={onOpenReleaseNotes}>{t("studio.release.open")}</Button>
-            </CardContent>
-          </Card>
+        <div className="mx-auto max-w-5xl animate-in fade-in-0 space-y-4 px-5 py-6 duration-200 lg:px-10">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div><h1 className="font-display text-2xl font-extrabold tracking-tight">{t("studio.settings.title")}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{t("studio.settings.description")}</p></div>
+            <Badge variant="outline" className="shrink-0 font-mono">v{STUDIO_VERSION}</Badge>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="gap-3">
+              <CardHeader><CardTitle>{t("studio.settings.appearance")}</CardTitle><CardDescription>{t("studio.settings.appearanceDescription")}</CardDescription></CardHeader>
+              <CardContent><ThemeSwitcher showLabel /></CardContent>
+            </Card>
+            <Card className="gap-3">
+              <CardHeader><CardTitle>{t("studio.settings.language")}</CardTitle><CardDescription>{t("studio.settings.languageDescription")}</CardDescription></CardHeader>
+              <CardContent className="space-y-2">
+                <Select value={locale} onValueChange={setLocale}>
+                  <SelectTrigger className="w-full max-w-xs" aria-label={t("studio.settings.language")}><SelectValue /></SelectTrigger>
+                  <SelectContent>{LANGUAGES.map(item => (
+                    <SelectItem key={item.locale} value={item.locale}>{item.nativeName} ({item.englishName})</SelectItem>
+                  ))}</SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t("studio.settings.languagePartial")}</p>
+              </CardContent>
+            </Card>
+            <Card className="gap-3 md:col-span-2">
+              <CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="size-4" /> {t("studio.settings.localStorage")}</CardTitle>
+                <CardDescription>{t("studio.settings.storageDescription")}</CardDescription></CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
+                  <code className="min-w-0 flex-1 break-all px-1 font-mono text-xs">{desktop ? location || t("studio.settings.storagePending") : t("studio.settings.desktopOnly")}</code>
+                  <Button variant="outline" size="sm" disabled={!desktop || !location}
+                    onClick={() => {
+                      if (!navigator.clipboard?.writeText) return;
+                      void navigator.clipboard.writeText(location).catch(error => console.warn("Could not copy local storage path", error));
+                    }}><Copy className="size-3.5" /> Copy path</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Portable .paglora backups are supported today. Exports are saved outside the projects folder in Paglora's local backup directory. Custom project directories are not supported yet.</p>
+              </CardContent>
+            </Card>
+            <Card className="gap-0 md:col-span-2">
+              <Accordion type="single" collapsible>
+                <AccordionItem value="shortcuts" className="border-0">
+                  <CardHeader>
+                    <AccordionTrigger className="w-full py-0 hover:no-underline">
+                      <span className="text-left"><CardTitle>Keyboard shortcuts</CardTitle>
+                        <CardDescription className="mt-1">Current built-in shortcuts and navigation. Custom keybindings are planned.</CardDescription></span>
+                    </AccordionTrigger>
+                  </CardHeader>
+                  <AccordionContent className="px-4 pb-3">
+                    <div className="divide-y divide-border/70">
+                      {rows.map(row => (
+                        <div key={row.name} className="flex items-center justify-between gap-3 py-2.5">
+                          <div><p className="text-sm font-medium">{row.name}</p><p className="text-xs text-muted-foreground">{row.detail}</p></div>
+                          <div className="flex shrink-0 items-center gap-1">{row.keys.map(key => <Kbd key={key}>{key}</Kbd>)}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">On macOS, use Command instead of Ctrl. Monaco source files have their own text-find command.</p>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </Card>
+            <Card className="gap-3">
+              <CardHeader><CardTitle>{t("studio.updater.stableTitle")}</CardTitle><CardDescription>{t("studio.updater.stableDescription")}</CardDescription></CardHeader>
+              <CardContent className="space-y-2">
+                <Button variant="outline" disabled={!desktop || updater.checking || updater.installing} onClick={() => void updater.check(true)}>
+                  {updater.checking ? t("studio.updater.checking") : t("studio.updater.check")}
+                </Button>
+                {updater.message && <p role="status" className="text-xs text-muted-foreground">{updater.message}</p>}
+              </CardContent>
+            </Card>
+            <Card className="gap-3">
+              <CardHeader><CardTitle>{t("studio.settings.about")}</CardTitle>
+                <CardDescription>Paglora Studio v{STUDIO_VERSION} · local-first documentation builder</CardDescription></CardHeader>
+              <CardContent className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={onOpenReleaseNotes}>{t("studio.release.open")}</Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://m1nsook.github.io/paglora-docs/" target="_blank" rel="noopener noreferrer"><ExternalLink className="size-3.5" /> Documentation</a>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </main>
