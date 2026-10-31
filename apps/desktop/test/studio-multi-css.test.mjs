@@ -10,7 +10,8 @@ test("stylesheets are a closed ordered cascade shared by preview and static Buil
  assert.match(s,/collect::<HashSet<_>>\(\)\.len\(\)/);
  assert.match(site,/crate::source::site_css\(&dir\)/);
  assert.match(site,/fs::write\(staged\.join\("custom\.css"\), css\)/);
- assert.match(site,/let override_css = theme\.map/);
+ assert.match(site,/let \(override_css, css_bytes\) = if let Some\(css\) = theme/);
+ assert.match(site,/inline_css_images\(&dir,&css\)/);
 });
 test("Monaco can create, edit and re-order only validated stylesheets",()=>{
  const src=read("src/components/editor/theme-source-editor.tsx");
