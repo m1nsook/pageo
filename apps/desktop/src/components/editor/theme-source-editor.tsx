@@ -33,7 +33,17 @@ export function ThemeSourceEditor({
   const [file, setFile] = useState<SourceFile>("theme/custom.css");
   const [value, setValue] = useState("");
   const [savedValue, setSavedValue] = useState("");
-  const [html, setHtml] = useState("");
+  // Two real, script-disabled site frames prevent a white flash when Monaco
+  // CSS/Markdown saves trigger a new preview. The old page stays visible
+  // until the next iframe confirms it is loaded.
+  type PreviewFrame = { html: string; revision: number };
+  const emptyPreview = (): PreviewFrame => ({ html: "", revision: 0 });
+  const [previewFrames, setPreviewFrames] = useState<[PreviewFrame, PreviewFrame]>([emptyPreview(), emptyPreview()]);
+  const [previewSlot, setPreviewSlot] = useState<0 | 1>(0);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const visiblePreviewSlot = useRef<0 | 1>(0);
+  const pendingPreview = useRef<{ revision: number; slot: 0 | 1 } | null>(null);
+  const previewRevision = useRef(0);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -53,10 +63,39 @@ export function ThemeSourceEditor({
   const language = file.endsWith(".json") ? "json" : file.endsWith(".md") ? "markdown" : "css";
 
   const refresh = useCallback(async () => {
-    // Preserve live editor autosave ordering before refreshing the actual site.
-    await beforePreviewRef.current();
-    setHtml(await previewPublicPage(projectId, currentPageId));
+    // A newer request supersedes old previews even if their async renderer
+    // resolves later. Avoid clearing the currently visible iframe.
+    const revision=++previewRevision.current;
+    pendingPreview.current=null;
+    setPreviewBusy(true);
+    try {
+      await beforePreviewRef.current();
+      if (revision!==previewRevision.current) return;
+      const rendered=await previewPublicPage(projectId,currentPageId);
+      if (revision!==previewRevision.current) return;
+      const slot: 0 | 1=visiblePreviewSlot.current===0?1:0;
+      pendingPreview.current={revision,slot};
+      setPreviewFrames(previous=>{
+        const next: [PreviewFrame,PreviewFrame]=[...previous];
+        next[slot]={html:rendered,revision};
+        return next;
+      });
+    } catch(cause) {
+      if(revision===previewRevision.current){
+        pendingPreview.current=null;
+        setPreviewBusy(false);
+        throw cause;
+      }
+    }
   }, [projectId, currentPageId]);
+
+  function finishPreviewLoad(slot:0|1,revision:number){
+    if(pendingPreview.current?.slot!==slot || pendingPreview.current.revision!==revision)return;
+    pendingPreview.current=null;
+    visiblePreviewSlot.current=slot;
+    setPreviewSlot(slot);
+    setPreviewBusy(false);
+  }
 
   const loadSelected = useCallback(async (next: SourceFile, version: number) => {
     setLoading(true);
@@ -89,7 +128,13 @@ export function ThemeSourceEditor({
     setFile("theme/custom.css");
     setValue("");
     setSavedValue("");
-    setHtml("");
+    // A project switch must never leak the previous project's preview.
+    previewRevision.current++;
+    pendingPreview.current=null;
+    visiblePreviewSlot.current=0;
+    setPreviewSlot(0);
+    setPreviewFrames([emptyPreview(),emptyPreview()]);
+    setPreviewBusy(false);
     setLoading(true);
     void beforePreviewRef.current()
       .then(async () => {
@@ -98,15 +143,14 @@ export function ThemeSourceEditor({
         if (version !== operation.current) return;
         setStyleFiles(order);
         await loadSelected("theme/custom.css", version);
-        const rendered = await previewPublicPage(projectId, currentPageId);
-        if (version === operation.current) setHtml(rendered);
+        if (version === operation.current) await refresh();
       })
       .catch(cause => { if (version === operation.current) setError(errorMessage(cause)); })
       .finally(() => { if (version === operation.current) setLoading(false); });
     return () => { operation.current++; };
     // Opening establishes a consistent saved-source snapshot. Switching pages
     // never recreates it; the dialog is modal while sources are edited.
-  }, [open, projectId, currentPageId, loadSelected]);
+  }, [open, projectId, currentPageId, loadSelected, refresh]);
 
   const selectFile = (next: SourceFile) => {
     if (saving || loading || next === file) return;
@@ -265,15 +309,31 @@ export function ThemeSourceEditor({
           </div>
           <div className="flex min-h-40 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-muted/30">
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
-              <span className="text-xs font-medium">Published website preview</span>
+              <span className="flex items-center gap-2 text-xs font-medium">Published website preview
+                {previewBusy && <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" aria-label="Refreshing preview" />}
+              </span>
               <StudioTooltip label="Refresh from saved files"><Button variant="ghost" size="icon-sm" aria-label="Refresh site preview" disabled={loading || saving} onClick={() => void refresh().catch(cause => setError(errorMessage(cause)))}>
                 <RefreshCcw />
               </Button></StudioTooltip>
             </div>
-            <div className="min-h-0 flex-1 p-2">
-              {html && <iframe title="Project source website preview" sandbox="allow-same-origin" srcDoc={html}
-                className="h-full min-h-36 w-full rounded-md border border-border bg-white" />}
-              {!html && !error && <div className="p-4 text-sm text-muted-foreground">Preparing website preview...</div>}
+            <div className="paglora-preview-stage relative min-h-0 flex-1 overflow-hidden p-2">
+              {previewFrames.map((snapshot, slot)=>snapshot.html ? (
+                <iframe key={`${slot}-${snapshot.revision}`}
+                  title={`Project source website preview ${slot+1}`}
+                  sandbox="allow-same-origin"
+                  srcDoc={snapshot.html}
+                  aria-hidden={previewSlot!==slot}
+                  tabIndex={previewSlot===slot ? 0 : -1}
+                  onLoad={()=>finishPreviewLoad(slot as 0|1,snapshot.revision)}
+                  style={{zIndex:previewSlot===slot?2:1,opacity:previewSlot===slot?1:0,
+                    pointerEvents:previewSlot===slot?"auto":"none"}}
+                  className="paglora-preview-frame absolute inset-2 h-[calc(100%-1rem)] w-[calc(100%-1rem)] rounded-md border bg-white"
+                />
+              ):null)}
+              {!previewFrames.some(frame=>frame.html) && !error &&
+                <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+                  <LoaderCircle className="size-4 animate-spin" /> Preparing website preview...
+                </div>}
             </div>
             <p className="shrink-0 border-t border-border p-3 text-xs text-muted-foreground">Scripts are disabled. Only public content appears in this preview.</p>
           </div>
