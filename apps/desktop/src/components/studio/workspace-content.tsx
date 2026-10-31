@@ -7,6 +7,7 @@ import { ProjectTrashPanel } from "@/components/studio/project-trash-panel";
 import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import { DEFAULT_PROJECT_VISUAL, PROJECT_ACCENTS, ProjectAppearanceDialog, ProjectIcon } from "@/components/studio/project-appearance";
 import type { TrashedProject } from "@/lib/projects";
+import { pickStorageFolder } from "@/lib/projects";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { StudioShortcutSettings } from "@/components/studio/studio-shortcut-settings";
@@ -225,6 +226,21 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
   const [storageDestination, setStorageDestination] = useState("");
   const [recoverPath, setRecoverPath] = useState("");
   const [recoverConfirmation, setRecoverConfirmation] = useState("");
+  const [folderPicking, setFolderPicking] = useState(false);
+  async function browseFolder(mode: "new" | "existing") {
+    if (!desktop || storageMigrating || folderPicking) return;
+    setFolderPicking(true);
+    try {
+      const selected = await pickStorageFolder();
+      if (selected === null) return;
+      if (mode === "new") {
+        const parent = selected.replace(/[\\/]+$/, "");
+        setStorageDestination(`${parent}${selected.includes("\\") ? "\\" : "/"}Paglora Projects`);
+      } else setRecoverPath(selected);
+    } catch (error) {
+      toast.error("Could not choose a folder", { description: String(error) });
+    } finally { setFolderPicking(false); }
+  }
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden">
       <WorkspaceHeader section={t("studio.nav.settings")} />
@@ -277,8 +293,9 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
                       void onReconnectStorage(recoverPath.trim(), recoverConfirmation).then(() => {setRecoverPath("");setRecoverConfirmation("");}).catch(() => undefined);
                     }}>
                       <Label htmlFor="storage-reconnect-folder">Existing Paglora projects folder (absolute path)</Label>
-                      <Input id="storage-reconnect-folder" value={recoverPath} onChange={e => setRecoverPath(e.target.value)}
-                        placeholder="E:\\Paglora Projects" autoComplete="off" disabled={storageMigrating} />
+                      <div className="flex flex-wrap gap-2"><Input id="storage-reconnect-folder" className="min-w-44 flex-1" value={recoverPath} onChange={e => setRecoverPath(e.target.value)}
+                        placeholder="E:\\Paglora Projects" autoComplete="off" disabled={storageMigrating || folderPicking} />
+                        <Button type="button" size="sm" variant="outline" disabled={storageMigrating || folderPicking} onClick={() => void browseFolder("existing")}>Browse…</Button></div>
                       <Label htmlFor="storage-reconnect-confirm">Type RECONNECT to confirm</Label>
                       <Input id="storage-reconnect-confirm" value={recoverConfirmation} onChange={e => setRecoverConfirmation(e.target.value)}
                         autoComplete="off" disabled={storageMigrating} />
@@ -296,9 +313,10 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
                 }}>
                   <div className="min-w-0 flex-1 space-y-1">
                     <Label htmlFor="storage-new-folder">Move projects to a new folder</Label>
-                    <Input id="storage-new-folder" placeholder="D:\\Paglora Projects" value={storageDestination}
+                    <div className="flex flex-wrap gap-2"><Input id="storage-new-folder" className="min-w-44 flex-1" placeholder="D:\\Paglora Projects" value={storageDestination}
                       onChange={event => setStorageDestination(event.target.value)}
-                      disabled={!desktop || storageMigrating} autoComplete="off" />
+                      disabled={!desktop || storageMigrating || folderPicking} autoComplete="off" />
+                      <Button type="button" size="sm" variant="outline" disabled={!desktop || storageMigrating || folderPicking} onClick={() => void browseFolder("new")}>Browse parent…</Button></div>
                   </div>
                   <Button variant="outline" type="submit" disabled={!desktop || storageMigrating || !storageDestination.trim()}>
                     {storageMigrating ? <LoaderCircle className="size-4 animate-spin" /> : <FolderOpen className="size-4" />}
