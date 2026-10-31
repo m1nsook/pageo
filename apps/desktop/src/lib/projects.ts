@@ -17,6 +17,11 @@ export async function createProject(name: string): Promise<ProjectDocument> {
   return invoke<ProjectDocument>("create_project", { name });
 }
 
+export async function updateProjectVisual(id: string, visual: import("@paglora/core").ProjectVisual): Promise<ProjectSummary> {
+  requireDesktop();
+  return invoke<ProjectSummary>("update_project_visual", { id, ...visual });
+}
+
 export async function loadProject(id: string): Promise<ProjectDocument> {
   requireDesktop();
   return invoke<ProjectDocument>("load_project", { id });
