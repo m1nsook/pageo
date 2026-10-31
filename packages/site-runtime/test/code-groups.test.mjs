@@ -20,14 +20,14 @@ function element(tag = "div") {
   };
 }
 
-function run({ rtl = false, groups = 1 } = {}) {
+function run({ rtl = false, groups = 1, labels = null, stored = null, storageThrows = false } = {}) {
   const root = { dataset: { colorMode: "light" }, dir: rtl ? "rtl" : "ltr" };
   const header = element("header");
-  const fixtures = Array.from({ length: groups }, () => {
+  const fixtures = Array.from({ length: groups }, (_, groupIndex) => {
     const group = element("section");
     group.attrs.set("aria-label", "Install");
     const container = element("div");
-    const panels = ["Bash", "PowerShell"].map(labelText => {
+    const panels = (labels?.[groupIndex] ?? ["Bash", "PowerShell"]).map(labelText => {
       const panel = element("div");
       const label = element("div");
       label.textContent = labelText;
@@ -46,13 +46,28 @@ function run({ rtl = false, groups = 1 } = {}) {
     querySelectorAll(selector) { return selector === ".docs .paglora-code-group" ? fixtures.map(f => f.group) : []; },
     createElement: element,
   };
+  const storage = new Map();
+  const listeners = {};
   const context = {
     document, URL, location: { href: "https://example.test/docs/index.html" },
-    localStorage: { getItem() { return null; }, setItem() {} },
-    addEventListener() {}, requestAnimationFrame(fn) { fn(); },
+    localStorage: {
+      getItem(key) {
+        if (storageThrows) throw new Error("Storage disabled");
+        return key.startsWith("paglora:code-language:") ? stored : null;
+      },
+      setItem(key, value) {
+        if (storageThrows) throw new Error("Storage disabled");
+        storage.set(key, value);
+      },
+    },
+    addEventListener(name, fn) { listeners[name] = fn; },
+    requestAnimationFrame(fn) { fn(); },
   };
   vm.runInNewContext(source, context);
-  return fixtures.map(f => ({ ...f, tabs: f.group.children[0].children }));
+  const rendered = fixtures.map(f => ({ ...f, tabs: f.group.children[0].children }));
+  rendered.storage = storage;
+  rendered.listeners = listeners;
+  return rendered;
 }
 
 test("published code group starts with one accessible visible panel", () => {
@@ -98,4 +113,66 @@ test("RTL arrow direction reverses and multiple groups have unique IDs", () => {
   assert.equal(first.panels[1].hidden, false);
   assert.notEqual(first.tabs[0].id, second.tabs[0].id);
   assert.notEqual(first.panels[0].id, second.panels[0].id);
+});
+
+test("selecting a code language synchronizes matching groups and saves a site-scoped preference", () => {
+  const rendered = run({
+    groups: 3,
+    labels: [["Bash", "PowerShell"], ["bash", "powershell"], ["Bash", "Fish"]],
+  });
+  rendered[0].tabs[1].listeners.click();
+  assert.equal(rendered[0].panels[1].hidden, false);
+  assert.equal(rendered[1].panels[1].hidden, false);
+  assert.equal(rendered[1].tabs[1].attrs.get("aria-selected"), "true");
+  assert.equal(rendered[1].tabs[1].focused, false, "synchronizing must not steal focus");
+  assert.equal(rendered[2].panels[0].hidden, false, "unmatched groups stay unchanged");
+  assert.equal(rendered.storage.get("paglora:code-language:/docs/"), "powershell");
+  rendered[1].tabs[0].listeners.keydown({ key: "End", preventDefault() {} });
+  assert.equal(rendered[0].panels[1].hidden, false);
+  assert.equal(rendered[1].tabs[1].focused, true);
+});
+
+test("stored language preference restores on reload and storage failure never breaks tabs", () => {
+  const restored = run({ stored: "  POWERSHELL  ", groups: 2 });
+  assert.equal(restored[0].panels[1].hidden, false);
+  assert.equal(restored[1].panels[1].hidden, false);
+  const blocked = run({ storageThrows: true, groups: 2 });
+  blocked[0].tabs[1].listeners.click();
+  assert.equal(blocked[1].panels[1].hidden, false);
+  assert.equal(blocked.storage.size, 0);
+});
+
+test("cross-tab preferences stay site-scoped and never apply invalid or missing labels", () => {
+  const rendered = run({ groups: 2 });
+  rendered.listeners.storage({ key: "paglora:code-language:/elsewhere/", newValue: "powershell" });
+  assert.equal(rendered[0].panels[0].hidden, false);
+  rendered.listeners.storage({ key: "paglora:code-language:/docs/", newValue: "powershell" });
+  assert.equal(rendered[0].panels[1].hidden, false);
+  assert.equal(rendered[1].panels[1].hidden, false);
+  rendered.listeners.storage({ key: "paglora:code-language:/docs/", newValue: "not-an-example" });
+  assert.equal(rendered[0].panels[1].hidden, false, "unknown labels must not hide examples");
+  rendered.listeners.storage({ key: "paglora:code-language:/docs/", newValue: null });
+  assert.equal(rendered[0].panels[0].hidden, false, "clearing preference resets to first example");
+  assert.equal(rendered[1].panels[0].hidden, false);
+});
+
+test("a group with no valid labels keeps local keyboard navigation without persisting", () => {
+  const rendered = run({ labels: [["", ""]] });
+  rendered[0].tabs[1].listeners.keydown({ key: "ArrowLeft", preventDefault() {} });
+  rendered[0].tabs[1].listeners.click();
+  assert.equal(rendered[0].panels[1].hidden, false);
+  assert.equal(rendered.storage.size, 0);
+});
+
+test("an unmatched saved language still starts with exactly one visible example", () => {
+  const rendered = run({ stored: "python", groups: 2 });
+  for (const { panels, tabs } of rendered) {
+    assert.equal(panels[0].hidden, false);
+    assert.equal(panels[1].hidden, true);
+    assert.equal(tabs[0].attrs.get("aria-selected"), "true");
+    assert.equal(tabs[1].attrs.get("aria-selected"), "false");
+  }
+  const oversized = run({ stored: "x".repeat(1000) });
+  assert.equal(oversized[0].panels[0].hidden, false);
+  assert.equal(oversized[0].panels[1].hidden, true);
 });
