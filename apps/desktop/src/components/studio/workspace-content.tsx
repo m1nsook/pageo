@@ -9,6 +9,7 @@ import { DEFAULT_PROJECT_VISUAL, PROJECT_ACCENTS, ProjectAppearanceDialog, Proje
 import type { TrashedProject } from "@/lib/projects";
 import { backupTaskMessage, type BackupTask } from "@/lib/backup-task";
 import { pickStorageFolder } from "@/lib/projects";
+import { readableLocalPath } from "@/lib/windows-path";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { StudioShortcutSettings } from "@/components/studio/studio-shortcut-settings";
@@ -239,8 +240,9 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
     if (!desktop || storageMigrating || folderPicking) return;
     setFolderPicking(true);
     try {
-      const selected = await pickStorageFolder();
-      if (selected === null) return;
+      const picked = await pickStorageFolder();
+      if (picked === null) return;
+      const selected = readableLocalPath(picked);
       if (mode === "new") {
         const parent = selected.replace(/[\\/]+$/, "");
         setStorageDestination(`${parent}${selected.includes("\\") ? "\\" : "/"}Paglora Projects`);
@@ -249,6 +251,7 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
       toast.error(t("studio.storage.pickerError"), { description: String(error) });
     } finally { setFolderPicking(false); }
   }
+  const configuredDisplayPath = readableLocalPath(storageStatus?.configuredPath || location);
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden">
       <WorkspaceHeader section={t("studio.nav.settings")} />
@@ -281,11 +284,11 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
                 <CardDescription>{t("studio.settings.storageDescription")}</CardDescription></CardHeader>
               <CardContent className="space-y-2" aria-busy={storageMigrating}>
                 <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
-                  <code className="min-w-0 flex-1 break-all px-1 font-mono text-xs">{desktop ? storageStatus?.configuredPath || location || t("studio.settings.storagePending") : t("studio.settings.desktopOnly")}</code>
-                  <Button variant="outline" size="sm" disabled={!desktop || !location}
+                  <code className="min-w-0 flex-1 break-all px-1 font-mono text-xs">{desktop ? configuredDisplayPath || t("studio.settings.storagePending") : t("studio.settings.desktopOnly")}</code>
+                  <Button variant="outline" size="sm" disabled={!desktop || !configuredDisplayPath}
                     onClick={() => {
                       if (!navigator.clipboard?.writeText) return;
-                      void navigator.clipboard.writeText(location).catch(error => console.warn("Could not copy local storage path", error));
+                      void navigator.clipboard.writeText(configuredDisplayPath).catch(error => console.warn("Could not copy local storage path", error));
                     }}><Copy className="size-3.5" /> {t("studio.storage.copyPath")}</Button>
                 </div>
                 <Accordion key={storageStatus?.available ? "online" : "offline"} type="single"
@@ -351,7 +354,7 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
                         <AlertDialogHeader>
                           <AlertDialogTitle>{t("studio.storage.returnTitle")}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            {t("studio.storage.returnDescription", { path: storageStatus.previousLocation })}
+                            {t("studio.storage.returnDescription", { path: readableLocalPath(storageStatus.previousLocation) })}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <Label htmlFor="storage-return-confirm">{t("studio.storage.returnConfirm")}</Label>

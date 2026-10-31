@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { buildPublicSite, loadSiteSettings, saveSiteSettings, type SiteBuildResult, type SiteSettings, type SiteBuildProgress } from "@/lib/site";
+import { readableLocalPath } from "@/lib/windows-path";
 
 export function SiteBuilder({ projectId, onBeforeBuild }: {
   projectId: string;
@@ -74,7 +75,7 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
         }
       });
       if (generation.current === started) {
-        setOutput(result.path);
+        setOutput(readableLocalPath(result.path));
         setReport(result);
         setBuildPhase("complete");
       }
