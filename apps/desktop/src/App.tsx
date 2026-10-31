@@ -33,7 +33,7 @@ import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { StudioUpdateDialog, useStudioUpdater } from "@/components/studio/studio-updater";
 import { StudioReleaseDialog, LAST_STUDIO_VERSION_KEY } from "@/components/studio/studio-release-dialog";
 import { STUDIO_VERSION } from "@/lib/release-notes";
-import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, loadProject, projectsDirectory, trashProject } from "@/lib/projects";
+import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, loadProject, migrateProjectStorage, projectsDirectory, trashProject } from "@/lib/projects";
 import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, setPageLayout, setPageNavigationGroup, type Page, type PageDocument } from "@/lib/pages";
 
 function friendlyError(error: unknown) { return error instanceof Error ? error.message : String(error); }
@@ -353,6 +353,8 @@ export default function App() {
   const [loading, setLoading] = useState(desktop);
   const [error, setError] = useState("");
   const [location, setLocation] = useState("");
+  const [storageMigrating, setStorageMigrating] = useState(false);
+  const [storageError, setStorageError] = useState("");
   const [backupNotice, setBackupNotice] = useState("");
   const [backupPath, setBackupPath] = useState("");
   const { t } = useTranslation();
@@ -461,16 +463,36 @@ export default function App() {
       toast.error("Could not remove project", { description: message });
     }
   }
+  async function moveStorage(destination: string) {
+    if (storageMigrating || active) return;
+    setStorageMigrating(true);
+    setStorageError("");
+    try {
+      const next = await migrateProjectStorage(destination);
+      setLocation(next);
+      await refresh();
+      toast.success("Projects copied to new location", {
+        description: "Every source file was verified. Original files were preserved for recovery.",
+      });
+    } catch (cause) {
+      const message = friendlyError(cause);
+      setStorageError(message);
+      toast.error("Project storage was not changed", { description: message });
+      throw cause;
+    } finally {
+      setStorageMigrating(false);
+    }
+  }
   const onSaved = useCallback((updated: ProjectSummary) => {
     setProjects((previous) => previous.map((p) => p.id === updated.id ? updated : p));
   }, []);
-  function navigate(next: WorkspaceView) { if (active) return; setView(next); }
+  function navigate(next: WorkspaceView) { if (active || storageMigrating) return; setView(next); }
 
   return (
     <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
       </SidebarInset>
       {!active && <StudioQuickFind open={findOpen} onOpenChange={setFindOpen}
         entries={projects.map(project => ({ id: project.id, title: project.name, description: "Local documentation project", kind: "project" as const }))}
