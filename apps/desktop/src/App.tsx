@@ -7,7 +7,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import { LocalImageNode } from "@/components/editor/local-image-node";
 import { AssetLibrary } from "@/components/editor/asset-library";
-import { ArrowLeft, BookOpen, Check, Columns2, LoaderCircle, Monitor, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PencilLine, Plus, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, Columns2, LoaderCircle, Monitor, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PencilLine, Plus, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,6 +23,7 @@ import { SitePreview } from "@/components/editor/site-preview";
 import { SiteDesigner } from "@/components/editor/site-designer";
 import { ThemeSourceEditor } from "@/components/editor/theme-source-editor";
 import { InlineSitePreview } from "@/components/editor/inline-site-preview";
+import { STUDIO_SPLIT_LAYOUT_KEY, StudioResizableSplit } from "@/components/editor/studio-resizable-split";
 import { editableCanvasText, findCanvasSourcePosition, replacePlainCanvasText, type CanvasBlockSelection } from "@/lib/canvas-blocks";
 import { preservePagloraMarkers } from "@/lib/markdown-markers";
 import { PageInspector } from "@/components/editor/page-inspector";
@@ -88,6 +89,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving" | "error">("saved");
   const [saveError, setSaveError] = useState("");
   const [viewMode, setViewMode] = useState<"edit" | "split" | "site">("site");
+  const [splitResetToken, setSplitResetToken] = useState(0);
   const [switchingView, setSwitchingView] = useState(false);
   const [siteRevision, setSiteRevision] = useState(0);
   const [showBlockTools, setShowBlockTools] = useState(true);
@@ -193,6 +195,49 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     void runAfterSave(() => onModify(action, id, target));
   };
 
+  // Retain the TipTap editor DOM while using the website canvas to allow
+  // source-mapped inline edits in site mode without losing editor state.
+  const editorPane = (
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto" aria-label={t("studio.editor.documentationEditor")}>
+          <FormatToolbar editor={editor} />
+          <div data-editor-drop-zone className="mx-auto min-h-[calc(100%-3rem)] max-w-3xl animate-in fade-in-0 px-6 py-9 duration-200 lg:px-10 lg:py-12">
+            {saveError && <p role="alert" className="mb-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{t("studio.editor.saveError", { message: saveError })}</p>}
+            <div onKeyDown={(event) => {
+              // ProseMirror handles Ctrl/Cmd+B inside the editor. Keep it from
+              // bubbling to shadcn Sidebar's global collapse shortcut.
+              if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b" &&
+                  event.target instanceof HTMLElement && event.target.isContentEditable) {
+                event.stopPropagation();
+              }
+            }}>
+              <EditorContent editor={editor}/>
+            </div>
+          </div>
+        </section>
+        </div>
+  );
+  const previewPane = (
+    <InlineSitePreview
+          projectId={document.project.id}
+          page={current.page}
+          pages={pages}
+          savedVersion={siteRevision}
+          onBeforeRefresh={persist}
+          selectedBlock={selectedBlock}
+          onBlockSelect={(block) => { setSelectedBlock(block); if (block) setShowInspector(true); }}
+          onBlockEdit={editCanvasBlock}
+          canInlineTextEdit={(block) => Boolean(editor && block.pageId === current.page.id && editableCanvasText(editor, block))}
+          onApplyInlineText={(block, text) => {
+            if (!editor || block.pageId !== current.page.id || leaving || switchingView) return false;
+            return replacePlainCanvasText(editor, block, text);
+          }}
+          onNavigate={(pageId) => {
+            if (pageId !== current.page.id) void runAfterSave(() => onChange(pageId));
+          }}
+        />
+  );
+
   return (
     <main className="flex h-full min-w-0 flex-1 flex-col bg-background">
       <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-3 py-2 lg:px-5">
@@ -216,6 +261,13 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
             <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "split" ? "secondary" : "ghost"} aria-pressed={viewMode === "split"} onClick={() => void selectView("split")} className="gap-1.5 px-2.5"><Columns2 />{t("studio.editor.split")}</Button>
             <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "site" ? "secondary" : "ghost"} aria-pressed={viewMode === "site"} onClick={() => void selectView("site")} className="gap-1.5 px-2.5"><Monitor />{t("studio.editor.canvas")}</Button>
           </div>
+          {viewMode === "split" && <Button type="button" size="sm" variant="ghost" className="gap-1.5"
+            aria-label="Reset source and preview widths" onClick={() => {
+              try { localStorage.removeItem(STUDIO_SPLIT_LAYOUT_KEY); } catch { /* Local preferences are optional. */ }
+              setSplitResetToken(previous => previous + 1);
+            }}>
+            <RotateCcw className="size-3.5" /> Reset layout
+          </Button>}
           <AssetLibrary projectId={document.project.id} canInsert={viewMode !== "site" && !leaving && !switchingView && Boolean(editor)}
             onInsertImage={(src, alt) => Boolean(editor?.chain().focus().insertContent({ type: "pagloraImage", attrs: { src, alt } }).run())} />
           <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"} onBeforePreview={persist} />
@@ -228,42 +280,11 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
         {showPages && <PageNavigation pages={pages} currentId={current.page.id} busy={leaving}
           onNavigate={(id) => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }}
           onAction={modify}/>}
-        <div className={viewMode === "site" ? "hidden" : viewMode === "split" ? "flex min-h-0 min-w-0 flex-1 flex-col border-r border-border xl:w-1/2" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
-        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto" aria-label={t("studio.editor.documentationEditor")}>
-          <FormatToolbar editor={editor} />
-          <div data-editor-drop-zone className="mx-auto min-h-[calc(100%-3rem)] max-w-3xl animate-in fade-in-0 px-6 py-9 duration-200 lg:px-10 lg:py-12">
-            {saveError && <p role="alert" className="mb-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{t("studio.editor.saveError", { message: saveError })}</p>}
-            <div onKeyDown={(event) => {
-              // ProseMirror handles Ctrl/Cmd+B inside the editor. Keep it from
-              // bubbling to shadcn Sidebar's global collapse shortcut.
-              if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b" &&
-                  event.target instanceof HTMLElement && event.target.isContentEditable) {
-                event.stopPropagation();
-              }
-            }}>
-              <EditorContent editor={editor}/>
-            </div>
-          </div>
-        </section>
-        </div>
-        {viewMode !== "edit" && <InlineSitePreview
-          projectId={document.project.id}
-          page={current.page}
-          pages={pages}
-          savedVersion={siteRevision}
-          onBeforeRefresh={persist}
-          selectedBlock={selectedBlock}
-          onBlockSelect={(block) => { setSelectedBlock(block); if (block) setShowInspector(true); }}
-          onBlockEdit={editCanvasBlock}
-          canInlineTextEdit={(block) => Boolean(editor && block.pageId === current.page.id && editableCanvasText(editor, block))}
-          onApplyInlineText={(block, text) => {
-            if (!editor || block.pageId !== current.page.id || leaving || switchingView) return false;
-            return replacePlainCanvasText(editor, block, text);
-          }}
-          onNavigate={(pageId) => {
-            if (pageId !== current.page.id) void runAfterSave(() => onChange(pageId));
-          }}
-        />}
+        {viewMode === "split"
+          ? <StudioResizableSplit source={editorPane} preview={previewPane} resetToken={splitResetToken} />
+          : viewMode === "edit"
+            ? editorPane
+            : <><div className="hidden" aria-hidden="true">{editorPane}</div>{previewPane}</>}
         {viewMode === "site" && showInspector && <PageInspector page={current.page} busy={leaving || switchingView}
           selectedBlock={selectedBlock}
           allowTextEdit={Boolean(editor && selectedBlock && selectedBlock.pageId === current.page.id && editableCanvasText(editor, selectedBlock))}
