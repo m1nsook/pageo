@@ -7,6 +7,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import { LocalImageNode } from "@/components/editor/local-image-node";
 import { AssetLibrary } from "@/components/editor/asset-library";
+import { InlinePageTitle } from "@/components/editor/inline-page-title";
 import { ArrowLeft, BookOpen, Check, Columns2, LoaderCircle, Monitor, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PencilLine, Plus, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -184,6 +185,22 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
       setSwitchingView(false);
     }
   }
+  async function renamePageInline(title: string) {
+    if (leaving || switchingView) throw new Error("Studio is busy saving.");
+    setLeaving(true);
+    try {
+      await persist();
+      await onModify("rename", current.page.id, title);
+      setSiteRevision(version => version + 1);
+    } catch (cause) {
+      setSaveState("error");
+      setSaveError(friendlyError(cause));
+      throw cause;
+    } finally {
+      setLeaving(false);
+    }
+  }
+
   function editCanvasBlock(block: CanvasBlockSelection) {
     if (block.pageId !== current.page.id || leaving || switchingView) return;
     setSelectedBlock(block);
@@ -247,7 +264,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           <Separator orientation="vertical" className="mx-1 h-5"/>
           <Button onClick={() => void back()} variant="ghost" size="icon-sm" disabled={leaving} aria-label={t("studio.editor.backToProjects")}><ArrowLeft /></Button>
           <span className="hidden size-8 items-center justify-center rounded-lg bg-primary/10 text-primary sm:flex"><BookOpen className="size-4"/></span>
-          <div className="min-w-0"><div className="max-w-44 truncate text-sm font-semibold lg:max-w-64">{document.project.name}</div><div className="max-w-44 truncate text-xs text-muted-foreground lg:max-w-64">{current.page.title}</div></div>
+          <div className="min-w-0"><div className="max-w-44 truncate text-sm font-semibold lg:max-w-64">{document.project.name}</div><InlinePageTitle title={current.page.title} pageId={current.page.id} disabled={leaving || switchingView} onRename={renamePageInline} /></div>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={saveState === "error" ? "destructive" : "secondary"} className="gap-1.5 whitespace-nowrap">
