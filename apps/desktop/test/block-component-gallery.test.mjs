@@ -14,7 +14,7 @@ const { BLOCK_MARKDOWN_EXAMPLES: examples } =
 test("component library has a portable Markdown example for every offered block", () => {
   const catalog = read("src/components/editor/block-catalog.ts");
   const offered = [...catalog.matchAll(/kind: "([a-zA-Z0-9]+)", title:/g)].map(x => x[1]);
-  assert.equal(offered.length, 14);
+  assert.equal(offered.length, 20);
   assert.deepEqual(Object.keys(examples).sort(), offered.sort());
   for (const [name, markdown] of Object.entries(examples)) {
     assert.equal(typeof markdown, "string", name);
@@ -27,6 +27,8 @@ test("special documentation blocks use Paglora's existing portable callout marke
   for (const [kind, marker] of [
     ["card", "[!CARD]"], ["steps", "[!STEPS]"], ["accordion", "[!ACCORDION]"],
     ["tabs", "[!TABS]"], ["codeGroup", "[!CODEGROUP]"], ["badges", "[!BADGES]"],
+    ["note", "[!NOTE]"], ["tip", "[!TIP]"], ["important", "[!IMPORTANT]"],
+    ["warning", "[!WARNING]"], ["caution", "[!CAUTION]"],
   ]) {
     assert.ok(examples[kind].includes(marker), `${kind} must round-trip as Paglora Markdown`);
   }
