@@ -16,7 +16,7 @@ test("Ctrl+F opens the Studio finder and respects Monaco", () => {
 });
 
 test("project removal moves local project files instead of erasing them", () => {
-  const rust = read("src-tauri/src/projects.rs");
+  const rust = read("src-tauri/src/projects.rs").replace(/\r\n/g, "\n");
   assert.match(rust, /fn move_project_to_trash\(/);
   assert.match(rust, /fs::rename\(&folder, &destination\)/);
   assert.doesNotMatch(rust.slice(rust.indexOf("fn move_project_to_trash"), rust.indexOf("#\[tauri::command\]\npub fn trash_project")), /remove_dir_all/);
