@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fs, io::Write, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 /// A local project controls its own site CSS; no system-wide stylesheet is edited.
 const MAX_CSS_BYTES: usize = 256_000;
