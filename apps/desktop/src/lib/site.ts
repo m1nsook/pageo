@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { marked } from "marked";
+import { translate } from "@/i18n";
 import { listPages, loadPage } from "@/lib/pages";
 
 export type SiteLink = { label: string; url: string };
@@ -146,10 +147,13 @@ export function renderSafeMarkdown(html: string): string {
  * after sanitizing all user HTML. The same transformation runs in preview and
  * static export, so the project's Markdown stays the source of truth.
  */
-function enhanceCallouts(container: HTMLElement) {
+function enhanceCallouts(container: HTMLElement, language: string) {
   const labels: Record<string, string> = {
-    NOTE: "Note", TIP: "Tip", IMPORTANT: "Important",
-    WARNING: "Warning", CAUTION: "Caution",
+    NOTE: translate(language, "docs.callout.note"),
+    TIP: translate(language, "docs.callout.tip"),
+    IMPORTANT: translate(language, "docs.callout.important"),
+    WARNING: translate(language, "docs.callout.warning"),
+    CAUTION: translate(language, "docs.callout.caution"),
   };
   for (const quote of Array.from(container.querySelectorAll("blockquote"))) {
     const first = quote.firstElementChild;
@@ -245,10 +249,10 @@ export type TocHeading = { id: string; title: string; level: 2 | 3 };
  * Explicit IDs are generated after sanitization so neither raw HTML nor an
  * unsanitized Markdown heading can inject attributes into the exported site.
  */
-function renderPageContent(markdownHtml: string): { html: string; toc: TocHeading[]; searchText: string } {
+function renderPageContent(markdownHtml: string, language: string): { html: string; toc: TocHeading[]; searchText: string } {
   const container = document.createElement("div");
   container.innerHTML = renderSafeMarkdown(markdownHtml);
-  enhanceCallouts(container);
+  enhanceCallouts(container, language);
   groupAdjacentCards(container);
   const seen = new Set<string>();
   const toc: TocHeading[] = [];
@@ -272,12 +276,12 @@ function renderPageContent(markdownHtml: string): { html: string; toc: TocHeadin
 }
 
 export async function buildPublicSite(projectId: string): Promise<SiteBuildResult> {
-  const pages = await listPages(projectId);
+  const [pages, settings] = await Promise.all([listPages(projectId), loadSiteSettings(projectId)]);
   const publicPages = pages.filter(page => page.isPublic);
   const rendered = await Promise.all(publicPages.map(async page => {
     const document = await loadPage(projectId, page.id);
     const html = await marked.parse(document.markdown);
-    return { id: page.id, ...renderPageContent(html) };
+    return { id: page.id, ...renderPageContent(html, settings.language) };
   }));
   return invoke<SiteBuildResult>("build_site", { projectId, rendered });
 }
@@ -286,11 +290,14 @@ export async function buildPublicSite(projectId: string): Promise<SiteBuildResul
  * Unlike buildPublicSite, this writes no files to disk.
  */
 export async function previewPublicPage(projectId: string, pageId: string, settingsOverride?: SiteSettings): Promise<string> {
-  const document = await loadPage(projectId, pageId);
+  const [document, settings] = await Promise.all([
+    loadPage(projectId, pageId),
+    settingsOverride ? Promise.resolve(settingsOverride) : loadSiteSettings(projectId),
+  ]);
   const html = await marked.parse(document.markdown);
   return invoke<string>("preview_site_page", {
     projectId,
-    rendered: { id: pageId, ...renderPageContent(html) },
+    rendered: { id: pageId, ...renderPageContent(html, settings.language) },
     settingsOverride,
   });
 }
