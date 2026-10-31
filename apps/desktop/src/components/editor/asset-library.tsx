@@ -1,11 +1,40 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, ImagePlus, LoaderCircle, Upload } from "lucide-react";
+import { Check, Copy, Image as ImageIcon, ImagePlus, LoaderCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { defaultImageAlt, imageMarkdown } from "@/lib/image-markdown";
+import { filterSiteAssets, IMAGE_GALLERY_PAGE_SIZE, INLINE_THUMBNAIL_LIMIT } from "@/lib/asset-gallery";
 import { importSiteAsset, listSiteAssets, previewSiteAsset, type SiteAsset } from "@/lib/site";
+
+/** Only small images get inline gallery thumbnails; large images are loaded only
+ * when selected, avoiding a multi-hundred-megabyte WebView gallery. */
+function AssetTile({ asset, projectId, selected, onChoose }: {
+  asset: SiteAsset; projectId: string; selected: boolean; onChoose: () => void;
+}) {
+  const [thumbnail, setThumbnail] = useState("");
+  useEffect(() => {
+    let active = true;
+    setThumbnail("");
+    if (asset.bytes <= INLINE_THUMBNAIL_LIMIT) {
+      void previewSiteAsset(projectId, asset.url)
+        .then(data => { if (active) setThumbnail(data); })
+        .catch(() => { /* The selected-image preview reports errors separately. */ });
+    }
+    return () => { active = false; };
+  }, [asset.bytes, asset.url, projectId]);
+
+  return <button type="button" aria-pressed={selected} onClick={onChoose}
+    className="min-w-0 rounded-md border p-2 text-left text-xs hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary aria-pressed:border-primary aria-pressed:bg-primary/10">
+    <span className="mb-2 flex h-20 items-center justify-center overflow-hidden rounded bg-muted/50">
+      {thumbnail ? <img src={thumbnail} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
+        : <ImageIcon className="size-6 text-muted-foreground" aria-hidden="true" />}
+    </span>
+    <span className="block truncate font-medium" title={asset.url.slice(7)}>{asset.url.slice(7)}</span>
+    <span className="text-muted-foreground">{Math.ceil(asset.bytes / 1024)} KiB · {asset.mime.slice(6).toUpperCase()}</span>
+  </button>;
+}
 
 export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
   projectId: string;
@@ -22,11 +51,14 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [query, setQuery] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(IMAGE_GALLERY_PAGE_SIZE);
   const generation = useRef(0);
 
   useEffect(() => {
     const version = ++generation.current;
     setAssets([]); setSelected(""); setAlt(""); setPreview(""); setError(""); setCopied(false);
+    setQuery(""); setVisibleLimit(IMAGE_GALLERY_PAGE_SIZE);
     if (!open) return;
     setLoading(true);
     void listSiteAssets(projectId)
@@ -66,7 +98,7 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
       if (generation.current !== version) return;
       const items = await listSiteAssets(projectId);
       if (generation.current !== version) return;
-      setAssets(items); choose(url);
+      setAssets(items); setQuery(""); setVisibleLimit(IMAGE_GALLERY_PAGE_SIZE); choose(url);
     } catch (cause) {
       if (generation.current === version) setError(String(cause));
     } finally {
@@ -81,6 +113,9 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
       setCopied(true); setError("");
     } catch (cause) { setError("Unable to copy Markdown: " + String(cause)); }
   }
+
+  const matchingAssets = filterSiteAssets(assets, query);
+  const visibleAssets = matchingAssets.slice(0, visibleLimit);
 
   return (
     <Dialog open={open} onOpenChange={value => { if (!uploading) setOpen(value); }}>
@@ -105,13 +140,22 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
           {error && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
           {(loading || uploading) && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />{uploading ? "Importing image…" : "Loading images…"}</p>}
           {!loading && assets.length === 0 && <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">No local images yet. Import one to get started.</p>}
-          {assets.length > 0 && <div role="group" aria-label="Project images" className="grid max-h-44 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
-            {assets.map(asset => <button key={asset.url} type="button" aria-pressed={selected === asset.url}
-              className="min-w-0 rounded-md border p-2 text-left text-xs hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary aria-pressed:border-primary aria-pressed:bg-primary/10"
-              onClick={() => choose(asset.url)}>
-              <span className="block truncate font-medium">{asset.url.slice(7)}</span>
-              <span className="text-muted-foreground">{Math.ceil(asset.bytes / 1024)} KiB · {asset.mime.slice(6).toUpperCase()}</span>
-            </button>)}
+          {assets.length > 0 && <div className="space-y-2">
+            <Label htmlFor="paglora-image-search">Find an image</Label>
+            <Input id="paglora-image-search" type="search" value={query} placeholder="Filter by filename"
+              onChange={event => { setQuery(event.target.value); setVisibleLimit(IMAGE_GALLERY_PAGE_SIZE); }} />
+            <p role="status" className="text-xs text-muted-foreground">
+              Showing {visibleAssets.length} of {matchingAssets.length} matching images
+            </p>
+            {matchingAssets.length === 0 && <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">No images match this filename.</p>}
+            <div role="group" aria-label="Project images" className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
+              {visibleAssets.map(asset => <AssetTile key={asset.url} asset={asset} projectId={projectId}
+                selected={selected === asset.url} onChoose={() => choose(asset.url)} />)}
+            </div>
+            {matchingAssets.length > visibleLimit && <Button type="button" variant="outline" size="sm"
+              onClick={() => setVisibleLimit(value => value + IMAGE_GALLERY_PAGE_SIZE)}>
+              Show more images ({matchingAssets.length - visibleLimit} remaining)
+            </Button>}
           </div>}
           {selected && <section aria-label="Selected image" className="space-y-3 border-t pt-4">
             <div className="flex min-h-32 items-center justify-center rounded-md bg-muted/50 p-3">
