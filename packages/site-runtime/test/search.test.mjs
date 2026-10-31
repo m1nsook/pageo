@@ -374,3 +374,14 @@ test("search rejects unbounded malformed indexes before indexing", async () => {
   assert.match(results.children[0].textContent, /Search index could not be loaded/);
   assert.equal(results.children[1].className, "paglora-search-retry");
 });
+
+test("search excerpts preserve matching text after locale case-fold expansion", async () => {
+  const app = fixture([
+    { title: "Turkish case folding", url: "turkish.html", text: "İ".repeat(120) + " NEEDLE appears here" },
+  ]);
+  const { input, results } = await app.open();
+  input.value = "needle";
+  input.events.input();
+  assert.equal(results.children[0].href, "turkish.html");
+  assert.match(results.children[0].children[1].textContent, /NEEDLE appears here/);
+});

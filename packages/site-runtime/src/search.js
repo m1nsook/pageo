@@ -194,9 +194,30 @@ import MiniSearch from "minisearch";
       if (page.bodySearch.includes(phrase)) score += 10;
       const positions = terms.map(term => page.bodySearch.indexOf(term)).filter(index => index >= 0);
       const start = Math.max(0, (positions.length ? Math.min(...positions) : 0) - 64);
+      const excerptStart = page.text.length === page.bodySearch.length
+        ? start : displayOffset(page.text, start);
       return { title: page.title, url: page.url,
-        snippet: page.text.slice(start, start + 200).trim(), score };
+        snippet: page.text.slice(excerptStart, excerptStart + 200).trim(), score };
     }).sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, 8);
+  }
+
+  // Locale-aware case folding can expand characters (for example İ → i + dot).
+  // Convert search-string offsets back to the displayed text before slicing
+  // excerpts, so a match after many expanded characters stays visible.
+  function displayOffset(text, searchOffset) {
+    let low = 0;
+    let high = text.length;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (normalize(text.slice(0, middle)).length < searchOffset) low = middle + 1;
+      else high = middle;
+    }
+    // Never begin an excerpt in the middle of a surrogate pair.
+    if (low > 0 && low < text.length) {
+      const unit = text.charCodeAt(low);
+      if (unit >= 0xdc00 && unit <= 0xdfff) low--;
+    }
+    return low;
   }
 
   function updateSelected() {
