@@ -1426,7 +1426,7 @@ mod website_font_tests {
             id: "index".into(), title: "Overview".into(), is_public: true,
             layout: "docs".into(), nav_group: "Documentation".into(),
         };
-        let html = render_site_page(&settings, &[page.clone()], &page, "<div class=\\"paglora-card-grid\\"></div>", &[]);
+        let html = render_site_page(&settings, &[page.clone()], &page, r##"<div class="paglora-card-grid"></div>"##, &[]);
         html.contains(r#"data-card-layout="grid""#)
             && html.contains("paglora-card-grid")
             && SITE_CSS.contains(r#":root[data-card-layout="grid"] .docs .paglora-card-grid"#)
