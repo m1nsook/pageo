@@ -109,7 +109,7 @@ function enhance(root, document, translate) {
     const marker = first.firstChild;
     if (!marker || marker.nodeType !== 3) continue;
     const text = marker.textContent || "";
-    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS)\](?:\s|$)/i.exec(text);
+    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|TABS|CODEGROUP)\](?:\s|$)/i.exec(text);
     if (!match) continue;
     const kind = match[1].toUpperCase();
     if (kind === "CARD") {
@@ -139,6 +139,62 @@ function enhance(root, document, translate) {
       first.remove();list.classList.add("paglora-steps-list");
       while(quote.firstChild)step.appendChild(quote.firstChild);
       quote.replaceWith(step);continue;
+    }
+    if (kind === "TABS") {
+      const sources=[...quote.children].slice(1);
+      if (sources.length<2 || sources.length>8) continue;
+      const names=sources.map(source=>{
+        if (source.tagName!=="BLOCKQUOTE" || source.children.length<2) return null;
+        const first=source.firstElementChild;
+        if (first?.tagName!=="P" || first.childNodes.length!==1 ||
+            first.firstChild?.nodeType!==3) return null;
+        return /^\s*\[!TAB\]\s+([^\r\n]{1,60})\s*$/i.exec(first.textContent||"")?.[1]?.trim() || null;
+      });
+      if(names.some(name=>!name))continue;
+      const group=document.createElement("section");
+      group.className="paglora-tabs";
+      const title=text.slice(match[0].length).trim().slice(0,160);
+      group.setAttribute("aria-label",title||"Content tabs");
+      if(title) {
+        const label=document.createElement("div");
+        label.className="paglora-tabs-title";label.textContent=title;group.appendChild(label);
+      }
+      const panels=document.createElement("div");panels.className="paglora-tabs-panels";
+      sources.forEach((source,index)=>{
+        source.firstElementChild.remove();
+        const panel=document.createElement("div");panel.className="paglora-tabs-item";
+        const caption=document.createElement("div");caption.className="paglora-tabs-label";
+        caption.textContent=names[index];panel.appendChild(caption);
+        while(source.firstChild)panel.appendChild(source.firstChild);
+        panels.appendChild(panel);
+      });
+      group.appendChild(panels);quote.replaceWith(group);continue;
+    }
+    if(kind==="CODEGROUP") {
+      const blocks=[...quote.children].slice(1);
+      if(blocks.length<2 || blocks.length>12 ||
+          blocks.some(child=>child.tagName!=="PRE" || child.firstElementChild?.tagName!=="CODE"))continue;
+      const group=document.createElement("section");group.className="paglora-code-group";
+      const title=text.slice(match[0].length).trim().slice(0,160);
+      group.setAttribute("aria-label",title||"Code examples");
+      if(title) {
+        const label=document.createElement("div");label.className="paglora-code-group-title";
+        label.textContent=title;group.appendChild(label);
+      }
+      const panels=document.createElement("div");panels.className="paglora-code-group-panels";
+      const names={js:"JavaScript",javascript:"JavaScript",ts:"TypeScript",typescript:"TypeScript",
+        jsx:"JSX",tsx:"TSX",py:"Python",python:"Python",sh:"Shell",bash:"Bash",
+        ps1:"PowerShell",powershell:"PowerShell",json:"JSON",html:"HTML",css:"CSS",
+        rs:"Rust",rust:"Rust"};
+      blocks.forEach((pre,index)=>{
+        const code=pre.firstElementChild;
+        const language=/^language-([a-z][a-z0-9+#-]{0,31})$/i.exec(code.getAttribute("class")||"")?.[1]?.toLowerCase();
+        const caption=document.createElement("div");caption.className="paglora-code-group-label";
+        caption.textContent=language ? (names[language]||language.toUpperCase()) : "Example "+(index+1);
+        const panel=document.createElement("div");panel.className="paglora-code-group-item";
+        panel.appendChild(caption);panel.appendChild(pre);panels.appendChild(panel);
+      });
+      group.appendChild(panels);quote.replaceWith(group);continue;
     }
     const alert=document.createElement("aside");
     alert.className="paglora-callout paglora-callout-"+kind.toLowerCase();

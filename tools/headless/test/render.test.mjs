@@ -53,3 +53,30 @@ test("rejects invalid public page manifest before writing output",()=>{
     assert.throws(()=>execFileSync(process.execPath,[tool,folder,out],{stdio:"pipe"}));
   }finally{rmSync(temp,{recursive:true,force:true});}
 });
+
+test("headless exports first-party nested tabs and code groups instead of plain quotes",()=>{
+ const temp=mkdtempSync(join(tmpdir(),"paglora-headless-tabs-")),folder=join(temp,"sample"),out=join(temp,"rendered.json");
+ try {
+   makeProject(folder);
+   const fence=String.fromCharCode(96).repeat(3);
+   const md=[
+     "# Components","",
+     "> [!TABS] Platforms",">",
+     "> > [!TAB] Windows","> >","> > Download the Windows installer.",">",
+     "> > [!TAB] Linux","> >","> > Linux instructions.","",
+     "> [!CODEGROUP] API examples",">",
+     "> "+fence+"js","> console.log('hello')","> "+fence,">",
+     "> "+fence+"json",'> {"ready":true}',"> "+fence,
+   ].join("\n");
+   writeFileSync(join(folder,"docs","index.md"),md);
+   execFileSync(process.execPath,[tool,folder,out],{encoding:"utf8"});
+   const html=JSON.parse(readFileSync(out,"utf8"))[0].html;
+   assert.match(html,/paglora-tabs-panels/);
+   assert.match(html,/paglora-tabs-item/);
+   assert.match(html,/paglora-code-group-panels/);
+   assert.match(html,/paglora-code-group-item/);
+   assert.match(html,/Windows installer/);
+   assert.match(html,/console\.log/);
+   assert.doesNotMatch(html,/<blockquote>\s*<p>\[!(?:TABS|CODEGROUP)/);
+ }finally{rmSync(temp,{recursive:true,force:true});}
+});
