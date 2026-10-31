@@ -15,7 +15,9 @@ test("designer offers desktop, tablet and mobile responsive preview widths", () 
 });
 
 test("designer preview remains script-disabled at every viewport size", () => {
-  assert.match(source, /<iframe[^>]*sandbox="allow-same-origin" srcDoc={preview}/);
+  assert.match(source, /sandbox="allow-same-origin"/);
+  assert.match(source, /srcDoc=\{frame\.html\}/);
+  assert.match(source, /onLoad=\{\(\) => finishPreviewLoad/);
   assert.doesNotMatch(source, /sandbox="[^"]*allow-scripts/);
   assert.match(source, /motion-reduce:transition-none/);
 });

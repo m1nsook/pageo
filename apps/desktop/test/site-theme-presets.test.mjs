@@ -38,7 +38,9 @@ test("designer changes actual Rust preview settings, not a standalone mockup", (
   assert.match(designer, /patch\("siteLayout", layout\.id\)/);
   assert.match(designer, /patch\("sitePalette", palette\.id\)/);
   assert.match(designer, /previewPublicPage\(projectId, "index", settings\)/);
-  assert.match(designer, /sandbox="allow-same-origin" srcDoc=\{preview\}/);
+  assert.match(designer, /sandbox="allow-same-origin"/);
+  assert.match(designer, /srcDoc=\{frame\.html\}/);
+  assert.match(designer, /pendingPreview\.current = \{ slot, request, generation: startedGeneration \}/);
   assert.doesNotMatch(designer, /sandbox="[^"]*allow-scripts/);
   assert.match(designer, /aria-pressed=\{settings\.siteLayout === layout\.id\}/);
   assert.match(designer, /aria-pressed=\{settings\.sitePalette === palette\.id\}/);
