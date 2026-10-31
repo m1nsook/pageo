@@ -79,7 +79,7 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
 
   const items = BLOCKS.filter((item) => (item.title + " " + item.description).toLowerCase().includes(search.toLowerCase()));
   return (
-    <aside aria-label="Document tools" className="flex h-full w-[270px] shrink-0 flex-col border-l border-border bg-card">
+    <aside aria-label="Document tools" className="flex h-full w-full min-w-0 flex-col border-l border-border bg-card">
       <div className="flex h-14 shrink-0 items-center justify-between px-4">
         <span className="flex items-center gap-2 text-xs font-semibold"><Blocks className="size-4" /> Visual editor</span>
         <BlockComponentGallery disabled={disabled || !editor} onInsert={kind => insert(kind)} />

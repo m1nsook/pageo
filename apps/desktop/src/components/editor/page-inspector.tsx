@@ -55,7 +55,7 @@ export function PageInspector({
   }
 
   return (
-    <aside aria-label="Page properties" className="flex h-full w-[270px] shrink-0 flex-col overflow-hidden border-l border-border bg-card">
+    <aside aria-label="Page properties" className="flex h-full w-full min-w-0 flex-col overflow-hidden border-l border-border bg-card">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
         <PanelRight className="size-4 text-muted-foreground" />
         <span className="text-sm font-semibold">Properties</span>

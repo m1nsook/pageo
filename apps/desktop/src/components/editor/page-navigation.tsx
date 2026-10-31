@@ -255,7 +255,7 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
     onAction("reorder", id, pages[adjacent].id);
   }
   return (
-    <aside aria-label={t("studio.pages.navigation")} className="flex h-full w-[246px] shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
+    <aside aria-label={t("studio.pages.navigation")} className="flex h-full w-full min-w-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 shrink-0 items-center justify-between px-4">
         <div className="flex items-center gap-2 text-xs font-semibold">{t("studio.pages.pages")} <Badge variant="secondary">{t("studio.pages.publicCount", { publicCount: pages.filter(page => page.isPublic).length, totalCount: pages.length })}</Badge></div>
         <Tooltip>
