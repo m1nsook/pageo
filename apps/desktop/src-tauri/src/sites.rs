@@ -2035,7 +2035,7 @@ mod website_font_tests {
             assert!(html.contains(&format!(
                 r#"@media(prefers-color-scheme:dark){{:root:not([data-color-mode="light"]){{{vars}}}}}"#
             )), "{mode}: system dark");
-            assert!(html.find(r#"<link rel="stylesheet" href="styles.css">"#).unwrap()
+            assert!(html.find(&format!(r#"<link rel="stylesheet" href="{}">"#, stylesheet_chunk_name())).unwrap()
                 < html.find(&format!(r#":root[data-color-mode="dark"]{{{vars}}}"#)).unwrap());
         }
     }
@@ -2245,7 +2245,7 @@ mod website_font_tests {
         assert!(output.contains("<nav class=\"mobile-nav-inner\" aria-label="));
         assert!(!output.contains("private.html"));
         for asset in SITE_RUNTIME_ASSETS {
-            assert!(output.contains(&format!("<script defer src=\"{}\"></script>", asset.filename)));
+            assert!(output.contains(&format!("<script defer src=\"{}\"></script>", runtime_chunk_name(asset))));
             assert!(!asset.source.is_empty());
         }
         assert!(SITE_RUNTIME_ASSETS[1].source.contains("search-index.json"));
@@ -2463,7 +2463,7 @@ mod website_font_tests {
         let output = render_site_page(&settings, &[page.clone()], &page, "<p>Test</p>", &[]);
         assert!(output.contains("https://fonts.googleapis.com/css2?family=Noto+Sans+KR&amp;display=swap"));
         assert!(output.contains("body{font-family:\"Noto Sans KR\""));
-        assert!(output.contains("<link rel=\"stylesheet\" href=\"styles.css\">"));
+        assert!(output.contains(&format!("<link rel=\"stylesheet\" href=\"{}\">", stylesheet_chunk_name())));
     }
 
     #[test]
