@@ -79,8 +79,16 @@
         showFeedback("Unavailable", "Clipboard unavailable");
         return;
       }
+      // Cancel a previous success timer so it cannot erase the in-flight
+      // status of a slower subsequent clipboard operation.
+      if (resetTimer !== undefined) {
+        clearTimeout(resetTimer);
+        resetTimer = undefined;
+      }
       copying = true;
       copy.disabled = true;
+      copy.textContent = "Copying…";
+      copy.setAttribute("aria-label", "Copying code to clipboard");
       copy.setAttribute("aria-busy", "true");
       try {
         await navigator.clipboard.writeText(code.textContent ?? "");

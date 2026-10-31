@@ -127,3 +127,27 @@ test("copy button prevents overlapping clipboard writes and clears busy state", 
   assert.equal(button.attributes.has("aria-busy"), false);
   assert.equal(button.textContent, "Copied");
 });
+
+
+test("slow clipboard writes announce progress and cancel stale feedback timers", async () => {
+  const app = createDom({ waitForClipboard: true });
+  const button = app.pre.children[0];
+  const first = button.listeners.click();
+  assert.equal(button.textContent, "Copying…");
+  assert.equal(button.attributes.get("aria-label"), "Copying code to clipboard");
+  assert.equal(button.attributes.get("aria-busy"), "true");
+  app.releaseClipboard();
+  await first;
+  assert.equal(button.textContent, "Copied");
+  assert.equal(app.pendingTimers, 1);
+
+  const second = button.listeners.click();
+  assert.equal(button.textContent, "Copying…");
+  assert.equal(app.pendingTimers, 0, "old success timer must be cleared before the next write");
+  app.flushTimers();
+  assert.equal(button.textContent, "Copying…");
+  app.releaseClipboard();
+  await second;
+  assert.equal(button.textContent, "Copied");
+  assert.equal(button.attributes.has("aria-busy"), false);
+});
