@@ -225,7 +225,7 @@ export function Settings({ location, desktop, updater, onOpenReleaseNotes, onMig
                 <form className="flex flex-wrap items-end gap-2 pt-1" onSubmit={event => {
                   event.preventDefault();
                   if (!storageDestination.trim() || storageMigrating) return;
-                  void onMigrateStorage(storageDestination.trim()).then(() => setStorageDestination(""));
+                  void onMigrateStorage(storageDestination.trim()).then(() => setStorageDestination("")).catch(() => undefined);
                 }}>
                   <div className="min-w-0 flex-1 space-y-1">
                     <Label htmlFor="storage-new-folder">Move projects to a new folder</Label>
