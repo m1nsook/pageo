@@ -14,6 +14,36 @@ struct ProjectConfig {
     name: String,
     created_at: u64,
     updated_at: u64,
+    #[serde(default, skip_serializing_if = "ProjectVisual::is_default")]
+    visual: ProjectVisual,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectVisual {
+    category: String,
+    accent: String,
+    icon: String,
+}
+impl Default for ProjectVisual {
+    fn default() -> Self {
+        Self { category: String::new(), accent: "blue".into(), icon: "book".into() }
+    }
+}
+impl ProjectVisual {
+    fn is_default(&self) -> bool { self == &Self::default() }
+    fn validate(&self) -> Result<(), String> {
+        if self.category.chars().count() > 40 || self.category.chars().any(char::is_control) {
+            return Err("Category must be at most 40 characters without control characters.".into());
+        }
+        if !["blue", "violet", "cyan", "green", "amber", "rose"].contains(&self.accent.as_str()) {
+            return Err("Unsupported project accent.".into());
+        }
+        if !["book", "code", "package", "rocket", "globe", "folder"].contains(&self.icon.as_str()) {
+            return Err("Unsupported project icon.".into());
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -23,6 +53,7 @@ pub struct ProjectSummary {
     name: String,
     created_at: u64,
     updated_at: u64,
+    visual: ProjectVisual,
 }
 
 #[derive(Debug, Serialize)]
@@ -34,7 +65,7 @@ pub struct ProjectDocument {
 
 impl From<ProjectConfig> for ProjectSummary {
     fn from(c: ProjectConfig) -> Self {
-        Self { id: c.id, name: c.name, created_at: c.created_at, updated_at: c.updated_at }
+        Self { id: c.id, name: c.name, created_at: c.created_at, updated_at: c.updated_at, visual: c.visual }
     }
 }
 
@@ -57,6 +88,7 @@ fn read_config(path: &Path) -> Result<ProjectConfig, String> {
     let json = fs::read_to_string(path.join(CONFIG_FILE)).map_err(|e| e.to_string())?;
     let config: ProjectConfig = serde_json::from_str(&json).map_err(|e| e.to_string())?;
     if config.format_version != FORMAT_VERSION { return Err("Unsupported Paglora project format.".into()); }
+    config.visual.validate()?;
     Ok(config)
 }
 
@@ -123,7 +155,7 @@ pub fn create_project(app: AppHandle, name: String) -> Result<ProjectDocument, S
     }
     let (id, folder) = created.ok_or("Too many projects with similar names.")?;
     let time = now()?;
-    let config = ProjectConfig { format_version: FORMAT_VERSION, id, name: name.clone(), created_at: time, updated_at: time };
+    let config = ProjectConfig { format_version: FORMAT_VERSION, id, name: name.clone(), created_at: time, updated_at: time, visual: ProjectVisual::default() };
     let markdown = format!("# {name}\n\nWelcome to your documentation. Start writing here.\n");
     let result = (|| -> Result<(), String> {
         fs::create_dir_all(folder.join("docs")).map_err(|e| e.to_string())?;
@@ -293,6 +325,23 @@ pub fn trash_project(app: AppHandle, id: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn update_project_visual(app: AppHandle, id: String, category: String, accent: String, icon: String) -> Result<ProjectSummary, String> {
+    check_id(&id)?;
+    let folder = root(&app)?.join(&id);
+    if !fs::symlink_metadata(&folder).map_err(|e| e.to_string())?.file_type().is_dir() {
+        return Err("Project folder is missing or unsafe.".into());
+    }
+    let mut config = read_config(&folder)?;
+    if config.id != id { return Err("Project manifest does not match folder.".into()); }
+    let visual = ProjectVisual { category: category.trim().to_string(), accent, icon };
+    visual.validate()?;
+    config.visual = visual;
+    config.updated_at = now()?;
+    write_config(&folder, &config)?;
+    Ok(config.into())
+}
+
+#[tauri::command]
 pub fn load_project(app: AppHandle, id: String) -> Result<ProjectDocument, String> {
     check_id(&id)?;
     let folder = root(&app)?.join(&id);
@@ -328,8 +377,7 @@ mod tests {
         fs::create_dir_all(projects.join("test-docs")).unwrap();
         let config = ProjectConfig {
             format_version: FORMAT_VERSION, id: "test-docs".into(), name: "Test".into(),
-            created_at: 1, updated_at: 1,
-        };
+            created_at: 1, updated_at: 1, visual: ProjectVisual::default() };
         write_config(&projects.join("test-docs"), &config).unwrap();
         fs::write(projects.join("test-docs").join("user-content.md"), "keep my text").unwrap();
         assert!(move_project_to_trash(&projects, &trash, "../evil").is_err());
@@ -347,8 +395,7 @@ mod tests {
         fs::create_dir_all(projects.join("test-docs")).unwrap();
         let config = ProjectConfig {
             format_version: FORMAT_VERSION, id: "another-project".into(), name: "Test".into(),
-            created_at: 1, updated_at: 1,
-        };
+            created_at: 1, updated_at: 1, visual: ProjectVisual::default() };
         write_config(&projects.join("test-docs"), &config).unwrap();
         assert!(move_project_to_trash(&projects, &temp.join("trash"), "test-docs").is_err());
         assert!(projects.join("test-docs").is_dir());
@@ -363,7 +410,7 @@ mod tests {
         let projects = temp.join("projects");
         let trash = temp.join(".paglora-trash");
         fs::create_dir_all(projects.join("sample")).unwrap();
-        let config = ProjectConfig { format_version: FORMAT_VERSION, id: "sample".into(), name: "Sample".into(), created_at: 1, updated_at: 5 };
+        let config = ProjectConfig { format_version: FORMAT_VERSION, id: "sample".into(), name: "Sample".into(), created_at: 1, updated_at: 5, visual: ProjectVisual::default() };
         write_config(&projects.join("sample"), &config).unwrap();
         fs::write(projects.join("sample").join("note.md"), "restore all source files").unwrap();
         let dest = move_project_to_trash(&projects, &trash, "sample").unwrap();
@@ -385,7 +432,7 @@ mod tests {
         let projects = temp.join("projects");
         let trash = temp.join("trash");
         fs::create_dir_all(projects.join("sample")).unwrap();
-        let config = ProjectConfig { format_version: FORMAT_VERSION, id: "sample".into(), name: "Sample".into(), created_at: 1, updated_at: 5 };
+        let config = ProjectConfig { format_version: FORMAT_VERSION, id: "sample".into(), name: "Sample".into(), created_at: 1, updated_at: 5, visual: ProjectVisual::default() };
         write_config(&projects.join("sample"), &config).unwrap();
         let removed = move_project_to_trash(&projects, &trash, "sample").unwrap();
         fs::create_dir_all(projects.join("sample")).unwrap();
@@ -396,12 +443,26 @@ mod tests {
         fs::remove_dir_all(temp).unwrap();
     }
     #[test]
+    fn project_visual_defaults_are_backward_compatible_and_validated() {
+        let old = r#"{"formatVersion":1,"id":"docs","name":"Docs","createdAt":1,"updatedAt":1}"#;
+        let mut config: ProjectConfig = serde_json::from_str(old).unwrap();
+        assert_eq!(config.visual, ProjectVisual::default());
+        let out = serde_json::to_string(&config).unwrap();
+        assert!(!out.contains("visual"));
+        config.visual = ProjectVisual { category: "Reference".into(), accent: "violet".into(), icon: "code".into() };
+        config.visual.validate().unwrap();
+        let roundtrip: ProjectConfig = serde_json::from_str(&serde_json::to_string(&config).unwrap()).unwrap();
+        assert_eq!(roundtrip.visual, config.visual);
+        assert!(ProjectVisual { category: "Test".into(), accent: "red;evil".into(), icon: "book".into() }.validate().is_err());
+        assert!(ProjectVisual { category: "Test".into(), accent: "blue".into(), icon: "../etc".into() }.validate().is_err());
+    }
+
+    #[test]
     fn project_manifest_uses_paglora_filename() {
         assert_eq!(CONFIG_FILE, "paglora.json");
         let config = ProjectConfig {
             format_version: FORMAT_VERSION, id: "test-docs".into(),
-            name: "Test".into(), created_at: 1, updated_at: 1,
-        };
+            name: "Test".into(), created_at: 1, updated_at: 1, visual: ProjectVisual::default() };
         let json = serde_json::to_string(&config).unwrap();
         let saved: ProjectConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(saved.id, "test-docs");
