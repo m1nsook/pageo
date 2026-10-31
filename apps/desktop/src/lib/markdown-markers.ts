@@ -5,7 +5,7 @@
  */
 export function preservePagloraMarkers(markdown: string): string {
   return markdown.replace(
-    /^([ \t]{0,3}>[ \t]*)\\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS)\\\]/gim,
+    /^([ \t]{0,3}>[ \t]*)\\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|TABS|CODEGROUP|TAB)\\\]/gim,
     (_whole, prefix: string, kind: string) => prefix + "[!" + kind.toUpperCase() + "]",
   );
 }
