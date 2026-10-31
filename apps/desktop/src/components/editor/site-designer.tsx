@@ -43,10 +43,15 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
   const [error, setError] = useState("");
   const [width, setWidth] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const editVersion = useRef(0);
+  // Invalidate in-flight uploads and saves when the dialog or project changes.
+  const generation = useRef(0);
 
   useEffect(() => {
+    generation.current++;
     if (!open) return;
     let mounted = true;
+    setBusy(false);
+    setUploading(false);
     setLoading(true);
     setSettings(null);
     setPreview("");
@@ -67,7 +72,7 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
     const timer = window.setTimeout(() => {
       void previewPublicPage(projectId, "index", settings)
         .then(html => { if (mounted) setPreview(html); })
-        .catch(cause => { if (mounted) setError(String(cause)); });
+        .catch(cause => { if (mounted) { setPreview(""); setError(String(cause)); } });
     }, 200);
     return () => { mounted = false; clearTimeout(timer); };
   }, [open, projectId, settings]);
@@ -84,16 +89,19 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
       setError("Local images must be between 1 byte and 5 MiB.");
       return;
     }
+    const startedGeneration = generation.current;
+    const isCurrent = () => generation.current === startedGeneration;
     setUploading(true);
     setError("");
     try {
       const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
+      if (!isCurrent()) return;
       const url = await importSiteAsset(projectId, file.name, bytes);
-      patch("logoUrl", url);
+      if (isCurrent()) patch("logoUrl", url);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      if (isCurrent()) setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
-      setUploading(false);
+      if (isCurrent()) setUploading(false);
     }
   }
 
@@ -103,14 +111,16 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
     setBusy(true);
     setError("");
     const savingVersion = editVersion.current;
+    const startedGeneration = generation.current;
     try {
       await saveSiteSettings(projectId, settings);
-      // An edit made during the save still needs another save.
-      setSaved(editVersion.current === savingVersion);
+      // An edit made during the save still needs another save. A completed
+      // save for a previous project must never mark the current one saved.
+      if (generation.current === startedGeneration) setSaved(editVersion.current === savingVersion);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      if (generation.current === startedGeneration) setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
-      setBusy(false);
+      if (generation.current === startedGeneration) setBusy(false);
     }
   }
 
