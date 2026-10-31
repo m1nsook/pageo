@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { marked } from "marked";
 import { translate } from "@/i18n";
 import { listPages, loadPage } from "@/lib/pages";
@@ -490,7 +491,14 @@ export type SiteBuildProgress =
   | { stage: "loading"; completed: 0; total: 0 }
   | { stage: "rendering"; completed: number; total: number }
   | { stage: "exporting"; completed: number; total: number }
+  | { stage: "checking" | "assets" | "indexing" | "html" | "installing"; completed: number; total: number }
   | { stage: "complete"; completed: number; total: number };
+export type NativeBuildProgress = {
+  projectId: string;
+  stage: "checking" | "assets" | "indexing" | "html" | "installing" | "native-complete";
+  completed: number;
+  total: number;
+};
 
 /** Progress is emitted only after actual completed operations. The Rust
  * exporter is one atomic stage; no fabricated percentages are displayed.
@@ -506,10 +514,25 @@ export async function buildPublicSite(projectId: string, onProgress?: (progress:
     rendered.push({ id: page.id, ...renderPageContent(html, settings.language) });
     onProgress?.({ stage: "rendering", completed: rendered.length, total: publicPages.length });
   }
-  onProgress?.({ stage: "exporting", completed: rendered.length, total: publicPages.length });
-  const result = await invoke<SiteBuildResult>("build_site", { projectId, rendered });
-  onProgress?.({ stage: "complete", completed: rendered.length, total: publicPages.length });
-  return result;
+  onProgress?.({ stage: "exporting", completed: 0, total: 0 });
+  // Listen before invoking the native exporter so short builds cannot lose
+  // their first stage. The listener is removed on success and failure.
+  let unsubscribe: (() => void) | null = null;
+  try {
+    unsubscribe = await listen<NativeBuildProgress>("paglora:build-progress", event => {
+      const next = event.payload;
+      if (next.projectId !== projectId || next.stage === "native-complete" ||
+          !Number.isInteger(next.completed) || !Number.isInteger(next.total) ||
+          next.completed < 0 || next.total < 0 || next.completed > next.total ||
+          !["checking","assets","indexing","html","installing"].includes(next.stage)) return;
+      onProgress?.({ stage: next.stage, completed: next.completed, total: next.total });
+    });
+    const result = await invoke<SiteBuildResult>("build_site", { projectId, rendered });
+    onProgress?.({ stage: "complete", completed: rendered.length, total: publicPages.length });
+    return result;
+  } finally {
+    unsubscribe?.();
+  }
 }
 
 /** Render a public page with the same sanitized markup as static export.

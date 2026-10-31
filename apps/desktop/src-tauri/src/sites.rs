@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::{hash_map::DefaultHasher, HashMap, HashSet}, fs, hash::{Hash, Hasher}, io::{Read, Write}, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 include!("locale_catalogs.rs");
 
@@ -1621,11 +1621,24 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
 pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage>) -> Result<SiteBuildResult, String> {
     let (dir, project_name) = project_folder(&app, &project_id)?;
     let exports_dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join(EXPORTS);
-    build_site_from_disk(&dir, &project_name, &exports_dir.join(&project_id), rendered)
+    // Emit *completed* native operations. No fabricated percentages or
+    // filesystem paths; the UI filters by current project and build request.
+    let mut report=|stage:&str,completed:usize,total:usize| {
+        let _=app.emit("paglora:build-progress",serde_json::json!({
+            "projectId":project_id,"stage":stage,"completed":completed,"total":total
+        }));
+    };
+    build_site_from_disk_progress(&dir,&project_name,&exports_dir.join(&project_id),rendered,&mut report)
 }
 
 /// The production exporter is shared between Desktop and the headless CLI.
 fn build_site_from_disk(dir: &Path, project_name: &str, target: &Path, rendered: Vec<RenderedPage>) -> Result<SiteBuildResult, String> {
+    build_site_from_disk_progress(dir,project_name,target,rendered,&mut |_,_,_| {})
+}
+/// Shared native stage counts. Headless callers use the original wrapper with
+/// no Tauri event dependency and identical export bytes.
+fn build_site_from_disk_progress(dir:&Path,project_name:&str,target:&Path,rendered:Vec<RenderedPage>,
+    report:&mut dyn FnMut(&str,usize,usize))->Result<SiteBuildResult,String> {
     let settings = read_settings(dir, project_name)?;
     validate_settings(&settings)?;
     let pages = read_pages(&dir)?;
@@ -1634,11 +1647,12 @@ fn build_site_from_disk(dir: &Path, project_name: &str, target: &Path, rendered:
     let expected: HashSet<_> = public_pages.iter().map(|p| p.id.as_str()).collect();
     if rendered.len() != public_pages.len() { return Err("Public page count changed. Build again".into()); }
     let mut html_by_id = HashMap::new();
-    for page in &rendered {
+    for (count,page) in rendered.iter().enumerate() {
         if !expected.contains(page.id.as_str()) || !valid_id(&page.id) ||
             page.html.len() > 15_000_000 || html_by_id.insert(page.id.as_str(), page).is_some() {
             return Err("Invalid page data for static site build".into());
         }
+        report("checking",count+1,rendered.len());
     }
     let warnings = site_export_link_warnings(&pages, &html_by_id);
     let exports_dir = target.parent().ok_or("Export target needs a parent directory")?;
@@ -1682,10 +1696,13 @@ fn build_site_from_disk(dir: &Path, project_name: &str, target: &Path, rendered:
         }
         if !image_names.is_empty() {
             fs::create_dir(staged.join("assets")).map_err(|e| e.to_string())?;
-            for name in &image_names {
+            for (count,name) in image_names.iter().enumerate() {
                 let (bytes, _) = read_asset(&dir, &name)?;
                 fs::write(staged.join("assets").join(name), bytes).map_err(|e| e.to_string())?;
+                report("assets",count+1,image_names.len());
             }
+        } else {
+            report("assets",0,0);
         }
         // Index only explicitly public, already sanitized page content.
         // Never copy private Markdown or raw user HTML into the search index.
@@ -1694,18 +1711,20 @@ fn build_site_from_disk(dir: &Path, project_name: &str, target: &Path, rendered:
             serde_json::to_vec(&index)
                 .map_err(|error| error.to_string())?)
             .map_err(|error| error.to_string())?;
+        report("indexing",1,1);
         if !settings.site_url.is_empty() {
             // Only explicitly public pages receive canonical sitemap URLs.
             fs::write(staged.join("sitemap.xml"), sitemap_xml(&settings.site_url, &public_pages))
                 .map_err(|error| error.to_string())?;
         }
-        for page in &public_pages {
+        for (count,page) in public_pages.iter().enumerate() {
             let rendered_page = html_by_id.get(page.id.as_str()).ok_or("Missing public page")?;
             let mut output = render_site_page_with_description(&settings, &pages, page, &rendered_page.html, &rendered_page.toc, Some(&rendered_page.search_text));
             if theme.is_some() {
                 output = output.replace("</head>", "<link rel=\"stylesheet\" href=\"custom.css\">\n</head>");
             }
             fs::write(staged.join(filename(&page.id)), output).map_err(|e| e.to_string())?;
+            report("html",count+1,public_pages.len());
         }
         Ok(image_names.len())
     })();
@@ -1716,6 +1735,8 @@ fn build_site_from_disk(dir: &Path, project_name: &str, target: &Path, rendered:
             return Err(error);
         }
     };
+    // Atomic install is not a measurable percent and remains indeterminate.
+    report("installing",0,0);
     // Stage first so an unsuccessful generation never replaces a working export.
     if backup.exists() { fs::remove_dir_all(&backup).map_err(|e| e.to_string())?; }
     if target.exists() { fs::rename(&target, &backup).map_err(|e| e.to_string())?; }
@@ -1724,6 +1745,7 @@ fn build_site_from_disk(dir: &Path, project_name: &str, target: &Path, rendered:
         return Err(error.to_string());
     }
     if backup.exists() { let _ = fs::remove_dir_all(&backup); }
+    report("native-complete",1,1);
     Ok(SiteBuildResult {
         path: target.display().to_string(),
         public_pages: public_pages.len(),

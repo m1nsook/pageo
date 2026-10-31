@@ -131,12 +131,17 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
             <Separator />
             {busy && <div role="status" aria-live="polite" className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
               <p className="flex items-center gap-2 text-sm font-medium"><LoaderCircle className="size-4 animate-spin" />
-                {buildPhase === "saving" ? "Saving your latest edits" : buildPhase === "loading" ? "Reading pages and website settings" : buildPhase === "rendering" ? `Rendering Markdown · ${pageProgress.completed} of ${pageProgress.total} public pages` : buildPhase === "exporting" ? "Generating and validating the static website" : "Finalizing build"}
+                {buildPhase === "saving" ? "Saving your latest edits" : buildPhase === "loading" ? "Reading pages and website settings" : buildPhase === "rendering" ? `Rendering Markdown · ${pageProgress.completed} of ${pageProgress.total} public pages` : buildPhase === "exporting" ? "Starting the native website build"
+                  : buildPhase === "checking" ? `Validating public HTML · ${pageProgress.completed} of ${pageProgress.total}`
+                  : buildPhase === "assets" ? `Copying verified public images · ${pageProgress.completed} of ${pageProgress.total}`
+                  : buildPhase === "indexing" ? "Generating public search index"
+                  : buildPhase === "html" ? `Writing static pages · ${pageProgress.completed} of ${pageProgress.total}`
+                  : buildPhase === "installing" ? "Atomically installing verified site" : "Finalizing build"}
               </p>
-              {buildPhase === "rendering" && pageProgress.total > 0 ?
+              {["rendering", "checking", "assets", "html"].includes(buildPhase) && pageProgress.total > 0 ?
                 <Progress value={100 * pageProgress.completed / pageProgress.total} aria-label="Public Markdown pages rendered" /> :
                 <Progress value={undefined} aria-label="Native export in progress" />}
-              <p className="text-xs text-muted-foreground">Only completed Markdown pages have measured progress. The native export runs as one verified operation; no estimated percentage is shown.</p>
+              <p className="text-xs text-muted-foreground">Each count reflects actual completed Markdown rendering, HTML checks, image copies, or page writes. Atomic install stays indeterminate; no simulated percentages.</p>
             </div>}
             {error && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
             {output && <div className="space-y-2 rounded-lg border border-emerald-300/60 bg-emerald-50 p-3 text-sm text-emerald-900">
