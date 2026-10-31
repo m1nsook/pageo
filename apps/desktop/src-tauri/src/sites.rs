@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::{HashMap, HashSet}, fs, path::{Path, PathBuf}};
+use std::{collections::{HashMap, HashSet}, fs, io::Write, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
 use tauri::{AppHandle, Manager};
 
 const CONFIG: &str = "site.json";
 const EXPORTS: &str = "site-exports";
+const MAX_ASSET_BYTES: usize = 5 * 1024 * 1024;
+const MAX_PREVIEW_ASSET_BYTES: usize = 15 * 1024 * 1024;
 // First-party, browser-only runtime. The Studio preview deliberately removes it.
 struct SiteRuntimeAsset {
     filename: &'static str,
@@ -458,8 +460,9 @@ fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
     if !(640..=1100).contains(&settings.content_width) {
         return Err("Content width must be between 640 and 1100 pixels".into());
     }
-    if !settings.logo_url.is_empty() && !safe_link(&settings.logo_url, true) {
-        return Err("Logo must use an HTTPS URL".into());
+    if !settings.logo_url.is_empty() &&
+        !safe_link(&settings.logo_url, true) && !valid_asset_url(&settings.logo_url) {
+        return Err("Logo must use an HTTPS URL or a local assets/ image".into());
     }
     for (links, name) in [
         (&settings.header_links, "Header"),
@@ -474,6 +477,123 @@ fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+// Local assets are flat, passive image files only. Never accept traversal,
+ // SVG, executable files or URLs with query strings/fragments.
+fn valid_asset_name(name: &str) -> bool {
+    let Some((stem, ext)) = name.rsplit_once('.') else { return false; };
+    !stem.is_empty() && stem.len() <= 90 &&
+        stem.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-') &&
+        matches!(ext, "png" | "jpg" | "webp" | "gif")
+}
+
+fn valid_asset_url(url: &str) -> bool {
+    url.strip_prefix("assets/").is_some_and(valid_asset_name)
+}
+
+fn image_type(bytes: &[u8]) -> Option<(&'static str, &'static str)> {
+    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") { Some(("png", "image/png")) }
+    else if bytes.starts_with(b"\xff\xd8\xff") { Some(("jpg", "image/jpeg")) }
+    else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") { Some(("gif", "image/gif")) }
+    else if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        Some(("webp", "image/webp"))
+    } else { None }
+}
+
+fn asset_directory(project: &Path) -> Result<PathBuf, String> {
+    let dir = project.join("assets");
+    if dir.exists() {
+        let kind = fs::symlink_metadata(&dir).map_err(|e| e.to_string())?.file_type();
+        if kind.is_symlink() || !kind.is_dir() {
+            return Err("Project assets folder must be a real directory".into());
+        }
+    }
+    Ok(dir)
+}
+
+fn read_asset(project: &Path, name: &str) -> Result<(Vec<u8>, &'static str), String> {
+    if !valid_asset_name(name) { return Err("Invalid local image name".into()); }
+    let path = asset_directory(project)?.join(name);
+    let meta = fs::symlink_metadata(&path).map_err(|e| format!("Missing local image {name}: {e}"))?;
+    if !meta.file_type().is_file() || meta.len() > MAX_ASSET_BYTES as u64 {
+        return Err(format!("Local image {name} is not a regular file under 5 MiB"));
+    }
+    let bytes = fs::read(&path).map_err(|e| e.to_string())?;
+    if bytes.len() > MAX_ASSET_BYTES { return Err("Local image exceeds 5 MiB".into()); }
+    let (extension, mime) = image_type(&bytes).ok_or("Unsupported local image format")?;
+    if !name.ends_with(&format!(".{extension}")) {
+        return Err("Local image extension does not match its contents".into());
+    }
+    Ok((bytes, mime))
+}
+
+fn referenced_local_assets(html: &str) -> HashSet<String> {
+    let mut names = HashSet::new();
+    let mut remaining = html;
+    while let Some(index) = remaining.find("src=\"assets/") {
+        remaining = &remaining[index + "src=\"assets/".len()..];
+        let Some(end) = remaining.find('"') else { break; };
+        let name = &remaining[..end];
+        if valid_asset_name(name) { names.insert(name.to_string()); }
+        remaining = &remaining[end + 1..];
+    }
+    names
+}
+
+fn base64_image(bytes: &[u8]) -> String {
+    const ABC: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let a = chunk[0] as usize;
+        let b = chunk.get(1).copied().unwrap_or(0) as usize;
+        let c = chunk.get(2).copied().unwrap_or(0) as usize;
+        out.push(ABC[a >> 2] as char);
+        out.push(ABC[((a & 3) << 4) | (b >> 4)] as char);
+        out.push(if chunk.len() > 1 { ABC[((b & 15) << 2) | (c >> 6)] as char } else { '=' });
+        out.push(if chunk.len() > 2 { ABC[c & 63] as char } else { '=' });
+    }
+    out
+}
+
+#[tauri::command]
+pub fn import_site_asset(app: AppHandle, project_id: String, filename: String, bytes: Vec<u8>) -> Result<String, String> {
+    if bytes.is_empty() || bytes.len() > MAX_ASSET_BYTES || filename.len() > 256 {
+        return Err("Images must be between 1 byte and 5 MiB".into());
+    }
+    let (extension, _) = image_type(&bytes).ok_or("Only PNG, JPEG, WebP and GIF images are supported")?;
+    let (project, _) = project_folder(&app, &project_id)?;
+    if fs::symlink_metadata(&project).map_err(|e| e.to_string())?.file_type().is_symlink() {
+        return Err("Project folder cannot be a symlink".into());
+    }
+    let dir = asset_directory(&project)?;
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    // The source name is cosmetic only. No client-provided path is used.
+    let base = filename.rsplit(|c| c == '/' || c == '\\').next().unwrap_or("image");
+    let stem = base.rsplit_once('.').map(|(name, _)| name).unwrap_or(base);
+    let stem: String = stem.to_ascii_lowercase().chars()
+        .map(|c| if c.is_ascii_lowercase() || c.is_ascii_digit() { c } else { '-' })
+        .take(36).collect();
+    let stem = stem.trim_matches('-');
+    let stem = if stem.is_empty() { "image" } else { stem };
+    let stamp = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
+    for attempt in 0..32 {
+        let name = format!("{stem}-{stamp:x}-{attempt}.{extension}");
+        let path = dir.join(&name);
+        match fs::OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(mut file) => {
+                if let Err(error) = file.write_all(&bytes) {
+                    drop(file);
+                    let _ = fs::remove_file(&path);
+                    return Err(format!("Unable to save image: {error}"));
+                }
+                return Ok(format!("assets/{name}"));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(format!("Unable to create image: {error}")),
+        }
+    }
+    Err("Could not allocate a unique image filename".into())
 }
 
 fn safe_link(raw: &str, https_only: bool) -> bool {
@@ -774,8 +894,24 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
         let tag = format!("<script defer src=\"{}\"></script>", asset.filename);
         doc = doc.replace(&tag, "");
     }
+    // Inline only referenced local images in the script-disabled srcDoc
+    // preview. No filesystem paths or active SVG content reach the iframe.
+    let mut doc = doc.replace("</head>", &format!("{override_css}</head>"));
+    let mut names = referenced_local_assets(&doc);
+    if let Some(name) = settings.logo_url.strip_prefix("assets/") { names.insert(name.to_string()); }
+    let mut total_bytes = 0usize;
+    for name in names {
+        let (bytes, mime) = read_asset(&dir, &name)?;
+        total_bytes += bytes.len();
+        if total_bytes > MAX_PREVIEW_ASSET_BYTES {
+            return Err("Preview local images exceed the 15 MiB limit".into());
+        }
+        let from = format!("src=\"assets/{name}\"");
+        let to = format!("src=\"data:{mime};base64,{}\"", base64_image(&bytes));
+        doc = doc.replace(&from, &to);
+    }
     // Project-owned CSS always comes last, overriding designer presets.
-    Ok(doc.replace("</head>", &format!("{override_css}</head>")))
+    Ok(doc)
 }
 
 #[tauri::command]
@@ -820,6 +956,23 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
             .map_err(|e| e.to_string())?;
         if let Some(css) = &theme {
             fs::write(staged.join("custom.css"), css).map_err(|e| e.to_string())?;
+        }
+        // Publish only images referenced by public page HTML or the site
+        // logo. Unreferenced/private project assets never leave the project.
+        let mut image_names = HashSet::new();
+        if let Some(name) = settings.logo_url.strip_prefix("assets/") {
+            image_names.insert(name.to_string());
+        }
+        for page in &public_pages {
+            let rendered_page = html_by_id.get(page.id.as_str()).ok_or("Missing public page")?;
+            image_names.extend(referenced_local_assets(&rendered_page.html));
+        }
+        if !image_names.is_empty() {
+            fs::create_dir(staged.join("assets")).map_err(|e| e.to_string())?;
+            for name in image_names {
+                let (bytes, _) = read_asset(&dir, &name)?;
+                fs::write(staged.join("assets").join(name), bytes).map_err(|e| e.to_string())?;
+            }
         }
         // Index only explicitly public, already sanitized page content.
         // Never copy private Markdown or raw user HTML into the search index.
@@ -923,6 +1076,32 @@ mod website_font_tests {
         assert!(html.contains(r#"media="(prefers-color-scheme: light)""#));
         assert!(html.contains(r#"media="(prefers-color-scheme: dark)""#));
         assert_eq!(html.matches(r#"<meta name="theme-color""#).count(), 2);
+    }
+
+    #[test]
+    fn local_assets_allow_only_passive_images_and_flat_safe_names() {
+        assert!(valid_asset_url("assets/my-logo.png"));
+        assert!(valid_asset_url("assets/guide-2.webp"));
+        for url in ["assets/../secret.png", "assets/a.svg", "assets/a.png?x=1",
+                    "assets/UPPER.PNG", "assets/a/b.png", "file:///etc/passwd"] {
+            assert!(!valid_asset_url(url), "{url}");
+        }
+        assert_eq!(image_type(b"\x89PNG\r\n\x1a\nrest"), Some(("png", "image/png")));
+        assert_eq!(image_type(b"\xff\xd8\xffrest"), Some(("jpg", "image/jpeg")));
+        assert_eq!(image_type(b"GIF89arest"), Some(("gif", "image/gif")));
+        assert_eq!(image_type(b"RIFFxxxxWEBP"), Some(("webp", "image/webp")));
+        assert_eq!(image_type(b"<svg onload=alert(1)>"), None);
+    }
+
+    #[test]
+    fn only_explicitly_referenced_local_images_are_selected_for_export() {
+        let html = r#"<img src="assets/public.png"><img src="https://example.test/a.png"><p>src=&quot;assets/private.png&quot;</p><img src="assets/../bad.png">"#;
+        let names = referenced_local_assets(html);
+        assert_eq!(names.len(), 1);
+        assert!(names.contains("public.png"));
+        assert_eq!(base64_image(b"Man"), "TWFu");
+        assert_eq!(base64_image(b"Ma"), "TWE=");
+        assert_eq!(base64_image(b"M"), "TQ==");
     }
 
     #[test]

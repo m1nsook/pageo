@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { loadSiteSettings, previewPublicPage, saveSiteSettings, type SiteLink, type SiteSettings } from "@/lib/site";
+import { importSiteAsset, loadSiteSettings, previewPublicPage, saveSiteSettings, type SiteLink, type SiteSettings } from "@/lib/site";
 
 function LinkEditor({ label, links, onChange }: { label: string; links: SiteLink[]; onChange: (next: SiteLink[]) => void }) {
   function update(index: number, key: keyof SiteLink, value: string) {
@@ -37,6 +37,7 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -78,6 +79,24 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
     setError("");
   }
 
+  async function uploadLogo(file: File) {
+    if (file.size > 5 * 1024 * 1024 || file.size === 0) {
+      setError("Local images must be between 1 byte and 5 MiB.");
+      return;
+    }
+    setUploading(true);
+    setError("");
+    try {
+      const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
+      const url = await importSiteAsset(projectId, file.name, bytes);
+      patch("logoUrl", url);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!settings || busy) return;
@@ -95,7 +114,7 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
     }
   }
 
-  return <Dialog open={open} onOpenChange={value => { if (!busy) setOpen(value); }}>
+  return <Dialog open={open} onOpenChange={value => { if (!busy && !uploading) setOpen(value); }}>
     <DialogTrigger asChild><Button variant="outline" size="sm"><LayoutTemplate /> Design site</Button></DialogTrigger>
     <DialogContent className="flex h-[92vh] max-h-[96vh] w-[min(97vw,1680px)] max-w-none flex-col gap-3 overflow-hidden p-4 sm:max-w-none">
       <DialogHeader className="shrink-0">
@@ -209,7 +228,22 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
                       value={settings.siteUrl} onChange={e => patch("siteUrl", e.target.value)} />
                     <p className="text-xs text-muted-foreground">Full HTTPS root ending in /, including the GitHub Pages repository path. When set, export includes canonical URLs and a public-only sitemap.xml. Leave empty for offline or unknown hosting.</p>
                   </div>
-                  <div className="grid gap-2"><Label htmlFor="designer-logo">Logo image URL</Label><Input id="designer-logo" placeholder="https://example.com/logo.svg" value={settings.logoUrl} onChange={e => patch("logoUrl", e.target.value)}/><p className="text-xs text-muted-foreground">HTTPS images only for now. Local asset uploads are planned.</p></div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="designer-logo">Logo image URL</Label>
+                    <Input id="designer-logo" placeholder="https://example.com/logo.png or assets/logo.png"
+                      value={settings.logoUrl} onChange={e => patch("logoUrl", e.target.value)} />
+                    <Label htmlFor="designer-logo-upload">Import a local logo image</Label>
+                    <Input id="designer-logo-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                      disabled={uploading || busy}
+                      onChange={event => {
+                        const file = event.target.files?.[0];
+                        if (file) void uploadLogo(file);
+                        event.target.value = "";
+                      }} />
+                    <p className="text-xs text-muted-foreground">
+                      {uploading ? "Importing image…" : "PNG, JPEG, WebP or GIF up to 5 MiB. Local assets are bundled into public exports; you can also use their assets/ URL in Markdown images."}
+                    </p>
+                  </div>
                   <div className="grid gap-2">
                     <Label>Header alignment</Label>
                     <Select value={settings.headerAlignment} onValueChange={value => patch("headerAlignment", value as SiteSettings["headerAlignment"])}>
@@ -245,7 +279,7 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
             </Tabs>
             {error && <p role="alert" className="mx-3 mt-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive">{error}</p>}
             <div className="flex shrink-0 items-center gap-3 border-t border-border p-3">
-              <Button type="submit" disabled={busy || !settings.title.trim()} className="flex-1">{busy ? <LoaderCircle className="animate-spin"/> : <Save />} Save layout</Button>
+              <Button type="submit" disabled={busy || uploading || !settings.title.trim()} className="flex-1">{busy ? <LoaderCircle className="animate-spin"/> : <Save />} Save layout</Button>
               <span className="text-xs text-muted-foreground">{saved ? "Saved locally" : "Not saved yet"}</span>
             </div>
           </form>}

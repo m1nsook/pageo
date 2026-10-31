@@ -32,3 +32,21 @@ test("Markdown links never export filesystem or executable URLs", () => {
   assert.equal(safeLink("https://example.test/guide"), "https://example.test/guide");
   assert.equal(safeLink("mailto:team@example.test"), "mailto:team@example.test");
 });
+
+const imageFunction = source.match(/function safeImage\(raw: string\): string \| null \{[\s\S]*?\n\}/)?.[0];
+assert.ok(imageFunction, "site.ts must expose the shared image URL sanitizer");
+const safeImage = vm.runInNewContext(
+  "(" + imageFunction.replace("raw: string", "raw").replace(": string | null", "") + ")",
+);
+
+test("Markdown images accept only flat local passive assets or remote HTTPS", () => {
+  for (const url of ["assets/guide.png", "assets/photo.jpg", "assets/logo.webp", "assets/animation.gif"]) {
+    assert.equal(safeImage(url), url);
+  }
+  assert.equal(safeImage("https://example.test/logo.png"), "https://example.test/logo.png");
+  for (const url of ["assets/../secret.png", "assets/private.svg", "assets/a.png?x=1",
+                    "assets/folder/a.png", "data:image/svg+xml,hi", "file:///tmp/a.png",
+                    "http://example.test/a.png"]) {
+    assert.equal(safeImage(url), null, url);
+  }
+});

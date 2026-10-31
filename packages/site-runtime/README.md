@@ -18,6 +18,10 @@ The exported `paglora-search.js` adds a Ctrl+K / Cmd+K search interface. It lazy
 
 Search now bundles **MiniSearch 7.2.0 (MIT)** into the local `paglora-search.js` asset. It ranks title matches, supports word prefixes, and falls back to fuzzy matching for longer Latin queries. A substring fallback preserves CJK queries without spaces. All search is offline; no CDN or search server is contacted. MiniSearch's full license is shipped in `licenses/MiniSearch-MIT.txt` with exported sites.
 
+## Local image assets
+
+In **Design site → Header**, import a PNG, JPEG, WebP or GIF image (up to 5 MiB) to use as the site logo. Paglora saves a uniquely named file inside the project's `assets/` directory and uses a relative `assets/...` URL. You can reuse that URL in Markdown images such as `![Diagram](assets/my-diagram.png)`. Exports copy **only images referenced by public page HTML or the public logo**; unreferenced/private project assets are not published. Studio's script-disabled preview inlines those referenced images as passive data URLs. SVG, remote HTTP, directory traversal and arbitrary file URLs are not supported. Missing or tampered assets fail the staged export instead of replacing a previous successful export.
+
 ## Canonical URLs and sitemap
 
 In **Design site → Header**, optionally set the **Published site URL** to the HTTPS site root (for example, `https://username.github.io/project/`). Include the trailing slash and the GitHub Pages repository subpath when applicable. When configured, exported pages include canonical and Open Graph URL metadata, and the exporter writes `sitemap.xml` containing **only public pages**. Leave this field empty for offline or unknown hosting; no canonical URLs or sitemap will be generated. This setting does not change relative navigation or require a backend.
