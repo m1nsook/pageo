@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { Editor } from "@tiptap/core";
 import { formatInlineCitation } from "@/lib/inline-citation";
 import { BibliographyPopover } from "@/components/editor/bibliography-popover";
@@ -11,12 +11,12 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-function FormatButton({ name, active, onClick, children }: {
-  name: string; active?: boolean; onClick: () => void; children: React.ReactNode;
+function FormatButton({ name, active, disabled, onClick, children }: {
+  name: string; active?: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode;
 }) {
   return <Tooltip>
     <TooltipTrigger asChild>
-      <Button type="button" variant="ghost" size="icon-sm" aria-label={name} aria-pressed={Boolean(active)}
+      <Button type="button" variant="ghost" size="icon-sm" disabled={disabled} aria-label={name} aria-pressed={Boolean(active)}
         className={cn("shrink-0", active && "bg-accent text-accent-foreground")}
         onMouseDown={(event) => event.preventDefault()} onClick={onClick}>{children}</Button>
     </TooltipTrigger>
@@ -73,20 +73,65 @@ function CitationPopover({ editor }: { editor: Editor | null }) {
 }
 
 export function FormatToolbar({ editor }: { editor: Editor | null }) {
+  const [, refresh] = useState(0);
+  const [status, setStatus] = useState("");
+  // Tiptap commands update ProseMirror directly, not parent React state.
+  // Subscribe so active toolbar controls and readiness aren't stale.
+  useEffect(() => {
+    if (!editor) return;
+    const update = () => refresh(value => value + 1);
+    editor.on("transaction", update);
+    editor.on("selectionUpdate", update);
+    return () => {
+      editor.off("transaction", update);
+      editor.off("selectionUpdate", update);
+    };
+  }, [editor]);
+
+  const enabled = Boolean(editor && !editor.isDestroyed && editor.isEditable);
+  const run = (name: string, command: () => boolean) => {
+    if (!editor || editor.isDestroyed || !editor.isEditable) {
+      setStatus("Editor is not ready for " + name + ". Select Edit and try again.");
+      return;
+    }
+    try {
+      const success = command();
+      if (!success) {
+        setStatus(name + " could not be applied at this position.");
+        return;
+      }
+      if ((name === "Bold" || name === "Italic") && editor.state.selection.empty) {
+        setStatus(name + " toggled. Type text to see the effect.");
+      } else {
+        setStatus(name + " applied to the document.");
+      }
+    } catch (error) {
+      setStatus(name + " failed: " + (error instanceof Error ? error.message : String(error)));
+    }
+  };
   return (
-    <div role="toolbar" aria-label="Text formatting" className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-background px-5">
-      <FormatButton name="Heading 1" active={editor?.isActive("heading", { level: 1 })} onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 /></FormatButton>
-      <FormatButton name="Heading 2" active={editor?.isActive("heading", { level: 2 })} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 /></FormatButton>
+    <div role="toolbar" aria-label="Text formatting"
+      className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-background px-5">
+      <FormatButton name="Heading 1" disabled={!enabled} active={editor?.isActive("heading", { level: 1 })}
+        onClick={() => run("Heading 1", () => Boolean(editor?.chain().focus().toggleHeading({ level: 1 }).run()))}><Heading1 /></FormatButton>
+      <FormatButton name="Heading 2" disabled={!enabled} active={editor?.isActive("heading", { level: 2 })}
+        onClick={() => run("Heading 2", () => Boolean(editor?.chain().focus().toggleHeading({ level: 2 }).run()))}><Heading2 /></FormatButton>
       <Separator orientation="vertical" className="mx-1 h-5" />
-      <FormatButton name="Bold" active={editor?.isActive("bold")} onClick={() => editor?.chain().focus().toggleBold().run()}><Bold /></FormatButton>
-      <FormatButton name="Italic" active={editor?.isActive("italic")} onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic /></FormatButton>
-      <CitationPopover editor={editor} />
-      <BibliographyPopover editor={editor} />
+      <FormatButton name="Bold" disabled={!enabled} active={editor?.isActive("bold")}
+        onClick={() => run("Bold", () => Boolean(editor?.chain().focus().toggleBold().run()))}><Bold /></FormatButton>
+      <FormatButton name="Italic" disabled={!enabled} active={editor?.isActive("italic")}
+        onClick={() => run("Italic", () => Boolean(editor?.chain().focus().toggleItalic().run()))}><Italic /></FormatButton>
+      <CitationPopover editor={enabled ? editor : null} />
+      <BibliographyPopover editor={enabled ? editor : null} />
       <Separator orientation="vertical" className="mx-1 h-5" />
-      <FormatButton name="Bulleted list" active={editor?.isActive("bulletList")} onClick={() => editor?.chain().focus().toggleBulletList().run()}><List /></FormatButton>
-      <FormatButton name="Numbered list" active={editor?.isActive("orderedList")} onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered /></FormatButton>
-      <FormatButton name="Code block" active={editor?.isActive("codeBlock")} onClick={() => editor?.chain().focus().toggleCodeBlock().run()}><Code2 /></FormatButton>
+      <FormatButton name="Bulleted list" disabled={!enabled} active={editor?.isActive("bulletList")}
+        onClick={() => run("Bulleted list", () => Boolean(editor?.chain().focus().toggleBulletList().run()))}><List /></FormatButton>
+      <FormatButton name="Numbered list" disabled={!enabled} active={editor?.isActive("orderedList")}
+        onClick={() => run("Numbered list", () => Boolean(editor?.chain().focus().toggleOrderedList().run()))}><ListOrdered /></FormatButton>
+      <FormatButton name="Code block" disabled={!enabled} active={editor?.isActive("codeBlock")}
+        onClick={() => run("Code block", () => Boolean(editor?.chain().focus().toggleCodeBlock().run()))}><Code2 /></FormatButton>
       <span className="ml-auto hidden whitespace-nowrap text-xs text-muted-foreground lg:block">Visual editor · Markdown files</span>
+      {status && <span role="status" aria-live="polite" className="max-w-64 truncate text-xs text-muted-foreground" title={status}>{status}</span>}
     </div>
   );
 }

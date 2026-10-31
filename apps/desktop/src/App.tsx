@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import type { ProjectDocument, ProjectSummary, ProjectVisual } from "@paglora/core";
 import { validateProjectName } from "@paglora/core";
 import { useTranslation } from "@/i18n";
@@ -155,7 +155,27 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     return () => window.removeEventListener("keydown", saveShortcut);
   }, [persist]);
 
-  useEffect(() => { editor?.setEditable(viewMode !== "site"); }, [editor, viewMode]);
+  // Studio starts in Canvas (read-only) but the SAME editor is used by
+  // the formatting toolbar, block palette and autosave. Reassert editability
+  // when switching views AND after React mounts its editable ProseMirror DOM.
+  // A passive effect could leave commands pointing at a detached readonly
+  // editor during the initial Canvas -> Edit layout transition.
+  useLayoutEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const editing = viewMode !== "site";
+    editor.setEditable(editing);
+    if (!editing) return;
+    const frame = requestAnimationFrame(() => {
+      if (editor.isDestroyed) return;
+      editor.setEditable(true);
+      // Do not steal focus if a dialog/text field became active meanwhile.
+      if (editor.view.dom.isConnected && !editor.view.dom.contains(document.activeElement) &&
+          (!document.activeElement || document.activeElement === document.body)) {
+        editor.commands.focus();
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [editor, viewMode]);
   useEffect(() => {
     if (viewMode !== "edit" || !pendingBlock || !editor) return;
     const position = pendingBlock.pageId === current.page.id
@@ -177,7 +197,12 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   }
   async function selectView(next: "edit" | "split" | "site") {
     if (next === viewMode || leaving || switchingView) return;
-    if (next === "edit") { setViewMode(next); return; }
+    if (next === "edit") {
+      // Do not wait for the default Canvas mode's disabled editor effect.
+      editor?.setEditable(true);
+      setViewMode(next);
+      return;
+    }
     setSwitchingView(true);
     try {
       // Before revealing the public site, flush the Markdown save queue.
