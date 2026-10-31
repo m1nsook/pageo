@@ -51,15 +51,21 @@ export function SourceComponentCanvas({
       )}
       {blocks.map((block, index) => (
         <div key={"block-" + index}>
-          <button type="button" data-component-block-index={index}
+          <div role="button" tabIndex={0} data-component-block-index={index}
             aria-label={`Select Markdown block ${index + 1}`}
             onClick={() => onSelectBoundary(index + 1)}
             onDoubleClick={onEditText}
+            onKeyDown={event => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelectBoundary(index + 1);
+              }
+            }}
             className="group block w-full cursor-pointer rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:border-primary focus-visible:outline-none"
           >
             <div className="editor-content !min-h-0 pointer-events-none"
               dangerouslySetInnerHTML={{ __html: block.html }} />
-          </button>
+          </div>
           {slot(index + 1)}
         </div>
       ))}
