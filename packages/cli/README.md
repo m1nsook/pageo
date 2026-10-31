@@ -30,11 +30,11 @@ bunx --bun paglora@alpha inspect .\projects\my-docs
 
 **Desktop location:** Paglora Studio currently discovers projects only under its own application data `projects/` directory. A CLI project created elsewhere is valid, but cannot be opened through Studio until it is placed inside the directory shown by **Settings → Local project storage**. Project import is not implemented yet.
 
-## Release: `0.0.1-alpha.2`
+## Release candidate: `0.0.1-alpha.3`
 
-This prerelease adds the working `init` command, richer inspection, and the canonical `paglora.json` format with navigation groups. It intentionally drops the abandoned Pageo format.
+This prerelease includes the existing `init`, `inspect`, and `validate` commands with improved strict argument handling, Unicode label validation, public Overview enforcement, and verified packaging tests on Windows and Linux. It uses the canonical `paglora.json` format and does not support the former Pageo manifest.
 
-Merging the code **does not publish** npm. From the repository root, after merging and confirming this version is not already published:
+Merging the code **does not publish** npm. This is a candidate version until an authenticated maintainer publishes it. Before publishing, **check that `0.0.1-alpha.3` is not already on the registry**. From the repository root after merging and after the latest CLI/package CI checks pass:
 
 ```powershell
 bun install
@@ -45,6 +45,7 @@ bun run test
 npm pack --dry-run
 npm whoami
 npm view paglora versions --json
+# Confirm 0.0.1-alpha.3 is not listed above
 npm publish --access public --tag alpha
 npm view paglora@alpha version
 ```
