@@ -35,6 +35,7 @@ import { StudioQuickFind } from "@/components/studio/studio-quick-find";
 import { commandForEvent, DEFAULT_SHORTCUTS, readStudioShortcuts, shortcutLabel, STUDIO_SHORTCUTS_KEY, validateBinding, type ShortcutBindings, type StudioCommand } from "@/lib/studio-shortcuts";
 import { StudioSurfaceMenu } from "@/components/studio/studio-surface-menu";
 import { StudioTextContextMenu } from "@/components/studio/studio-text-context-menu";
+import { StudioTitlebar } from "@/components/studio/studio-titlebar";
 import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
@@ -614,7 +615,9 @@ export default function App() {
   function navigate(next: WorkspaceView) { if (active || storageMigrating) return; setView(next); }
 
   return (
-    <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
+    <div data-paglora-desktop-shell={desktop ? "" : undefined} className="flex h-svh min-h-0 w-full flex-col overflow-hidden bg-background">
+      {desktop && <StudioTitlebar activeProject={active?.project.name} />}
+      <SidebarProvider className="min-h-0 min-w-0 flex-1 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
         {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} trashItems={trashItems} restoringTrashId={restoringTrashId} onRestoreProject={(trashId) => void restoreProject(trashId)} onUpdateVisual={customizeProject} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
@@ -631,6 +634,7 @@ export default function App() {
       <CreateProjectDialog open={creating} onOpenChange={setCreating} onCreate={create} disabled={!desktop}/>
       <StudioUpdateDialog updater={updater}/>
       <StudioReleaseDialog open={releaseNotesOpen} onClose={closeReleaseNotes}/>
-    </SidebarProvider>
+      </SidebarProvider>
+    </div>
   );
 }

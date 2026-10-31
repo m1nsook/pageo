@@ -91,7 +91,8 @@ test("Milestone A avoids native title tooltips and dead navigation promises", ()
     assert.doesNotMatch(messages["studio.settings.storageFuture"], /planned|future releases|예정|przyszłych wydań/i);
   }
   const config = JSON.parse(read("src-tauri/tauri.conf.json"));
-  assert.equal(config.app.windows[0].decorations, true);
+  assert.equal(config.app.windows[0].decorations, false);
+  assert.match(read("src/App.tsx"), /<StudioTitlebar activeProject=\{active\?\.project\.name\}/);
   assert.match(read("src/main.tsx"), /setTheme\(resolvedTheme === "dark" \? "dark" : "light"\)/);
 });
 

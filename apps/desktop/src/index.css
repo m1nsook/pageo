@@ -208,3 +208,41 @@ button:disabled { cursor: not-allowed; }
     @apply font-sans;
   }
 }
+
+/* Frameless Tauri window: an actual draggable Paglora strip, not fake browser chrome.
+   Keep resize edges under Tauri/Windows. This never styles the exported site iframe. */
+.paglora-titlebar-drag,
+.paglora-titlebar-drag [data-tauri-drag-region] {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+.paglora-titlebar-controls,
+.paglora-caption-button {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+.paglora-caption-button {
+  display: inline-flex;
+  width: 46px;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--foreground);
+  background: transparent;
+  cursor: default;
+  transition: background-color 100ms ease;
+}
+.paglora-caption-button:hover { background: var(--sidebar-accent); }
+.paglora-caption-button:focus-visible { outline: 2px solid var(--ring); outline-offset: -3px; }
+.paglora-caption-close:hover { background: #c42b3b; color: #fff; }
+.paglora-caption-close:focus-visible { outline-color: var(--ring); }
+@media (prefers-reduced-motion: reduce) {
+  .paglora-caption-button { transition: none; }
+}
+/* shadcn Sidebar uses fixed top:0 / h-svh; align its actual window-relative
+   container BELOW the app titlebar or it covers the caption in workspace view. */
+[data-paglora-desktop-shell] [data-slot="sidebar-container"] {
+  top: 42px;
+  bottom: 0;
+  height: calc(100svh - 42px);
+}
