@@ -27,6 +27,12 @@ export async function saveDocument(id: string, markdown: string): Promise<Projec
   return invoke<ProjectSummary>("save_document", { id, markdown });
 }
 
+/** Remove a project from Studio, preserving its files under app-data/trash for recovery. */
+export async function trashProject(id: string): Promise<string> {
+  requireDesktop();
+  return invoke<string>("trash_project", { id });
+}
+
 export async function projectsDirectory(): Promise<string> {
   requireDesktop();
   return invoke<string>("projects_directory");

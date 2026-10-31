@@ -18,7 +18,7 @@ pub fn run() {
             projects::create_project,
             projects::load_project,
             projects::save_document,
-            projects::projects_directory,
+            projects::projects_directory, projects::trash_project,
             backup::export_project_backup, backup::import_project_backup,
             updates::check_studio_update, updates::install_studio_update,
             pages::list_pages, pages::load_page, pages::create_page,
