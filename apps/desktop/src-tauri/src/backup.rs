@@ -40,7 +40,7 @@ fn valid_source_path(name: &str) -> bool {
     let subpath = if let Some(value) = name.strip_prefix("docs/") {
         if !value.ends_with(".md") { return false; }
         value
-    } else if let Some(value) = name.strip_prefix("assets/") {
+    } else if let Some(value) = name.strip_prefix("assets/").or_else(||name.strip_prefix("removed-assets/")) {
         if ![".png", ".jpg", ".webp", ".gif"].iter().any(|ext| value.ends_with(ext)) { return false; }
         value
     } else { return false; };
@@ -69,7 +69,7 @@ fn source_files(folder: &Path) -> Result<Vec<(String, Vec<u8>)>, String> {
            !valid_source_path(&name) {return Err(format!("Unsafe stylesheet in backup: {name}"));}
         files.push((name,fs::read(full).map_err(|e|e.to_string())?));
     }
-    for directory in ["docs", "assets"] {
+    for directory in ["docs", "assets", "removed-assets"] {
         let full = folder.join(directory);
         if !full.exists() { continue; }
         if !fs::symlink_metadata(&full).map_err(|e| e.to_string())?.file_type().is_dir() {

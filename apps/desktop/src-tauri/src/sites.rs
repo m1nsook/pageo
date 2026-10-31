@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::{HashMap, HashSet}, fs, io::{Read, Write}, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::{hash_map::DefaultHasher, HashMap, HashSet}, fs, hash::{Hash, Hasher}, io::{Read, Write}, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
 use tauri::{AppHandle, Manager};
 
 include!("locale_catalogs.rs");
@@ -980,6 +980,189 @@ fn list_project_assets(project: &Path) -> Result<Vec<SiteAsset>, String> {
     }
     assets.sort_by(|a, b| a.url.cmp(&b.url));
     Ok(assets)
+}
+
+
+/// The review is conservative and fail-closed: unknown sources are NOT proof
+/// of an unused file. We scan all saved Markdown (including unlisted/private),
+/// registered plus residual theme CSS, and project/site/page metadata.
+/// A candidate means "no literal name in current supported sources", not a
+/// guarantee about external integrations or unsaved third-party editors.
+const MAX_ASSET_SOURCE_AUDIT: usize = 32 * 1024 * 1024;
+const REMOVED_ASSETS: &str = "removed-assets";
+
+#[derive(Serialize)]
+#[serde(rename_all="camelCase")]
+pub struct UnusedAssetCandidate { url: String, bytes: u64, fingerprint: String }
+
+fn asset_fingerprint(bytes: &[u8]) -> String {
+    let mut hasher=DefaultHasher::new();
+    bytes.hash(&mut hasher);
+    format!("{:016x}",hasher.finish())
+}
+fn read_candidate_sources(project:&Path)->Result<Vec<String>,String>{
+    let pages=read_pages(project)?;
+    let docs_dir=project.join("docs");
+    if !fs::symlink_metadata(&docs_dir).map_err(|e|e.to_string())?.file_type().is_dir(){
+        return Err("Docs folder is not a real directory".into());
+    }
+    let mut sources=Vec::new();
+    let mut total=0usize;
+    let mut listed:HashSet<String>=HashSet::new();
+    for page in pages {listed.insert(format!("{}.md",page.id));}
+    let mut found=HashSet::new();
+    for entry in fs::read_dir(&docs_dir).map_err(|e|e.to_string())?{
+        let entry=entry.map_err(|e|e.to_string())?;
+        let name=entry.file_name().to_string_lossy().into_owned();
+        let meta=fs::symlink_metadata(entry.path()).map_err(|e|e.to_string())?;
+        if !name.ends_with(".md") || !meta.file_type().is_file() || meta.len()>5_000_000 {
+            return Err("Unexpected or unsafe docs file; cleanup review is unavailable".into());
+        }
+        found.insert(name);
+        let content=fs::read_to_string(entry.path()).map_err(|e|e.to_string())?;
+        total+=content.len();
+        if total>MAX_ASSET_SOURCE_AUDIT{return Err("Too much source content to safely review images".into());}
+        sources.push(content);
+    }
+    if !listed.is_subset(&found){return Err("Some Markdown pages are missing; cleanup is blocked".into());}
+    let dir=project.join("theme");
+    // Validates manifest membership so no extra stylesheet silently vanishes.
+    crate::source::portable_theme_files(project)?;
+    if dir.exists() {
+        for entry in fs::read_dir(&dir).map_err(|e|e.to_string())?{
+            let entry=entry.map_err(|e|e.to_string())?;
+            let meta=fs::symlink_metadata(entry.path()).map_err(|e|e.to_string())?;
+            if !meta.file_type().is_file(){return Err("Unexpected theme file; cleanup blocked".into());}
+            if meta.len()>512_000 {return Err("Oversized theme source; cleanup blocked".into());}
+            let content=fs::read_to_string(entry.path()).map_err(|e|e.to_string())?;
+            total+=content.len();
+            if total>MAX_ASSET_SOURCE_AUDIT{return Err("Too much source content to review".into());}
+            sources.push(content);
+        }
+    }
+    // Scan metadata, not only the parsed logo field: unknown future metadata
+    // fields can still reference an imported asset by name.
+    for name in ["site.json","pages.json","paglora.json"] {
+        let path=project.join(name);
+        if !fs::symlink_metadata(&path).map_err(|e|e.to_string())?.file_type().is_file(){
+            return Err(format!("Missing or unsafe project metadata: {name}"));
+        }
+        let meta=fs::metadata(&path).map_err(|e|e.to_string())?;
+        if meta.len()>256_000{return Err("Metadata too large for cleanup audit".into());}
+        let content=fs::read_to_string(path).map_err(|e|e.to_string())?;
+        total+=content.len();
+        if total>MAX_ASSET_SOURCE_AUDIT{return Err("Too much source content to review".into());}
+        sources.push(content);
+    }
+    Ok(sources)
+}
+fn removal_directory(project:&Path)->Result<PathBuf,String>{
+    let dir=project.join(REMOVED_ASSETS);
+    if dir.exists(){
+        if !fs::symlink_metadata(&dir).map_err(|e|e.to_string())?.file_type().is_dir(){
+            return Err("Unsafe image recovery directory".into());
+        }
+    }
+    Ok(dir)
+}
+fn unused_candidates_at(project:&Path)->Result<Vec<UnusedAssetCandidate>,String>{
+    let sources=read_candidate_sources(project)?;
+    let recover=removal_directory(project)?;
+    let mut unused=Vec::new();
+    for asset in list_project_assets(project)?{
+        let name=asset.url.strip_prefix("assets/").ok_or("Invalid image path")?;
+        if sources.iter().any(|source|source.contains(name)){continue;}
+        // Do not offer a cleanup that would collide with an older recovery.
+        if recover.join(name).exists(){continue;}
+        let (bytes,_)=read_asset(project,name)?;
+        unused.push(UnusedAssetCandidate{
+            url:asset.url, bytes:asset.bytes, fingerprint:asset_fingerprint(&bytes),
+        });
+    }
+    Ok(unused)
+}
+fn recoverable_assets_at(project:&Path)->Result<Vec<SiteAsset>,String>{
+    let dir=removal_directory(project)?;
+    if !dir.exists(){return Ok(Vec::new());}
+    let mut list=Vec::new();
+    for entry in fs::read_dir(&dir).map_err(|e|e.to_string())?{
+        let entry=entry.map_err(|e|e.to_string())?;
+        let name=entry.file_name().to_string_lossy().into_owned();
+        if !valid_asset_name(&name){return Err("Unsafe image in recovery folder".into());}
+        let metadata=fs::symlink_metadata(entry.path()).map_err(|e|e.to_string())?;
+        if !metadata.file_type().is_file() || metadata.len()>MAX_ASSET_BYTES as u64 {
+            return Err("Unsafe recovery file".into());
+        }
+        let bytes=fs::read(entry.path()).map_err(|e|e.to_string())?;
+        let (ext,mime)=image_type(&bytes).ok_or("Invalid recovered image content")?;
+        if !name.ends_with(&format!(".{ext}")){return Err("Recovered image extension mismatch".into());}
+        list.push(SiteAsset{url:format!("assets/{name}"),bytes:metadata.len(),mime:mime.into()});
+        if list.len()>500{return Err("Too many recovered images".into());}
+    }
+    list.sort_by(|a,b|a.url.cmp(&b.url));
+    Ok(list)
+}
+fn move_unused_at(project:&Path,url:&str,fingerprint:&str,confirmation:&str)->Result<(),String>{
+    let name=url.strip_prefix("assets/").ok_or("Invalid image path")?;
+    if !valid_asset_name(name) || confirmation!=name {
+        return Err("Type the exact filename to confirm recovery move".into());
+    }
+    if fingerprint.len()!=16 || !fingerprint.bytes().all(|b|b.is_ascii_hexdigit()){
+        return Err("Invalid image review fingerprint".into());
+    }
+    let candidate=unused_candidates_at(project)?.into_iter()
+        .find(|item|item.url==url && item.fingerprint==fingerprint)
+        .ok_or("Image was changed or newly referenced. Review images again.")?;
+    let source=asset_directory(project)?.join(name);
+    let recover=removal_directory(project)?;
+    fs::create_dir_all(&recover).map_err(|e|e.to_string())?;
+    let target=recover.join(name);
+    if target.exists(){return Err("Image already exists in recovery".into());}
+    let (bytes,_)=read_asset(project,name)?;
+    if asset_fingerprint(&bytes)!=candidate.fingerprint {
+        return Err("Image changed during review; no file moved".into());
+    }
+    fs::rename(source,target).map_err(|e|format!("Could not move image into recovery: {e}"))?;
+    Ok(())
+}
+fn restore_image_at(project:&Path,url:&str)->Result<(),String>{
+    let name=url.strip_prefix("assets/").ok_or("Invalid image path")?;
+    if !valid_asset_name(name){return Err("Invalid recovered image".into());}
+    let recover=removal_directory(project)?;
+    let source=recover.join(name);
+    let metadata=fs::symlink_metadata(&source).map_err(|e|e.to_string())?;
+    if !metadata.file_type().is_file(){return Err("Unsafe recovered image".into());}
+    let bytes=fs::read(&source).map_err(|e|e.to_string())?;
+    let (ext,_)=image_type(&bytes).ok_or("Recovered image is invalid")?;
+    if !name.ends_with(&format!(".{ext}")) || bytes.len()>MAX_ASSET_BYTES {
+        return Err("Recovered image failed validation".into());
+    }
+    let assets=asset_directory(project)?;
+    fs::create_dir_all(&assets).map_err(|e|e.to_string())?;
+    let target=assets.join(name);
+    if target.exists(){return Err("An active image with this name already exists; no overwrite".into());}
+    fs::rename(source,target).map_err(|e|format!("Could not restore image: {e}"))?;
+    Ok(())
+}
+#[tauri::command]
+pub fn review_unused_site_assets(app:AppHandle,project_id:String)->Result<Vec<UnusedAssetCandidate>,String>{
+    let (project,_)=project_folder(&app,&project_id)?;
+    unused_candidates_at(&project)
+}
+#[tauri::command]
+pub fn move_unused_site_asset(app:AppHandle,project_id:String,url:String,fingerprint:String,confirmation:String)->Result<(),String>{
+    let (project,_)=project_folder(&app,&project_id)?;
+    move_unused_at(&project,&url,&fingerprint,&confirmation)
+}
+#[tauri::command]
+pub fn list_recoverable_site_assets(app:AppHandle,project_id:String)->Result<Vec<SiteAsset>,String>{
+    let (project,_)=project_folder(&app,&project_id)?;
+    recoverable_assets_at(&project)
+}
+#[tauri::command]
+pub fn restore_site_asset(app:AppHandle,project_id:String,url:String)->Result<(),String>{
+    let (project,_)=project_folder(&app,&project_id)?;
+    restore_image_at(&project,&url)
 }
 
 #[tauri::command]
@@ -2114,5 +2297,64 @@ mod css_asset_tests {
         let (start,end,name)=&refs[0];
         assert_eq!(name,"cover.png");
         assert_eq!(&css[*start..*end],"assets/cover.png");
+    }
+}
+
+#[cfg(test)]
+mod asset_cleanup_tests {
+    use super::*;
+    fn fixture()->PathBuf{
+        let nonce=SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let dir=std::env::temp_dir().join(format!("paglora-asset-clean-{}-{nonce}",std::process::id()));
+        fs::create_dir_all(dir.join("docs")).unwrap();
+        fs::create_dir_all(dir.join("assets")).unwrap();
+        fs::create_dir_all(dir.join("theme")).unwrap();
+        fs::write(dir.join("paglora.json"),r#"{"formatVersion":1,"id":"test","name":"Test"}"#).unwrap();
+        fs::write(dir.join("pages.json"),r#"{"formatVersion":1,"pages":[{"id":"index","title":"Home","isPublic":true,"layout":"docs","navGroup":"Documentation"},{"id":"private","title":"Private","isPublic":false,"layout":"docs","navGroup":"Documentation"}]}"#).unwrap();
+        fs::write(dir.join("site.json"),r#"{"logoUrl":""}"#).unwrap();
+        fs::write(dir.join("docs/index.md"),"# Home").unwrap();
+        fs::write(dir.join("docs/private.md"),"# Secret").unwrap();
+        for name in ["used.png","private.png","css.png","unused.png"] {
+            fs::write(dir.join("assets").join(name),b"\x89PNG\r\n\x1a\ncontent").unwrap();
+        }
+        dir
+    }
+    #[test]
+    fn no_cleanup_when_private_pages_styles_or_logo_reference_images(){
+        let dir=fixture();
+        fs::write(dir.join("docs/index.md"),"![hero](assets/used.png)").unwrap();
+        fs::write(dir.join("docs/private.md"),"![private](assets/private.png)").unwrap();
+        fs::write(dir.join("theme/custom.css"),"body{background:url('assets/css.png')}").unwrap();
+        let options=unused_candidates_at(&dir).unwrap();
+        assert_eq!(options.len(),1);
+        assert_eq!(options[0].url,"assets/unused.png");
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn confirmed_cleanup_is_rechecked_and_images_restore_without_overwrite(){
+        let dir=fixture();let options=unused_candidates_at(&dir).unwrap();
+        let candidate=options.iter().find(|x|x.url=="assets/unused.png").unwrap();
+        assert!(move_unused_at(&dir,&candidate.url,&candidate.fingerprint,"WRONG").is_err());
+        fs::write(dir.join("docs/private.md"),"assets/unused.png").unwrap();
+        assert!(move_unused_at(&dir,&candidate.url,&candidate.fingerprint,"unused.png").is_err());
+        fs::write(dir.join("docs/private.md"),"# Private").unwrap();
+        move_unused_at(&dir,&candidate.url,&candidate.fingerprint,"unused.png").unwrap();
+        assert!(!dir.join("assets/unused.png").exists());
+        assert!(dir.join("removed-assets/unused.png").exists());
+        assert_eq!(recoverable_assets_at(&dir).unwrap().len(),1);
+        fs::write(dir.join("assets/unused.png"),b"\x89PNG\r\n\x1a\nreplacement").unwrap();
+        assert!(restore_image_at(&dir,"assets/unused.png").is_err());
+        fs::remove_file(dir.join("assets/unused.png")).unwrap();
+        restore_image_at(&dir,"assets/unused.png").unwrap();
+        assert!(dir.join("assets/unused.png").exists());
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn invalid_sources_block_cleanup_and_unchanged_files_remain(){
+        let dir=fixture();
+        fs::remove_file(dir.join("docs/private.md")).unwrap();
+        assert!(unused_candidates_at(&dir).is_err());
+        assert!(dir.join("assets/unused.png").exists());
+        fs::remove_dir_all(dir).unwrap();
     }
 }

@@ -38,6 +38,8 @@ pub fn run() {
             sites::load_site_settings, sites::save_site_settings, sites::build_site,
             sites::preview_site_page, sites::import_site_asset,
             sites::list_site_assets, sites::preview_site_asset,
+             sites::review_unused_site_assets, sites::move_unused_site_asset,
+             sites::list_recoverable_site_assets, sites::restore_site_asset,
             source::load_theme_css, source::save_theme_css,
             source::list_theme_styles, source::load_theme_style, source::save_theme_style,
             source::create_theme_style, source::reorder_theme_styles
