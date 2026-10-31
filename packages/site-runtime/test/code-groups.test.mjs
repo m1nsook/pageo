@@ -163,3 +163,16 @@ test("a group with no valid labels keeps local keyboard navigation without persi
   assert.equal(rendered[0].panels[1].hidden, false);
   assert.equal(rendered.storage.size, 0);
 });
+
+test("an unmatched saved language still starts with exactly one visible example", () => {
+  const rendered = run({ stored: "python", groups: 2 });
+  for (const { panels, tabs } of rendered) {
+    assert.equal(panels[0].hidden, false);
+    assert.equal(panels[1].hidden, true);
+    assert.equal(tabs[0].attrs.get("aria-selected"), "true");
+    assert.equal(tabs[1].attrs.get("aria-selected"), "false");
+  }
+  const oversized = run({ stored: "x".repeat(1000) });
+  assert.equal(oversized[0].panels[0].hidden, false);
+  assert.equal(oversized[0].panels[1].hidden, true);
+});
