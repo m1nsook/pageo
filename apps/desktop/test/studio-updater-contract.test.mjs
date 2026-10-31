@@ -47,3 +47,10 @@ test("reviewed updater translations preserve placeholders",()=>{
  }
  assert.match(frontend,/useTranslation\(\)/);
 });
+
+test("nightly artifacts never require a stable signing key",()=>{
+ const config=JSON.parse(src("../src-tauri/tauri.nightly.conf.json"));
+ const nightly=src("../../../.github/workflows/nightly-studio.yml");
+ assert.equal(config.bundle.createUpdaterArtifacts,false);
+ assert.match(nightly,/tauri\.nightly\.conf\.json/);
+});
