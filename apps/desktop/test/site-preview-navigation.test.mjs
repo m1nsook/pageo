@@ -27,6 +27,6 @@ test("failed preview requests clear stale HTML instead of displaying the previou
   const handler = source.match(/catch \(cause\) \{\s*if \(request === requestId\.current\) \{([\s\S]*?)\n      \}/)?.[1];
   assert.ok(handler, "request-scoped preview failure handler must exist");
   assert.match(handler, /pendingFragment\.current = ""/);
-  assert.match(handler, /setSrcDoc\("?"\)/);
+  assert.match(handler, /setSrcDoc\(""\)/);
   assert.match(handler, /setError\(/);
 });
