@@ -449,3 +449,16 @@ test("fuzzy results remain readable when no exact term can be marked", async () 
   assert.equal(results.children[0].children[0].textContent, "Installation");
   assert.equal(results.children[0].children[0].children.length, 0);
 });
+
+test("CJK substrings are visibly highlighted and stale counts are cleared", async () => {
+  const app = fixture([{ title: "한국어사용법", url: "korean.html", text: "문서 검색 안내" }]);
+  const { input, results } = await app.open();
+  input.value = "사용";
+  input.events.input();
+  assert.equal(results.children[0].children[0].children.find(child => child.tag === "mark").textContent, "사용");
+  assert.equal(results.attrs.get("aria-label"), "1 matching documentation page");
+  input.value = "no-matches";
+  input.events.input();
+  assert.equal(results.attrs.has("aria-label"), false);
+  assert.equal(results.children[0].textContent, "No matching pages");
+});
