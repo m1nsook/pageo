@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Copy, Globe2, LoaderCircle, Upload } from 
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,7 +144,7 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
               <p className="text-xs">Open the following folder on your computer. Upload its entire contents to your static host:</p>
               <div className="flex min-w-0 items-center gap-2">
                 <code className="min-w-0 flex-1 break-all rounded-md bg-white/70 p-2 text-xs">{output}</code>
-                <Button type="button" variant="outline" size="icon-sm" title="Copy export directory" aria-label="Copy export directory" onClick={() => void copyOutput()}><Copy /></Button>
+                <StudioTooltip label="Copy export directory"><Button type="button" variant="outline" size="icon-sm" aria-label="Copy export directory" onClick={() => void copyOutput()}><Copy /></Button></StudioTooltip>
               </div>
               {report && (
                 <div className="space-y-2">

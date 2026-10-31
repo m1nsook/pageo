@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { DOCUMENT_LANGUAGES, useTranslation } from "@/i18n";
 import { ArrowRight, Eye, LayoutTemplate, LoaderCircle, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -304,14 +305,16 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
                         { name: "studio.design.accentTeal", value: "#0d9488" },
                         { name: "studio.design.accentOrange", value: "#ea580c" },
                         { name: "studio.design.accentRose", value: "#e11d48" },
-                      ].map(color => <button
-                        type="button" key={color.name} title={t(color.name)} aria-label={t(color.name)}
-                        aria-pressed={settings.accentColor.toLowerCase() === color.value}
-                        className="size-9 rounded-full border-2 border-background outline-offset-2 ring-1 ring-border focus-visible:outline-2 focus-visible:outline-ring data-[selected=true]:ring-2 data-[selected=true]:ring-foreground"
-                        data-selected={settings.accentColor.toLowerCase() === color.value}
-                        style={{ backgroundColor: color.value }}
-                        onClick={() => patch("accentColor", color.value)}
-                      />)}
+                      ].map(color => (
+                        <StudioTooltip key={color.name} label={t(color.name)}>
+                          <button type="button" aria-label={t(color.name)}
+                            aria-pressed={settings.accentColor.toLowerCase() === color.value}
+                            className="size-9 rounded-full border-2 border-background outline-offset-2 ring-1 ring-border focus-visible:outline-2 focus-visible:outline-ring data-[selected=true]:ring-2 data-[selected=true]:ring-foreground"
+                            data-selected={settings.accentColor.toLowerCase() === color.value}
+                            style={{ backgroundColor: color.value }}
+                            onClick={() => patch("accentColor", color.value)} />
+                        </StudioTooltip>
+                      ))}
                     </div>
                     <p className="text-xs text-muted-foreground">{t("studio.design.accentHelp")}</p>
                   </div>

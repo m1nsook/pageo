@@ -34,6 +34,8 @@ import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/worksp
 import { StudioQuickFind } from "@/components/studio/studio-quick-find";
 import { commandForEvent, DEFAULT_SHORTCUTS, readStudioShortcuts, shortcutLabel, STUDIO_SHORTCUTS_KEY, validateBinding, type ShortcutBindings, type StudioCommand } from "@/lib/studio-shortcuts";
 import { StudioSurfaceMenu } from "@/components/studio/studio-surface-menu";
+import { StudioTextContextMenu } from "@/components/studio/studio-text-context-menu";
+import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
@@ -261,9 +263,9 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     <main className="flex h-full min-w-0 flex-1 flex-col bg-background">
       <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-3 py-2 lg:px-5">
         <div className="flex min-w-0 items-center gap-2">
-          <Button variant="ghost" size="icon-sm" aria-label={showPages ? t("studio.editor.hidePages") : t("studio.editor.showPages")} title={showPages ? t("studio.editor.hidePages") : t("studio.editor.showPages")} aria-pressed={showPages} onClick={() => setShowPages(value => !value)}>{showPages ? <PanelLeftClose /> : <PanelLeftOpen />}</Button>
+          <StudioTooltip label={showPages ? t("studio.editor.hidePages") : t("studio.editor.showPages")}><Button variant="ghost" size="icon-sm" aria-label={showPages ? t("studio.editor.hidePages") : t("studio.editor.showPages")} aria-pressed={showPages} onClick={() => setShowPages(value => !value)}>{showPages ? <PanelLeftClose /> : <PanelLeftOpen />}</Button></StudioTooltip>
           <Separator orientation="vertical" className="mx-1 h-5"/>
-          <Button onClick={() => void back()} variant="ghost" size="icon-sm" disabled={leaving} aria-label={t("studio.editor.backToProjects")}><ArrowLeft /></Button>
+          <StudioTooltip label={t("studio.editor.backToProjects")}><Button onClick={() => void back()} variant="ghost" size="icon-sm" disabled={leaving} aria-label={t("studio.editor.backToProjects")}><ArrowLeft /></Button></StudioTooltip>
           <span className="hidden size-8 items-center justify-center rounded-lg bg-primary/10 text-primary sm:flex"><BookOpen className="size-4"/></span>
           <div className="min-w-0"><div className="max-w-44 truncate text-sm font-semibold lg:max-w-64">{document.project.name}</div><InlinePageTitle title={current.page.title} pageId={current.page.id} disabled={leaving || switchingView} onRename={renamePageInline} /></div>
         </div>
@@ -273,8 +275,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
             {saveState === "saving" ? t("studio.editor.saving") : saveState === "saved" ? t("studio.editor.savedLocally") : saveState === "error" ? t("studio.editor.saveFailed") : t("studio.editor.unsaved")}
           </Badge>
           <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block"/>
-          {viewMode === "edit" && <Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? t("studio.editor.hideTools") : t("studio.editor.showTools")} title={showBlockTools ? t("studio.editor.hideTools") : t("studio.editor.showTools")} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button>}
-          {viewMode === "site" && <Button variant="ghost" size="icon-sm" aria-label={showInspector ? t("studio.editor.hideProperties") : t("studio.editor.showProperties")} title={showInspector ? t("studio.editor.hideProperties") : t("studio.editor.showProperties")} aria-pressed={showInspector} onClick={() => setShowInspector(value => !value)}><SlidersHorizontal /></Button>}
+          {viewMode === "edit" && <StudioTooltip label={showBlockTools ? t("studio.editor.hideTools") : t("studio.editor.showTools")}><Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? t("studio.editor.hideTools") : t("studio.editor.showTools")} aria-pressed={showBlockTools} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button></StudioTooltip>}
+          {viewMode === "site" && <StudioTooltip label={showInspector ? t("studio.editor.hideProperties") : t("studio.editor.showProperties")}><Button variant="ghost" size="icon-sm" aria-label={showInspector ? t("studio.editor.hideProperties") : t("studio.editor.showProperties")} aria-pressed={showInspector} onClick={() => setShowInspector(value => !value)}><SlidersHorizontal /></Button></StudioTooltip>}
           <div role="group" aria-label={t("studio.editor.editorView")} className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
             <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "edit" ? "secondary" : "ghost"} aria-pressed={viewMode === "edit"} onClick={() => void selectView("edit")} className="gap-1.5 px-2.5"><PencilLine />{t("studio.editor.edit")}</Button>
             <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "split" ? "secondary" : "ghost"} aria-pressed={viewMode === "split"} onClick={() => void selectView("split")} className="gap-1.5 px-2.5"><Columns2 />{t("studio.editor.split")}</Button>
@@ -620,6 +622,7 @@ export default function App() {
       {!active && <StudioQuickFind open={findOpen} onOpenChange={setFindOpen} shortcut={shortcutLabel(shortcuts.find)}
         entries={projects.map(project => ({ id: project.id, title: project.name, description: "Local documentation project", kind: "project" as const }))}
         onSelect={id => { void open(id); }} />}
+      <StudioTextContextMenu />
       <StudioSurfaceMenu editing={Boolean(active)} findShortcut={shortcutLabel(shortcuts.find)}
         onFind={() => setFindOpen(true)}
         onHome={() => navigate("home")}

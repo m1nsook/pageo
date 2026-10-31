@@ -4,6 +4,7 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { deleteBlock, duplicateBlock, moveBlock } from "@/lib/block-operations";
 import { ArrowDown, ArrowUp, Copy, GripVertical, ListTree, Redo2, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
@@ -118,19 +119,20 @@ export function BlockOutline({ editor, disabled }: { editor: Editor | null; disa
                 hovered === row.index && "bg-primary/10 ring-2 ring-primary/60",
               )}
             >
-              <span
-                onPointerDown={(event) => start(event, row.index)}
-                aria-label={`Drag block ${row.index + 1}`}
-                title="Hold and drag to move block"
-                className="flex size-6 shrink-0 cursor-grab touch-none select-none items-center justify-center text-muted-foreground/50 active:cursor-grabbing"
-              ><GripVertical className="size-3.5" /></span>
-              <button type="button" disabled={disabled}
-                className="min-w-0 flex-1 truncate rounded-md py-1 text-left text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                title={row.label}
-                aria-current={activeIndex === row.index ? "true" : undefined}
-                onClick={() => editor?.chain().focus().setTextSelection(Math.min(row.offset + 1, editor.state.doc.content.size)).run()}>
-                {row.label}
-              </button>
+              <StudioTooltip label="Hold and drag to move block">
+                <span onPointerDown={(event) => start(event, row.index)}
+                  aria-label={`Drag block ${row.index + 1}`}
+                  className="flex size-6 shrink-0 cursor-grab touch-none select-none items-center justify-center text-muted-foreground/50 active:cursor-grabbing"
+                ><GripVertical className="size-3.5" /></span>
+              </StudioTooltip>
+              <StudioTooltip label={row.label}>
+                <button type="button" disabled={disabled}
+                  className="min-w-0 flex-1 truncate rounded-md py-1 text-left text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-current={activeIndex === row.index ? "true" : undefined}
+                  onClick={() => editor?.chain().focus().setTextSelection(Math.min(row.offset + 1, editor.state.doc.content.size)).run()}>
+                  {row.label}
+                </button>
+              </StudioTooltip>
               <Button type="button" variant="ghost" size="icon-xs" aria-label={`Move block ${row.index + 1} up`}
                 disabled={disabled || !editor || row.index === 0} onClick={() => editor && moveBlock(editor, row.index, row.index - 1)}>
                 <ArrowUp />
@@ -139,16 +141,18 @@ export function BlockOutline({ editor, disabled }: { editor: Editor | null; disa
                 disabled={disabled || !editor || row.index === rows.length - 1} onClick={() => editor && moveBlock(editor, row.index, row.index + 1)}>
                 <ArrowDown />
               </Button>
-              <Button type="button" variant="ghost" size="icon-xs" aria-label={`Duplicate block ${row.index + 1}`}
-                title="Duplicate block" disabled={disabled || !editor}
-                onClick={() => editor && duplicateBlock(editor, row.index)}>
-                <Copy />
-              </Button>
-              <Button type="button" variant="ghost" size="icon-xs" aria-label={`Delete block ${row.index + 1}`}
-                title="Delete block (Undo to restore)" disabled={disabled || !editor}
-                onClick={() => editor && deleteBlock(editor, row.index)}>
-                <Trash2 />
-              </Button>
+              <StudioTooltip label="Duplicate block">
+                <Button type="button" variant="ghost" size="icon-xs" aria-label={`Duplicate block ${row.index + 1}`}
+                  disabled={disabled || !editor} onClick={() => editor && duplicateBlock(editor, row.index)}>
+                  <Copy />
+                </Button>
+              </StudioTooltip>
+              <StudioTooltip label="Delete block (Undo to restore)">
+                <Button type="button" variant="ghost" size="icon-xs" aria-label={`Delete block ${row.index + 1}`}
+                  disabled={disabled || !editor} onClick={() => editor && deleteBlock(editor, row.index)}>
+                  <Trash2 />
+                </Button>
+              </StudioTooltip>
             </div>
           ))}
         </div>
@@ -156,12 +160,16 @@ export function BlockOutline({ editor, disabled }: { editor: Editor | null; disa
       <div className="flex items-center gap-1 border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
         <ListTree className="size-3.5 shrink-0" />
         <span className="mr-auto">{rows.length} blocks</span>
-        <Button type="button" variant="ghost" size="icon-xs" aria-label="Undo editor change"
-          title="Undo" disabled={disabled || !editor?.can().undo()}
-          onClick={() => editor?.chain().undo().run()}><Undo2 /></Button>
-        <Button type="button" variant="ghost" size="icon-xs" aria-label="Redo editor change"
-          title="Redo" disabled={disabled || !editor?.can().redo()}
-          onClick={() => editor?.chain().redo().run()}><Redo2 /></Button>
+        <StudioTooltip label="Undo">
+          <Button type="button" variant="ghost" size="icon-xs" aria-label="Undo editor change"
+            disabled={disabled || !editor?.can().undo()}
+            onClick={() => editor?.chain().undo().run()}><Undo2 /></Button>
+        </StudioTooltip>
+        <StudioTooltip label="Redo">
+          <Button type="button" variant="ghost" size="icon-xs" aria-label="Redo editor change"
+            disabled={disabled || !editor?.can().redo()}
+            onClick={() => editor?.chain().redo().run()}><Redo2 /></Button>
+        </StudioTooltip>
       </div>
     </div>
   );

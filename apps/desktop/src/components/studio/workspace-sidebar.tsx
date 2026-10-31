@@ -1,5 +1,4 @@
-import { FolderOpenIcon, HouseIcon, GearSixIcon, SquaresFourIcon, ShieldCheckIcon } from "@phosphor-icons/react";
-import { Badge } from "@/components/ui/badge";
+import { BookOpenTextIcon, FolderOpenIcon, HouseIcon, GearSixIcon, ShieldCheckIcon } from "@phosphor-icons/react";
 import { ThemeSwitcher } from "@/components/studio/theme-switcher";
 import { useTranslation } from "@/i18n";
 import {
@@ -59,9 +58,10 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton disabled tooltip="Templates are planned">
-                  <SquaresFourIcon weight="bold" /><span>{t("studio.nav.templates")}</span>
-                  <Badge variant="secondary" className="ml-auto text-[10px] group-data-[collapsible=icon]:hidden">{t("studio.nav.soon")}</Badge>
+                <SidebarMenuButton asChild tooltip={t("studio.nav.documentation")}>
+                  <a href="https://m1nsook.github.io/paglora-docs/" target="_blank" rel="noopener noreferrer">
+                    <BookOpenTextIcon weight="bold" /><span>{t("studio.nav.documentation")}</span>
+                  </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

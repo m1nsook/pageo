@@ -4,6 +4,7 @@ import { Archive, ChevronRight, Clock3, Copy, ExternalLink, FolderOpen, LoaderCi
 import { BookOpenIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { ProjectTrashPanel } from "@/components/studio/project-trash-panel";
+import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import { DEFAULT_PROJECT_VISUAL, PROJECT_ACCENTS, ProjectAppearanceDialog, ProjectIcon } from "@/components/studio/project-appearance";
 import type { TrashedProject } from "@/lib/projects";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -61,7 +62,7 @@ function ProjectCard({ project, onOpen, onExportBackup, onTrash, onVisualSave }:
           </div>
         </CardHeader>
         <CardContent className="w-full flex-1 py-3">
-          <CardTitle className="truncate" title={project.name}>{project.name}</CardTitle>
+          <StudioTooltip label={project.name}><span className="block min-w-0"><CardTitle className="truncate">{project.name}</CardTitle></span></StudioTooltip>
           <CardDescription className="mt-1 truncate">{project.visual?.category || "Documentation project"}</CardDescription>
         </CardContent>
         <CardFooter className="w-full gap-2 border-t border-border/70 py-3 text-xs text-muted-foreground">
