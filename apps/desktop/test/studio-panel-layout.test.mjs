@@ -42,7 +42,7 @@ test("source/canvas split uses installed resizable panels without touching ifram
   assert.match(resizable, /onLayoutChanged=/);
   assert.match(resizable, /minSize="25%"/);
   const editor = read("src/App.tsx");
-  assert.match(editor, /<StudioResizableSplit source=\{editorPane\} preview=\{previewPane\}/);
-  assert.match(editor, /<div className="hidden" aria-hidden="true">\{editorPane\}/);
+  assert.match(editor, /<StudioResizableSplit source=\{editorPane\} preview=\{viewMode === "edit" \? null : previewPane\}/);
+  assert.match(editor, /mode=\{viewMode\} resetToken=\{splitResetToken\}/);
   assert.match(editor, /localStorage\.removeItem\(STUDIO_SPLIT_LAYOUT_KEY\)/);
 });
