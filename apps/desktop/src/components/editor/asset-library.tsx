@@ -17,6 +17,7 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
   const [selected, setSelected] = useState("");
   const [alt, setAlt] = useState("");
   const [preview, setPreview] = useState("");
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -38,10 +39,12 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
   useEffect(() => {
     let alive = true;
     setPreview("");
+    setPreviewLoading(Boolean(open && selected));
     if (open && selected) {
       void previewSiteAsset(projectId, selected)
         .then(data => { if (alive) setPreview(data); })
-        .catch(cause => { if (alive) setError(String(cause)); });
+        .catch(cause => { if (alive) setError(String(cause)); })
+        .finally(() => { if (alive) setPreviewLoading(false); });
     }
     return () => { alive = false; };
   }, [open, projectId, selected]);
@@ -112,7 +115,7 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
           </div>}
           {selected && <section aria-label="Selected image" className="space-y-3 border-t pt-4">
             <div className="flex min-h-32 items-center justify-center rounded-md bg-muted/50 p-3">
-              {preview ? <img src={preview} alt={alt || "Selected image"} className="max-h-52 max-w-full object-contain" /> : <LoaderCircle className="size-4 animate-spin" aria-label="Loading image preview" />}
+              {preview ? <img src={preview} alt={alt || "Selected image"} className="max-h-52 max-w-full object-contain" /> : previewLoading ? <LoaderCircle className="size-4 animate-spin" aria-label="Loading image preview" /> : <p className="text-sm text-muted-foreground">Preview unavailable.</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="paglora-image-alt">Alternative text</Label>

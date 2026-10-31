@@ -12,5 +12,5 @@ export function imageMarkdown(alt: string, src: string): string {
 }
 
 export function defaultImageAlt(url: string): string {
-  return (url.split("/").pop() ?? "Image").replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").trim() || "Image";
+  return (url.split("/").pop() ?? "Image").replace(/\.[a-z0-9]+$/i, "").replace(/-[0-9a-f]{12,}-\d+$/i, "").replace(/[-_]+/g, " ").trim() || "Image";
 }

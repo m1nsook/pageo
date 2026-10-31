@@ -21,6 +21,7 @@ test("local image Markdown serializes and parses with accessible alt text", () =
   assert.equal(tokens[0].tokens[0].href, "assets/guide-2.webp");
   assert.equal(tokens[0].tokens[0].text, "A [diagram]");
   assert.equal(defaultImageAlt("assets/first-screen-123.png"), "first screen 123");
+  assert.equal(defaultImageAlt("assets/setup-screen-18b45ff0a21e3-0.png"), "setup screen");
 });
 
 test("image URLs reject script schemes, traversal, SVG and query injection", () => {
