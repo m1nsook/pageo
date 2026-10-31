@@ -160,6 +160,26 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs .paglora-steps-list>li::before{content:counter(paglora-step);position:absolute;inset-inline-start:-17px;top:0;display:grid;place-items:center;width:32px;height:32px;border:2px solid var(--bg);border-radius:50%;background:var(--brand);color:#fff;font-size:12px;font-weight:750;line-height:1}
 .docs .paglora-steps-list>li>:last-child{margin-bottom:0}
 
+
+/* Code groups: every example remains readable with scripts disabled.
+   The browser runtime progressively adds accessible, keyboard-driven tabs. */
+.docs .paglora-code-group{margin:28px 0;min-width:0}
+.docs .paglora-code-group-title{font-size:15px;font-weight:720;letter-spacing:-.015em;margin-bottom:12px}
+.docs .paglora-code-group-panels{min-width:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--subtle)}
+.docs .paglora-code-group-item{min-width:0}
+.docs .paglora-code-group-item+.paglora-code-group-item{border-top:1px solid var(--line)}
+.docs .paglora-code-group-label{padding:10px 16px;color:var(--muted);font-size:12px;font-weight:650}
+.docs .paglora-code-group-item>pre{margin:0;border:0;border-radius:0}
+.docs .paglora-code-group-tabs{display:flex;gap:4px;overflow-x:auto;padding:7px 9px;border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;background:var(--subtle);scrollbar-width:thin}
+.docs .paglora-code-group-tabs>button{flex:0 0 auto;appearance:none;border:0;border-bottom:2px solid transparent;border-radius:5px 5px 0 0;background:transparent;padding:8px 12px;color:var(--muted);font:inherit;font-size:12px;font-weight:650;cursor:pointer}
+.docs .paglora-code-group-tabs>button:hover{color:var(--fg);background:color-mix(in srgb,var(--brand) 6%,transparent)}
+.docs .paglora-code-group-tabs>button[aria-selected="true"]{border-bottom-color:var(--brand);color:var(--fg)}
+.docs .paglora-code-group-tabs>button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.docs .paglora-code-group-enhanced .paglora-code-group-panels{border-radius:0 0 12px 12px}
+.docs .paglora-code-group-enhanced .paglora-code-group-label{display:none}
+.docs .paglora-code-group-enhanced .paglora-code-group-item[hidden]{display:none}
+.docs .paglora-code-group-enhanced .paglora-code-group-item+.paglora-code-group-item{border-top:0}
+
 /* Markdown callouts — sanitized in the shared preview/build pipeline. */
 .docs .paglora-callout{--callout-accent:var(--brand);position:relative;display:block;margin:25px 0;padding:16px 19px 17px;border:1px solid color-mix(in srgb,var(--callout-accent) 38%,var(--line));border-left:3px solid var(--callout-accent);border-radius:11px;background:color-mix(in srgb,var(--callout-accent) 7%,var(--bg));box-shadow:0 1px 2px rgba(0,0,0,.025)}
 .docs .paglora-callout-title{display:flex;align-items:center;gap:9px;margin:0 0 6px;color:var(--fg);font-size:13px;font-weight:730;line-height:1.5}

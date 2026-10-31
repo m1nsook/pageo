@@ -113,6 +113,14 @@ export function renderSafeMarkdown(html: string): string {
       next.className = "paglora-disclosure";
       if (element.hasAttribute("open")) next.setAttribute("open", "");
     }
+    // Retain only a tightly validated fenced-code language token. Arbitrary
+    // class names and HTML attributes are never copied from authored HTML.
+    if (tag === "code") {
+      const codeClass = element.getAttribute("class") || "";
+      if (/^language-[a-z][a-z0-9+#-]{0,31}$/i.test(codeClass)) {
+        next.setAttribute("class", codeClass.toLowerCase());
+      }
+    }
     if (tag === "a") {
       const href = safeLink(element.getAttribute("href") || "");
       if (href) next.setAttribute("href", href);
@@ -162,7 +170,7 @@ function enhanceCallouts(container: HTMLElement, language: string) {
     const marker = first.firstChild;
     if (!marker || marker.nodeType !== Node.TEXT_NODE) continue;
     const text = marker.textContent ?? "";
-    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS)\](?:\s|$)/i.exec(text);
+    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|CODEGROUP)\](?:\s|$)/i.exec(text);
     if (!match) continue;
     const type = match[1].toUpperCase();
     if (type === "CARD") {
@@ -198,6 +206,49 @@ function enhanceCallouts(container: HTMLElement, language: string) {
       list.classList.add("paglora-steps-list");
       while (quote.firstChild) steps.appendChild(quote.firstChild);
       quote.replaceWith(steps);
+      continue;
+    }
+
+    if (type === "CODEGROUP") {
+      // Only a marker followed by 2–12 fenced code blocks is a code group.
+      // Malformed blockquotes remain untouched; no arbitrary HTML is copied.
+      const blocks = Array.from(quote.children).slice(1);
+      if (blocks.length < 2 || blocks.length > 12 ||
+          blocks.some(child => child.tagName !== "PRE" || child.firstElementChild?.tagName !== "CODE")) continue;
+      const titleText = text.slice(match[0].length).trim().slice(0, 160);
+      const group = document.createElement("section");
+      group.className = "paglora-code-group";
+      group.setAttribute("aria-label", titleText || "Code examples");
+      if (titleText) {
+        const heading = document.createElement("div");
+        heading.className = "paglora-code-group-title";
+        heading.textContent = titleText;
+        group.appendChild(heading);
+      }
+      const panels = document.createElement("div");
+      panels.className = "paglora-code-group-panels";
+      const names: Record<string, string> = {
+        js: "JavaScript", javascript: "JavaScript", ts: "TypeScript",
+        typescript: "TypeScript", jsx: "JSX", tsx: "TSX", py: "Python",
+        python: "Python", sh: "Shell", bash: "Bash", ps1: "PowerShell",
+        powershell: "PowerShell", json: "JSON", html: "HTML", css: "CSS",
+        rs: "Rust", rust: "Rust",
+      };
+      blocks.forEach((pre, index) => {
+        const code = pre.firstElementChild!;
+        const language = /^language-([a-z][a-z0-9+#-]{0,31})$/i.exec(code.className)?.[1].toLowerCase();
+        const label = language ? (names[language] || language.toUpperCase()) : "Example " + (index + 1);
+        const panel = document.createElement("div");
+        panel.className = "paglora-code-group-item";
+        const caption = document.createElement("div");
+        caption.className = "paglora-code-group-label";
+        caption.textContent = label;
+        panel.appendChild(caption);
+        panel.appendChild(pre);
+        panels.appendChild(panel);
+      });
+      group.appendChild(panels);
+      quote.replaceWith(group);
       continue;
     }
     const callout = document.createElement("aside");
