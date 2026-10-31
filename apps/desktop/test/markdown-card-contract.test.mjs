@@ -18,6 +18,8 @@ test("cards are enhanced only after HTML sanitization for preview and export", (
   assert.match(site, /if \(type === "CARD"\) \{/);
   assert.match(site, /heading\.textContent = text\.slice\(match\[0\]\.length\)\.trim\(\) \|\| "Card"/);
   assert.match(site, /card\.appendChild\(quote\.firstChild\)/);
+  assert.match(site, /marker\.textContent = "";/);
+  assert.match(site, /if \(!first\.textContent\?\.trim\(\)\) first\.remove\(\);/);
   assert.doesNotMatch(site.match(/if \(type === "CARD"\)[\s\S]*?continue;/)?.[0] ?? "", /innerHTML|setAttribute\("style"/);
 });
 

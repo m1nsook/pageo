@@ -118,7 +118,9 @@ function enhance(root, document, translate) {
       const heading = document.createElement("div");
       heading.className = "paglora-card-title";
       heading.textContent = text.slice(match[0].length).trim() || "Card";
-      card.appendChild(heading); first.remove();
+      card.appendChild(heading);
+      marker.textContent = "";
+      if(!first.textContent?.trim())first.remove();
       while (quote.firstChild) card.appendChild(quote.firstChild);
       quote.replaceWith(card); continue;
     }
