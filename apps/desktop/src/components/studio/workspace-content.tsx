@@ -72,9 +72,9 @@ function ProjectCard({ project, onOpen, onExportBackup }: { project: ProjectSumm
   );
 }
 
-export function Dashboard({ projects, openCreate, openProject, onExportBackup, onImportBackup, backupNotice, view, loading, search, setSearch, desktop, error }: {
+export function Dashboard({ projects, openCreate, openProject, onExportBackup, onImportBackup, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
   projects: ProjectSummary[]; openCreate: () => void; openProject: (id: string) => void;
-  onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; backupNotice: string;
+  onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; backupNotice: string; backupPath: string;
   view: WorkspaceView; loading: boolean; search: string; setSearch: (value: string) => void; desktop: boolean; error: string;
 }) {
   const { t } = useTranslation();
@@ -120,10 +120,8 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
           {error && <p role="alert" className="mt-6 rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
           {backupNotice && <div role="status" className="mt-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 text-sm">
             <span className="min-w-0 break-all">{backupNotice}</span>
-            <Button variant="outline" size="sm" aria-label={t("studio.backup.copyPath")} onClick={() => {
-              const path = backupNotice.includes(":\\") ? backupNotice.slice(backupNotice.indexOf(":\\") - 1) : "";
-              if (path) void navigator.clipboard.writeText(path);
-            }}><Copy /></Button>
+            {backupPath && <Button variant="outline" size="sm" aria-label={t("studio.backup.copyPath")}
+              onClick={() => { if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(backupPath); }}><Copy /></Button>}
           </div>}
           {loading ? (
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Loading projects">

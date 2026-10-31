@@ -44,11 +44,15 @@ fn valid_source_path(name: &str) -> bool {
 }
 fn source_files(folder: &Path) -> Result<Vec<(String, Vec<u8>)>, String> {
     let mut files = Vec::new();
+    let theme_dir = folder.join("theme");
+    if theme_dir.exists() && !fs::symlink_metadata(&theme_dir).map_err(|e| e.to_string())?.file_type().is_dir() {
+        return Err("Unsafe theme directory".into());
+    }
     for name in ["paglora.json", "pages.json", "site.json", "theme/custom.css"] {
         let full = folder.join(name);
         if !full.exists() { continue; }
         let meta = fs::symlink_metadata(&full).map_err(|e| e.to_string())?;
-        if !meta.file_type().is_file() { return Err(format!("Not a regular source file: {name}")); }
+        if !meta.file_type().is_file() || meta.len() > MAX_TOTAL as u64 { return Err(format!("Oversized or unsafe source file: {name}")); }
         files.push((name.into(), fs::read(full).map_err(|e| e.to_string())?));
     }
     for directory in ["docs", "assets"] {
@@ -61,7 +65,7 @@ fn source_files(folder: &Path) -> Result<Vec<(String, Vec<u8>)>, String> {
             let entry = entry.map_err(|e| e.to_string())?;
             let path = format!("{directory}/{}", entry.file_name().to_string_lossy());
             let metadata = fs::symlink_metadata(entry.path()).map_err(|e| e.to_string())?;
-            if !metadata.file_type().is_file() || !valid_source_path(&path) {
+            if !metadata.file_type().is_file() || metadata.len() > MAX_TOTAL as u64 || !valid_source_path(&path) {
                 return Err(format!("Unsupported or unsafe project file: {path}"));
             }
             files.push((path, fs::read(entry.path()).map_err(|e| e.to_string())?));

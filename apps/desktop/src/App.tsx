@@ -340,6 +340,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [location, setLocation] = useState("");
   const [backupNotice, setBackupNotice] = useState("");
+  const [backupPath, setBackupPath] = useState("");
   const { t } = useTranslation();
 
   // Paglora is a desktop editor, not a web page. Prevent browser-only
@@ -381,6 +382,7 @@ export default function App() {
     try {
       setError(""); setBackupNotice("");
       const path = await exportProjectBackup(id);
+      setBackupPath(path);
       setBackupNotice(t("studio.backup.saved", { path }));
     } catch (cause) { setError(friendlyError(cause)); }
   }
@@ -389,7 +391,7 @@ export default function App() {
       setError(t("studio.backup.invalid")); return;
     }
     try {
-      setError(""); setBackupNotice("");
+      setError(""); setBackupNotice(""); setBackupPath("");
       const archive = Array.from(new Uint8Array(await file.arrayBuffer()));
       const id = await importProjectBackup(archive);
       await refresh();
@@ -405,7 +407,7 @@ export default function App() {
     <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); void refresh(); }} onSaved={onSaved}/> : view === "settings" ? <Settings desktop={desktop} location={location}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} backupNotice={backupNotice}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); void refresh(); }} onSaved={onSaved}/> : view === "settings" ? <Settings desktop={desktop} location={location}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} backupNotice={backupNotice} backupPath={backupPath}/>}
       </SidebarInset>
       <CreateProjectDialog open={creating} onOpenChange={setCreating} onCreate={create} disabled={!desktop}/>
     </SidebarProvider>
