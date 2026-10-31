@@ -171,7 +171,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
       // Selecting Edit should put the typing caret into the real Tiptap
       // document, not leave focus on the view-switching button. Never steal
       // focus from a dialog or another active text input.
-      const active = document.activeElement;
+      const active = window.document.activeElement;
       if (editor.view.dom.isConnected && !(active instanceof Element &&
           active.closest('[data-slot="dialog-content"], [data-paglora-source-editor], input, textarea'))) {
         editor.commands.focus();
