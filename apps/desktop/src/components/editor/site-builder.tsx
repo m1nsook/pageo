@@ -139,7 +139,7 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
                   ) : <p role="status" className="text-xs">No links to missing or private pages were found in the published content.</p>}
                 </div>
               )}
-              {copyStatus && <p role="status" className="text-xs">{copyStatus}</p>
+              {copyStatus && <p role="status" className="text-xs">{copyStatus}</p>}
               <p className="text-xs">Test search, appearance switching, and code-copy controls over HTTP(S) after deploying. Opening HTML with file:// can block search-index.json.</p>
             </div>}
             <DialogFooter>
