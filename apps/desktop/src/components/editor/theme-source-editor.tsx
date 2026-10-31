@@ -155,8 +155,9 @@ export function ThemeSourceEditor({
       const order=await createThemeStyle(projectId,name);
       setStyleFiles(order);setNewStyle("");
       const version=++operation.current;
-      setFile(`theme/${name}`);
-      await loadSelected(`theme/${name}`,version);
+      const selectedStyle = `theme/${name}` as SourceFile;
+      setFile(selectedStyle);
+      await loadSelected(selectedStyle,version);
       await refresh();
       setMessage("Stylesheet added to site preview and export cascade.");
     } catch(cause){setError(errorMessage(cause));}
