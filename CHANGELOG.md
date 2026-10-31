@@ -5,6 +5,7 @@ Paglora is in early development. Desktop milestone numbers are separate from the
 ## Unreleased — desktop source (after 0.2.0)
 
 ### Studio workflow
+- Offline backup import/export now shows real indeterminate stages (file read, native validation/import, workspace refresh, and native export). Duplicate archive actions and conflicting project removal are blocked while busy; a completed import with a failed list refresh is reported separately from a failed import.
 - Added user-configurable keyboard shortcuts for local project/page search, project creation, project navigation and Studio Settings. A Radix shortcut recorder validates reserved/duplicate combinations, offers a reset action and stores settings locally without modifying documentation projects.
 
 ### Studio visual editing

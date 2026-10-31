@@ -40,6 +40,7 @@ import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
+import { createBackupTaskCoordinator, type BackupTask } from "@/lib/backup-task";
 import { StudioUpdateDialog, useStudioUpdater } from "@/components/studio/studio-updater";
 import { StudioReleaseDialog, LAST_STUDIO_VERSION_KEY } from "@/components/studio/studio-release-dialog";
 import { STUDIO_VERSION } from "@/lib/release-notes";
@@ -426,6 +427,10 @@ export default function App() {
   const [storageStatus, setStorageStatus] = useState<ProjectStorageStatus | null>(null);
   const [backupNotice, setBackupNotice] = useState("");
   const [backupPath, setBackupPath] = useState("");
+  const [backupTask, setBackupTask] = useState<BackupTask | null>(null);
+  // Synchronous lock: repeated clicks cannot start two archive operations before React paints.
+  const backupCoordinator = useRef<ReturnType<typeof createBackupTaskCoordinator> | null>(null);
+  if (!backupCoordinator.current) backupCoordinator.current = createBackupTaskCoordinator(setBackupTask);
   const { t } = useTranslation();
 
   // Only an actual installed version change opens the release dialog automatically.
@@ -506,7 +511,7 @@ export default function App() {
     else toast.error(t("studio.shortcuts.saveError"));
   };
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (strict = false) => {
     if (!desktop) return;
     setLoading(true);
     try {
@@ -515,7 +520,7 @@ export default function App() {
       setTrashItems(removed);
       setError("");
     }
-    catch (cause) { setError(friendlyError(cause)); }
+    catch (cause) { setError(friendlyError(cause)); if (strict) throw cause; }
     finally { setLoading(false); }
   }, [desktop]);
 
@@ -541,28 +546,60 @@ export default function App() {
     catch (cause) { setError(friendlyError(cause)); }
   }
   async function exportBackup(id: string) {
+    if (backupCoordinator.current?.active) return;
     try {
-      setError(""); setBackupNotice("");
-      const path = await exportProjectBackup(id);
-      setBackupPath(path);
-      setBackupNotice(t("studio.backup.saved", { path }));
+      const result = await backupCoordinator.current!.run(
+        { kind: "export", phase: "writing", label: projects.find(project => project.id === id)?.name ?? "project" },
+        async () => {
+          setError(""); setBackupNotice(""); setBackupPath("");
+          return exportProjectBackup(id);
+        },
+      );
+      if (!result.started) return;
+      setBackupPath(result.value);
+      setBackupNotice(t("studio.backup.saved", { path: result.value }));
       toast.success("Project backup saved", { description: "A portable backup is ready in your local backups folder." });
-    } catch (cause) { setError(friendlyError(cause)); }
+    } catch (cause) {
+      setError(friendlyError(cause));
+      toast.error("Could not save project backup", { description: friendlyError(cause) });
+    }
   }
   async function importBackup(file: File) {
-    if (!file.name.toLowerCase().endsWith(".paglora") || file.size > 96 * 1024 * 1024) {
+    if (backupCoordinator.current?.active) return;
+    if (!file.name.toLowerCase().endsWith(".paglora") || file.size === 0 || file.size > 96 * 1024 * 1024) {
       setError(t("studio.backup.invalid")); return;
     }
+    let importedId: string | null = null;
     try {
-      setError(""); setBackupNotice(""); setBackupPath("");
-      const archive = Array.from(new Uint8Array(await file.arrayBuffer()));
-      const id = await importProjectBackup(archive);
-      await refresh();
-      setBackupNotice(t("studio.backup.imported", { id }));
+      const result = await backupCoordinator.current!.run(
+        { kind: "import", phase: "reading", label: file.name },
+        async setPhase => {
+          setError(""); setBackupNotice(""); setBackupPath("");
+          const archive = Array.from(new Uint8Array(await file.arrayBuffer()));
+          setPhase("restoring");
+          importedId = await importProjectBackup(archive);
+          setPhase("refreshing");
+          // Do not report a fully refreshed workspace if the listing failed.
+          await refresh(true);
+          return importedId;
+        },
+      );
+      if (!result.started) return;
+      setBackupNotice(t("studio.backup.imported", { id: result.value }));
       toast.success("Project imported", { description: "The project is now available in your workspace." });
-    } catch (cause) { setError(friendlyError(cause)); }
+    } catch (cause) {
+      const message = friendlyError(cause);
+      if (importedId) {
+        setBackupNotice(`Project ${importedId} was imported, but the workspace list could not refresh. Reopen Projects to retry.`);
+        toast.error("Project imported; workspace refresh failed", { description: message });
+      } else {
+        setError(message);
+        toast.error("Could not import project backup", { description: message });
+      }
+    }
   }
   async function removeProject(id: string) {
+    if (backupCoordinator.current?.active) return;
     try {
       setError("");
       const moved = await trashProject(id);
@@ -687,7 +724,7 @@ export default function App() {
       <SidebarProvider className="min-h-0 min-w-0 flex-1 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} storageStatus={storageStatus} onCheckStorage={() => void checkStorageAgain()} onReconnectStorage={reconnectStorage} onReturnStorage={returnStorage} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} trashItems={trashItems} restoringTrashId={restoringTrashId || deletingTrashId} onRestoreProject={(trashId) => void restoreProject(trashId)} onDeleteTrashedProject={(trashId, confirmation) => void deleteTrashedProject(trashId, confirmation)} onUpdateVisual={customizeProject} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} storageStatus={storageStatus} onCheckStorage={() => void checkStorageAgain()} onReconnectStorage={reconnectStorage} onReturnStorage={returnStorage} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} trashItems={trashItems} restoringTrashId={restoringTrashId || deletingTrashId} onRestoreProject={(trashId) => void restoreProject(trashId)} onDeleteTrashedProject={(trashId, confirmation) => void deleteTrashedProject(trashId, confirmation)} onUpdateVisual={customizeProject} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath} backupTask={backupTask}/>}
       </SidebarInset>
       {!active && <StudioQuickFind open={findOpen} onOpenChange={setFindOpen} shortcut={shortcutLabel(shortcuts.find)}
         entries={projects.map(project => ({ id: project.id, title: project.name, description: "Local documentation project", kind: "project" as const }))}
