@@ -9,6 +9,7 @@ import type { Page } from "@/lib/pages";
 import { normalizeCanvasText, type CanvasBlockSelection } from "@/lib/canvas-blocks";
 import { loadSiteSettings, previewPublicPage, type SiteSettings } from "@/lib/site";
 import { resolveCanvasLink } from "@/lib/site-preview-links";
+import { CanvasTextPopover, type CanvasTextAnchor } from "@/components/editor/canvas-text-popover";
 
 type Device = "desktop" | "tablet" | "phone";
 const deviceWidths: Record<Device, number> = { desktop: 1280, tablet: 768, phone: 390 };
@@ -79,8 +80,46 @@ export function InlineSitePreview({
   const wheelZoomRef = useRef<(delta: number) => void>(() => {});
   const keyboardZoomRef = useRef<(key: string) => void>(() => {});
   const zoomValueRef = useRef(100);
+  const [textAnchor, setTextAnchor] = useState<CanvasTextAnchor | null>(null);
+  const livePreviewNode = useRef<{ node: HTMLElement; source: string } | null>(null);
+  const previewPageId = page.isPublic ? page.id : "index";
+  const previewIdentity = JSON.stringify([projectId, previewPageId]);
   const selectedRef = useRef(selectedBlock);
   selectedRef.current = selectedBlock;
+  const clearTextAnchor = useCallback((restore = true) => {
+    const preview = livePreviewNode.current;
+    if (restore && preview && preview.node.isConnected &&
+        preview.node.ownerDocument === iframeRef.current?.contentDocument) {
+      preview.node.textContent = preview.source;
+      paintSelection(preview.node.ownerDocument, selectedRef.current);
+    }
+    livePreviewNode.current = null;
+    setTextAnchor(null);
+  }, []);
+  const previewText = useCallback((next: string) => {
+    const entry = livePreviewNode.current;
+    // Draft rendering only changes temporary sandbox DOM. The Tiptap document
+    // and autosave queue are untouched until the user explicitly saves.
+    if (entry && entry.node.isConnected && entry.node.ownerDocument === iframeRef.current?.contentDocument) {
+      entry.node.textContent = next;
+    }
+  }, []);
+  const commitText = useCallback((selection: CanvasBlockSelection, next: string): boolean => {
+    const applied = applyInlineRef.current(selection, next);
+    if (applied) {
+      clearTextAnchor(false);
+      onBlockSelect(null);
+    }
+    return applied;
+  }, [clearTextAnchor, onBlockSelect]);
+  useEffect(() => { clearTextAnchor(); }, [previewIdentity, clearTextAnchor]);
+  useEffect(() => {
+    if (textAnchor && (!selectedBlock || selectedBlock.pageId !== textAnchor.selection.pageId ||
+        selectedBlock.index !== textAnchor.selection.index || selectedBlock.text !== textAnchor.selection.text)) {
+      clearTextAnchor();
+    }
+  }, [selectedBlock, textAnchor, clearTextAnchor]);
+  useEffect(() => { clearTextAnchor(); }, [device, fit, zoom, visibleSlot, clearTextAnchor]);
   // DOM listeners attached to an existing iframe must always call current
   // source-editor callbacks, even if Tiptap initialized after iframe load.
   const canInlineRef = useRef(canInlineTextEdit);
@@ -88,8 +127,6 @@ export function InlineSitePreview({
   const applyInlineRef = useRef(onApplyInlineText);
   applyInlineRef.current = onApplyInlineText;
   const [space, setSpace] = useState({ width: 1000, height: 700 });
-  const previewPageId = page.isPublic ? page.id : "index";
-  const previewIdentity = JSON.stringify([projectId, previewPageId]);
 
 
   useEffect(() => {
@@ -177,7 +214,8 @@ export function InlineSitePreview({
   }, [selectedBlock, visibleSlot]);
 
   const onFrameLoad = useCallback((event: SyntheticEvent<HTMLIFrameElement>) => {
-    const doc = event.currentTarget.contentDocument;
+    const loadedFrame = event.currentTarget;
+    const doc = loadedFrame.contentDocument;
     if (!doc) return;
     const canvasDoc: Document = doc;
     const article = canvasDoc.querySelector("article.docs");
@@ -208,6 +246,7 @@ export function InlineSitePreview({
       // nested markup must never be flattened by the temporary DOM editor.
       if (block.childNodes.length !== 1 || block.firstChild?.nodeType !== 3 ||
           !(/^(h[1-6]|p)$/.test(selected.tagName))) return false;
+      clearTextAnchor();
       editing = block;
       const previous = block.textContent ?? "";
       const originalTabIndex = block.getAttribute("tabindex");
@@ -307,8 +346,28 @@ export function InlineSitePreview({
         };
         onBlockSelect(selected);
         paintSelection(doc, selected);
+        // A visible, accessible edit control is anchored to the clicked block.
+        // Do not offer it for ambiguous, formatted, linked or private Markdown.
+        clearTextAnchor();
+        const element = source.block as HTMLElement;
+        if (canInlineRef.current(selected) && /^(h[1-6]|p)$/.test(selected.tagName) &&
+            element.childNodes.length === 1 && element.firstChild?.nodeType === Node.TEXT_NODE) {
+          const blockRect = element.getBoundingClientRect();
+          // React SyntheticEvent.currentTarget is cleared after onLoad returns;
+          // retain the iframe element itself for future document click events.
+          const frame = loadedFrame;
+          const frameRect = frame.getBoundingClientRect();
+          const scale = frameRect.width / Math.max(1, frame.offsetWidth);
+          livePreviewNode.current = { node: element, source: element.textContent ?? "" };
+          setTextAnchor({
+            selection: selected, text: element.textContent ?? "",
+            left: Math.min(Math.max(4, frameRect.width - 88), Math.max(4, blockRect.left * scale + 8)),
+            top: Math.max(4, blockRect.top * scale - 15),
+          });
+        }
         return;
       }
+      clearTextAnchor();
       onBlockSelect(null);
       paintSelection(doc, null);
     });
@@ -324,7 +383,7 @@ export function InlineSitePreview({
       };
       if (!beginInlineText(source.block as HTMLElement, selected)) onBlockEdit(selected);
     });
-  }, [onNavigate, pages, page.id, page.isPublic, onBlockSelect, onBlockEdit, canInlineTextEdit, onApplyInlineText]);
+  }, [onNavigate, pages, page.id, page.isPublic, onBlockSelect, onBlockEdit, canInlineTextEdit, onApplyInlineText, clearTextAnchor]);
 
   const frameReady = (event: SyntheticEvent<HTMLIFrameElement>, slot: 0 | 1, revision: number) => {
     if (pendingFrame.current?.revision !== revision || pendingFrame.current.slot !== slot) return;
@@ -441,6 +500,8 @@ export function InlineSitePreview({
                 className="paglora-preview-frame absolute left-0 top-0 block rounded-md border bg-white"
               />
             ) : null)}
+            {textAnchor && !busy && <CanvasTextPopover key={`${textAnchor.selection.pageId}-${textAnchor.selection.index}-${textAnchor.selection.text}`}
+              target={textAnchor} onDraft={previewText} onCommit={commitText} onDismiss={() => clearTextAnchor()}/>}
             {busy && !frames[visibleSlot].html && <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <LoaderCircle className="size-4 animate-spin" /> Rendering website…
             </div>}
