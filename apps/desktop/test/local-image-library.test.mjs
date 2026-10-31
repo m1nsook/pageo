@@ -47,6 +47,28 @@ test("Studio image nodes preserve Markdown instead of writing HTML or project me
   assert.match(gallery, /navigator\.clipboard\.writeText\(imageMarkdown\(alt\.trim\(\), selected\)\)/);
 });
 
+test("actual Tiptap image handlers round-trip safe tokens and reject unsafe sources", () => {
+  const nodeSource = readFileSync(new URL("../src/components/editor/local-image-node.ts", import.meta.url), "utf8");
+  const js = ts.transpileModule(nodeSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const imageModule = { exports: {} };
+  const fakeRequire = name => {
+    if (name === "@tiptap/core") return { Node: { create: config => config } };
+    if (name === "@/lib/image-markdown") return module.exports;
+    throw new Error("Unexpected import: " + name);
+  };
+  new Function("require", "module", "exports", js)(fakeRequire, imageModule, imageModule.exports);
+  const node = imageModule.exports.LocalImageNode;
+  const helpers = { createTextNode: text => ({ type: "text", text }) };
+  const parsed = node.parseMarkdown({ href: "assets/guide.png", text: "Diagram" }, helpers);
+  assert.deepEqual(parsed, { type: "pagloraImage", attrs: { src: "assets/guide.png", alt: "Diagram", title: null } });
+  assert.equal(node.renderMarkdown(parsed), "![Diagram](assets/guide.png)");
+  assert.deepEqual(node.parseMarkdown({ href: "javascript:alert(1)", text: "Unsafe" }, helpers),
+    { type: "text", text: "Unsafe" });
+  assert.equal(node.renderMarkdown({ attrs: { src: "data:text/html,evil", alt: "Unsafe" } }), "Unsafe");
+});
+
 test("Rust asset listing verifies real image headers and never follows symlinks", () => {
   const rust = readFileSync(new URL("../src-tauri/src/sites.rs", import.meta.url), "utf8");
   const commands = readFileSync(new URL("../src-tauri/src/lib.rs", import.meta.url), "utf8");
