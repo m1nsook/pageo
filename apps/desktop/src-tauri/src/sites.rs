@@ -328,6 +328,17 @@ pub struct TocHeading {
     level: u8,
 }
 
+/// Summary shown to the author after the export is safely installed.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SiteBuildResult {
+    path: String,
+    public_pages: usize,
+    private_pages: usize,
+    local_images: usize,
+    warnings: Vec<String>,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PageManifest {
@@ -598,6 +609,46 @@ fn referenced_local_assets(html: &str) -> HashSet<String> {
         remaining = &remaining[end + 1..];
     }
     names
+}
+
+/// Find broken links in sanitized public-page markup. Never treat links to
+/// remote origins or same-page fragments as local page references.
+fn site_export_link_warnings(
+    pages: &[crate::pages::Page],
+    rendered: &HashMap<&str, &RenderedPage>,
+) -> Vec<String> {
+    let visibility: HashMap<&str, bool> =
+        pages.iter().map(|page| (page.id.as_str(), page.is_public)).collect();
+    let mut warnings = HashSet::new();
+    for page in pages.iter().filter(|page| page.is_public) {
+        let Some(content) = rendered.get(page.id.as_str()) else { continue; };
+        // This receives only DOM-sanitized HTML built by renderPageContent.
+        // Literal quotation marks in text are escaped, so they cannot create
+        // misleading href attributes.
+        for part in content.html.split("href=\"").skip(1) {
+            let Some(href) = part.split('"').next() else { continue; };
+            let pathname = href.split('#').next().unwrap_or(href);
+            let pathname = pathname.strip_prefix("./").unwrap_or(pathname);
+            let Some(target) = pathname.strip_suffix(".html") else { continue; };
+            if !valid_id(target) { continue; }
+            match visibility.get(target) {
+                Some(true) => {}
+                Some(false) => {
+                    warnings.insert(format!(
+                        "{} links to private page {}.html (not published)", page.id, target
+                    ));
+                }
+                None => {
+                    warnings.insert(format!(
+                        "{} links to missing page {}.html", page.id, target
+                    ));
+                }
+            }
+        }
+    }
+    let mut sorted: Vec<_> = warnings.into_iter().collect();
+    sorted.sort();
+    sorted
 }
 
 fn base64_image(bytes: &[u8]) -> String {
@@ -982,7 +1033,7 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
 }
 
 #[tauri::command]
-pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage>) -> Result<String, String> {
+pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage>) -> Result<SiteBuildResult, String> {
     let (dir, project_name) = project_folder(&app, &project_id)?;
     let settings = read_settings(&dir, &project_name)?;
     validate_settings(&settings)?;
@@ -998,6 +1049,7 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
             return Err("Invalid page data for static site build".into());
         }
     }
+    let warnings = site_export_link_warnings(&pages, &html_by_id);
     let exports_dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join(EXPORTS);
     fs::create_dir_all(&exports_dir).map_err(|e| e.to_string())?;
     let target = exports_dir.join(&project_id);
@@ -1005,7 +1057,7 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
     let backup = exports_dir.join(format!(".{project_id}-previous"));
     if staged.exists() { fs::remove_dir_all(&staged).map_err(|e| e.to_string())?; }
     fs::create_dir(&staged).map_err(|e| e.to_string())?;
-    let write_result = (|| -> Result<(), String> {
+    let write_result = (|| -> Result<usize, String> {
         fs::write(staged.join("styles.css"), SITE_CSS).map_err(|e| e.to_string())?;
         for asset in SITE_RUNTIME_ASSETS {
             fs::write(staged.join(asset.filename), asset.source).map_err(|e| e.to_string())?;
@@ -1036,7 +1088,7 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
         }
         if !image_names.is_empty() {
             fs::create_dir(staged.join("assets")).map_err(|e| e.to_string())?;
-            for name in image_names {
+            for name in &image_names {
                 let (bytes, _) = read_asset(&dir, &name)?;
                 fs::write(staged.join("assets").join(name), bytes).map_err(|e| e.to_string())?;
             }
@@ -1061,9 +1113,15 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
             }
             fs::write(staged.join(filename(&page.id)), output).map_err(|e| e.to_string())?;
         }
-        Ok(())
+        Ok(image_names.len())
     })();
-    if let Err(error) = write_result { let _ = fs::remove_dir_all(&staged); return Err(error); }
+    let local_images = match write_result {
+        Ok(count) => count,
+        Err(error) => {
+            let _ = fs::remove_dir_all(&staged);
+            return Err(error);
+        }
+    };
     // Stage first so an unsuccessful generation never replaces a working export.
     if backup.exists() { fs::remove_dir_all(&backup).map_err(|e| e.to_string())?; }
     if target.exists() { fs::rename(&target, &backup).map_err(|e| e.to_string())?; }
@@ -1072,7 +1130,13 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
         return Err(error.to_string());
     }
     if backup.exists() { let _ = fs::remove_dir_all(&backup); }
-    Ok(target.display().to_string())
+    Ok(SiteBuildResult {
+        path: target.display().to_string(),
+        public_pages: public_pages.len(),
+        private_pages: pages.len() - public_pages.len(),
+        local_images,
+        warnings,
+    })
 }
 
 #[cfg(test)]
@@ -1108,6 +1172,44 @@ mod website_font_tests {
         fs::write(dir.join(CONFIG), serde_json::to_string(&legacy).unwrap()).unwrap();
         assert_eq!(read_settings(&dir, "Docs").unwrap().accent_color, "#2196f3");
         fs::remove_dir_all(dir).unwrap();
+    }
+
+
+
+    #[test]
+    fn export_report_warns_about_private_and_missing_page_links_only() {
+        let pages = vec![
+            crate::pages::Page {
+                id: "index".into(), title: "Overview".into(), is_public: true,
+                layout: "docs".into(), nav_group: "Docs".into(),
+            },
+            crate::pages::Page {
+                id: "guide".into(), title: "Guide".into(), is_public: true,
+                layout: "docs".into(), nav_group: "Docs".into(),
+            },
+            crate::pages::Page {
+                id: "draft".into(), title: "Draft".into(), is_public: false,
+                layout: "docs".into(), nav_group: "Docs".into(),
+            },
+        ];
+        let home = RenderedPage {
+            id: "index".into(),
+            html: r##"<a href="guide.html#usage">Valid</a>
+<a href="./draft.html">Private</a><a href="gone.html">Missing</a>
+<a href="gone.html">Duplicate</a><a href="https://example.test/external.html">External</a>
+<a href="#local-heading">Local heading</a>"##.into(),
+            toc: vec![],
+            search_text: String::new(),
+        };
+        let mut html_by_id = HashMap::new();
+        html_by_id.insert("index", &home);
+        assert_eq!(
+            site_export_link_warnings(&pages, &html_by_id),
+            vec![
+                "index links to missing page gone.html".to_string(),
+                "index links to private page draft.html (not published)".to_string(),
+            ]
+        );
     }
 
 

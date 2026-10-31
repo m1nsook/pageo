@@ -14,6 +14,12 @@ Paglora is a **free, open-source, local-first documentation studio** built with 
 > [!IMPORTANT]
 > **Early development.** The Windows desktop Studio is currently run from source; there is no stable desktop installer release. The published [`paglora` npm package](https://www.npmjs.com/package/paglora) is an **alpha CLI** for creating, inspecting, and validating projects. It does **not** build websites or install the desktop app.
 
+## Current desktop milestone
+
+**Paglora Desktop 0.2.0 (development source)** expands the 0.1.0 foundation with offline MiniSearch, local image imports, RTL/language metadata, public-only SEO exports, reusable document elements, and a new **website publishing report**. After each build, Studio reports public/private page counts, bundled image count, and warnings for links to missing or private pages.
+
+The version is synchronized across the workspace, Windows Tauri app, and Rust package. **This is not an installer release**; Windows desktop and exported browser interactions still require hands-on testing. The independent npm CLI remains `paglora@0.0.1-alpha.3`. See [CHANGELOG.md](CHANGELOG.md).
+
 ## Features
 
 ### Desktop Studio
