@@ -25,7 +25,7 @@ import { editableCanvasText, findCanvasSourcePosition, replacePlainCanvasText, t
 import { PageInspector } from "@/components/editor/page-inspector";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
-import { createProject, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
+import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
 import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, setPageLayout, setPageNavigationGroup, type Page, type PageDocument } from "@/lib/pages";
 
 function friendlyError(error: unknown) { return error instanceof Error ? error.message : String(error); }
@@ -339,6 +339,8 @@ export default function App() {
   const [loading, setLoading] = useState(desktop);
   const [error, setError] = useState("");
   const [location, setLocation] = useState("");
+  const [backupNotice, setBackupNotice] = useState("");
+  const { t } = useTranslation();
 
   // Paglora is a desktop editor, not a web page. Prevent browser-only
   // print/save/reload/open shortcuts (and F5) in the Tauri WebView.
@@ -375,6 +377,25 @@ export default function App() {
     try { setError(""); setActive(await loadProject(id)); }
     catch (cause) { setError(friendlyError(cause)); }
   }
+  async function exportBackup(id: string) {
+    try {
+      setError(""); setBackupNotice("");
+      const path = await exportProjectBackup(id);
+      setBackupNotice(t("studio.backup.saved", { path }));
+    } catch (cause) { setError(friendlyError(cause)); }
+  }
+  async function importBackup(file: File) {
+    if (!file.name.toLowerCase().endsWith(".paglora") || file.size > 96 * 1024 * 1024) {
+      setError(t("studio.backup.invalid")); return;
+    }
+    try {
+      setError(""); setBackupNotice("");
+      const archive = Array.from(new Uint8Array(await file.arrayBuffer()));
+      const id = await importProjectBackup(archive);
+      await refresh();
+      setBackupNotice(t("studio.backup.imported", { id }));
+    } catch (cause) { setError(friendlyError(cause)); }
+  }
   const onSaved = useCallback((updated: ProjectSummary) => {
     setProjects((previous) => previous.map((p) => p.id === updated.id ? updated : p));
   }, []);
@@ -384,7 +405,7 @@ export default function App() {
     <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); void refresh(); }} onSaved={onSaved}/> : view === "settings" ? <Settings desktop={desktop} location={location}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); void refresh(); }} onSaved={onSaved}/> : view === "settings" ? <Settings desktop={desktop} location={location}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} backupNotice={backupNotice}/>}
       </SidebarInset>
       <CreateProjectDialog open={creating} onOpenChange={setCreating} onCreate={create} disabled={!desktop}/>
     </SidebarProvider>

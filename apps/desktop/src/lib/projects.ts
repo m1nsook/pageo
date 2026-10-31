@@ -31,3 +31,16 @@ export async function projectsDirectory(): Promise<string> {
   requireDesktop();
   return invoke<string>("projects_directory");
 }
+
+
+/** Save the complete editable source as a portable, offline .paglora backup. */
+export async function exportProjectBackup(id: string): Promise<string> {
+  requireDesktop();
+  return invoke<string>("export_project_backup", { projectId: id });
+}
+
+/** Import a user-selected .paglora file as a new local project. Never overwrite. */
+export async function importProjectBackup(archive: number[]): Promise<string> {
+  requireDesktop();
+  return invoke<string>("import_project_backup", { archive });
+}
