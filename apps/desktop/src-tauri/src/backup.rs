@@ -29,8 +29,13 @@ fn valid_id(id: &str) -> bool {
 fn valid_source_path(name: &str) -> bool {
     if name.len() > 160 || name.contains('\\') || name.contains("..") ||
         name.starts_with('/') || name.contains('\0') { return false; }
-    if matches!(name, "paglora.json" | "pages.json" | "site.json" | "theme/custom.css") {
+    if matches!(name, "paglora.json" | "pages.json" | "site.json" | "theme/custom.css" | "theme/styles.json") {
         return true;
+    }
+    if let Some(stem) = name.strip_prefix("theme/").and_then(|part|part.strip_suffix(".css")) {
+        return !stem.is_empty() && stem.len() <= 32 && stem != "custom" &&
+            !stem.starts_with('-') && !stem.ends_with('-') &&
+            stem.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-');
     }
     let subpath = if let Some(value) = name.strip_prefix("docs/") {
         if !value.ends_with(".md") { return false; }
@@ -54,6 +59,15 @@ fn source_files(folder: &Path) -> Result<Vec<(String, Vec<u8>)>, String> {
         let meta = fs::symlink_metadata(&full).map_err(|e| e.to_string())?;
         if !meta.file_type().is_file() || meta.len() > MAX_TOTAL as u64 { return Err(format!("Oversized or unsafe source file: {name}")); }
         files.push((name.into(), fs::read(full).map_err(|e| e.to_string())?));
+    }
+    // Include validated ordered theme sources. Never rely on a glob that
+    // silently drops some of the CSS files the exported website actually uses.
+    for name in crate::source::portable_theme_files(folder)? {
+        let full=folder.join(&name);
+        let meta=fs::symlink_metadata(&full).map_err(|e|e.to_string())?;
+        if !meta.file_type().is_file() || meta.len()>256_000 ||
+           !valid_source_path(&name) {return Err(format!("Unsafe stylesheet in backup: {name}"));}
+        files.push((name,fs::read(full).map_err(|e|e.to_string())?));
     }
     for directory in ["docs", "assets"] {
         let full = folder.join(directory);
@@ -100,6 +114,38 @@ fn validate_project(files: &HashMap<String, Vec<u8>>, expected_id: &str) -> Resu
     }
     if let Some(site) = files.get("site.json") {
         let _: serde_json::Value = serde_json::from_slice(site).map_err(|e| format!("Invalid site.json: {e}"))?;
+    }
+    // Validate the closed ordered CSS source contract on import, not only on
+    // export. A corrupted archive must not install dangling or unsafe source.
+    let order = files.get("theme/styles.json");
+    let mut expected = HashSet::new();
+    if let Some(bytes) = order {
+        if bytes.len() > 4096 {return Err("Stylesheet order is too large".into());}
+        let manifest: serde_json::Value=serde_json::from_slice(bytes)
+            .map_err(|e|format!("Invalid stylesheet order: {e}"))?;
+        if manifest["version"] != 1 || manifest.as_object().map(|o|o.len()) != Some(2) {
+            return Err("Unsupported stylesheet order manifest".into());
+        }
+        let names=manifest["files"].as_array().ok_or("Invalid CSS file order")?;
+        if names.len()>12 {return Err("Too many additional CSS files".into());}
+        let mut total=files.get("theme/custom.css").map_or(0,Vec::len);
+        for value in names {
+            let name=value.as_str().ok_or("Invalid CSS name")?;
+            let path=format!("theme/{name}");
+            if !valid_source_path(&path) || name=="custom.css" || !expected.insert(path.clone()) {
+                return Err("Duplicate or unsafe registered CSS file".into());
+            }
+            let css=files.get(&path).ok_or("CSS file listed in styles.json is missing from backup")?;
+            if css.len()>256_000 || css.contains(&0){return Err("Invalid or oversized CSS source".into());}
+            total=total.checked_add(css.len()).ok_or("CSS size overflow")?;
+        }
+        if total>512_000{return Err("Combined CSS exceeds backup limit".into());}
+    }
+    for (name,contents) in files.iter().filter(|(n,_)| n.starts_with("theme/") && n.ends_with(".css")) {
+        if name!="theme/custom.css" && !expected.contains(name) {
+            return Err(format!("Unregistered CSS source in backup: {name}"));
+        }
+        if contents.len()>256_000 || contents.contains(&0){return Err("Unsafe CSS content in backup".into());}
     }
     Ok(())
 }
@@ -257,6 +303,44 @@ mod tests {
         }
         fs::remove_dir_all(root).unwrap();
     }
+    #[test]
+    fn backup_restores_all_ordered_css_and_a_legacy_project() {
+        let root=temp("css-roundtrip");let original=root.join("example");
+        fs::create_dir(&original).unwrap();sample(&original);
+        let dir=original.join("theme");
+        fs::write(dir.join("typography.css"),".docs h1{color:red}").unwrap();
+        fs::write(dir.join("components.css"),".paglora-card{border:0}").unwrap();
+        fs::write(dir.join("styles.json"),r#"{"version":1,"files":["typography.css","components.css"]}"#).unwrap();
+        let archive=make_backup(&original,"example").unwrap();
+        let restored=root.join("restored");
+        let id=install_backup(&archive,&restored).unwrap();
+        let copy=restored.join(id);
+        assert_eq!(fs::read(dir.join("styles.json")).unwrap(),fs::read(copy.join("theme/styles.json")).unwrap());
+        assert_eq!(crate::source::site_css(&original).unwrap(),crate::source::site_css(&copy).unwrap());
+        assert!(crate::source::site_css(&copy).unwrap().unwrap().find("typography.css").unwrap()
+            <crate::source::site_css(&copy).unwrap().unwrap().find("components.css").unwrap());
+        fs::remove_file(dir.join("typography.css")).unwrap();
+        fs::remove_file(dir.join("components.css")).unwrap();
+        fs::remove_file(dir.join("styles.json")).unwrap();
+        assert!(make_backup(&original,"example").is_ok(),"legacy single CSS remains portable");
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn css_backup_rejects_orphans_and_manifest_mismatch() {
+        let root=temp("css-invalid");let original=root.join("example");
+        fs::create_dir(&original).unwrap();sample(&original);
+        let dir=original.join("theme");
+        fs::write(dir.join("unlisted.css"),"body{}").unwrap();
+        assert!(make_backup(&original,"example").is_err(),"unregistered CSS must not be lost silently");
+        fs::write(dir.join("styles.json"),r#"{"version":1,"files":["unlisted.css"]}"#).unwrap();
+        let good=make_backup(&original,"example").unwrap();
+        let mut doc:serde_json::Value=serde_json::from_slice(&good).unwrap();
+        let files=doc["files"].as_array_mut().unwrap();
+        files.retain(|f|f["path"]!="theme/unlisted.css");
+        assert!(read_backup(&serde_json::to_vec(&doc).unwrap()).is_err(),"missing registered CSS");
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn refuses_traversal_duplicate_paths_and_corrupt_archives() {
         for path in ["../evil", "docs/../../evil.md", "assets/malicious.svg", "docs/sub/page.md", ".env", "docs\\evil.md"] {
