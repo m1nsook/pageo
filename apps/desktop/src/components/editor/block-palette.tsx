@@ -56,12 +56,14 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
 
     const over = (event: DragEvent) => {
       if (!canAcceptBlockDrag(event.dataTransfer)) return;
+      // Remember the LAST release location even if the pointer leaves the
+      // editor: cancellation must not reuse an old valid editor coordinate.
+      lastDragPoint.current = { x: event.clientX, y: event.clientY };
       if (!(event.target instanceof Element) ||
         !event.target.closest("[data-editor-drop-zone]")) {
         setOverEditor(false);
         return;
       }
-      lastDragPoint.current = { x: event.clientX, y: event.clientY };
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
       setOverEditor(true);

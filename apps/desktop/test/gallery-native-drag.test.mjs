@@ -26,9 +26,10 @@ test("gallery drag uses a closed native payload and editor-only destination vali
 test("source insertion reuses undoable Tiptap pipeline without an HTML parser",()=>{
  const palette=read("src/components/editor/block-palette.tsx");
  assert.match(palette,/createMarkdownBlock\(kind\)/);
- assert.match(palette,/insertContentAt\(topLevelDropPos\(editor, point\.y\), node\)/);
+ assert.match(read("src/lib/block-insertion.ts"),/insertContentAt\(position, createMarkdownBlock\(kind\)\)/);
+ assert.match(read("src/lib/block-insertion.ts"),/scrollIntoView\(\)/);
  assert.match(palette,/draggable=\{!disabled && Boolean\(editor\)\}/);
- assert.match(palette,/onClick=\{\(\) => insert\(kind\)\}/);
+ assert.match(palette,/onClick=\{\(\) => click\(kind\)\}/);
  assert.doesNotMatch(palette,/setPointerCapture|onPointerMove|onPointerUp/);
  assert.doesNotMatch(palette,/innerHTML|DOMParser/);
 });
