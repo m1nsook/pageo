@@ -225,6 +225,24 @@ mod tests {
         fs::write(path.join("theme/custom.css"),"body{}").unwrap();
     }
     #[test]
+    fn backup_roundtrip_preserves_project_organization_metadata() {
+        let temp = temp("visual");
+        let original = temp.join("example");
+        fs::create_dir(&original).unwrap();
+        sample(&original);
+        let manifest = original.join("paglora.json");
+        let mut json: serde_json::Value = serde_json::from_slice(&fs::read(&manifest).unwrap()).unwrap();
+        json["visual"] = serde_json::json!({"category":"Game mods","accent":"violet","icon":"code"});
+        fs::write(&manifest, serde_json::to_vec_pretty(&json).unwrap()).unwrap();
+        let backup = make_backup(&original, "example").unwrap();
+        let output = temp.join("restored");
+        let id = install_backup(&backup, &output).unwrap();
+        let restored: serde_json::Value = serde_json::from_slice(&fs::read(output.join(id).join("paglora.json")).unwrap()).unwrap();
+        assert_eq!(restored["visual"], json["visual"]);
+        fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[test]
     fn roundtrip_preserves_private_markdown_and_binary_assets_without_overwriting() {
         let root=temp("roundtrip"); let original=root.join("example");
         fs::create_dir(&original).unwrap();sample(&original);
