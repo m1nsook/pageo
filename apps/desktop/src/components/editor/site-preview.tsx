@@ -26,10 +26,14 @@ export function SitePreview({ projectId, onBeforePreview }: {
   const frame = useRef<HTMLIFrameElement | null>(null);
   // Ignore responses from an older page selection or a closed preview.
   const requestId = useRef(0);
+  // A cross-page Markdown link can include a heading fragment. Restore it
+  // after the script-disabled srcDoc iframe finishes loading the target page.
+  const pendingFragment = useRef("");
   const publicPages = pages.filter(page => page.isPublic);
 
-  const refresh = useCallback(async (pageId?: string) => {
+  const refresh = useCallback(async (pageId?: string, fragment = "") => {
     const request = ++requestId.current;
+    pendingFragment.current = fragment;
     setBusy(true);
     setError("");
     try {
@@ -44,24 +48,33 @@ export function SitePreview({ projectId, onBeforePreview }: {
       setSelected(next);
       setSrcDoc(html);
     } catch (cause) {
-      if (request === requestId.current) setError(cause instanceof Error ? cause.message : String(cause));
+      if (request === requestId.current) {
+        pendingFragment.current = "";
+        setError(cause instanceof Error ? cause.message : String(cause));
+      }
     } finally {
       if (request === requestId.current) setBusy(false);
     }
   }, [projectId, onBeforePreview]);
 
   useEffect(() => {
+    // Clear the previous project's public content immediately when switching
+    // workspaces, including while the preview dialog remains open.
+    requestId.current++;
+    pendingFragment.current = "";
+    setPages([]);
+    setSelected("index");
+    setSrcDoc("");
     if (open) void refresh();
-    else {
-      // A response completing after close must not overwrite the next session.
-      requestId.current++;
-      setBusy(false);
-    }
-  }, [open]); // only open/close triggers a reset; page navigation calls refresh itself
+    else setBusy(false);
+  }, [open, projectId]); // page navigation calls refresh itself
 
   function onFrameLoad() {
     const doc = frame.current?.contentDocument;
     if (!doc) return;
+    const fragment = pendingFragment.current;
+    pendingFragment.current = "";
+    if (fragment) doc.getElementById(fragment)?.scrollIntoView({ block: "start" });
     // Scripts are disabled in the sandbox. Intercept navigation in the parent
     // so clicking an internal docs link switches the previewed Paglora page.
     doc.addEventListener("click", event => {
@@ -70,9 +83,16 @@ export function SitePreview({ projectId, onBeforePreview }: {
       const href = anchor.getAttribute("href") || "";
       if (href.startsWith("#")) return;
       event.preventDefault(); // do not navigate to the host WebView or network
-      const pathname = href.split("#", 1)[0].replace(/^\.\//, "");
+      const [path, ...hash] = href.split("#");
+      const pathname = path.replace(/^\.\//, "");
       const target = pathname.replace(/\.html$/, "");
-      if (publicPages.some(page => page.id === target)) void refresh(target);
+      if (!publicPages.some(page => page.id === target)) return;
+      let fragment = "";
+      try { fragment = decodeURIComponent(hash.join("#")); }
+      catch { return; } // malformed fragments must not navigate or crash
+      if (target === selected) {
+        if (fragment) doc.getElementById(fragment)?.scrollIntoView({ block: "start" });
+      } else void refresh(target, fragment);
     }, { once: false });
   }
 

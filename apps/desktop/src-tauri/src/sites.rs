@@ -519,6 +519,17 @@ fn escape(value: &str) -> String {
 
 fn filename(id: &str) -> String { format!("{id}.html") }
 
+// Match browser chrome to the exported page's configured light/dark palette.
+// System mode uses media-qualified tags so browser UI follows OS changes.
+fn theme_color_meta(mode: &str) -> &'static str {
+    match mode {
+        "light" => r##"<meta name="theme-color" content="#ffffff">"##,
+        "dark" => r##"<meta name="theme-color" content="#11151d">"##,
+        _ => r##"<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11151d" media="(prefers-color-scheme: dark)">"##,
+    }
+}
+
 // Open Graph uses language_region identifiers, unlike HTML's BCP 47 lang.
 fn social_locale(language: &str) -> &'static str {
     match language {
@@ -655,6 +666,7 @@ fn render_site_page_with_description(
     } else { String::new() };
     let description = escape(&page_meta_description(&settings.description, search_text));
     let theme_mode = &settings.theme_mode;
+    let theme_color = theme_color_meta(theme_mode);
     let language = &settings.language;
     let og_locale = social_locale(language);
     let direction = if language == "ar" { "rtl" } else { "ltr" };
@@ -688,7 +700,7 @@ fn render_site_page_with_description(
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="{page_title}">
 <meta name="twitter:description" content="{description}">
-<meta name="theme-color" content="#ffffff">
+{theme_color}
 <title>{page_title}</title>
 <link rel="stylesheet" href="styles.css">
 {google_font}
@@ -888,6 +900,29 @@ mod website_font_tests {
         }
         assert!(valid_site_url("https://docs.example.com/"));
         assert!(valid_site_url("https://m1nsook.github.io/paglora/"));
+    }
+
+    #[test]
+    fn theme_color_metadata_tracks_the_configured_appearance() {
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Documentation".into(),
+        };
+        let mut settings = default_settings("Docs");
+        for (mode, expected) in [
+            ("light", r##"<meta name="theme-color" content="#ffffff">"##),
+            ("dark", r##"<meta name="theme-color" content="#11151d">"##),
+        ] {
+            settings.theme_mode = mode.into();
+            let html = render_site_page(&settings, &[page.clone()], &page, "<p>Docs</p>", &[]);
+            assert!(html.contains(expected), "{mode}");
+            assert_eq!(html.matches(r#"<meta name="theme-color""#).count(), 1);
+        }
+        settings.theme_mode = "system".into();
+        let html = render_site_page(&settings, &[page.clone()], &page, "<p>Docs</p>", &[]);
+        assert!(html.contains(r#"media="(prefers-color-scheme: light)""#));
+        assert!(html.contains(r#"media="(prefers-color-scheme: dark)""#));
+        assert_eq!(html.matches(r#"<meta name="theme-color""#).count(), 2);
     }
 
     #[test]

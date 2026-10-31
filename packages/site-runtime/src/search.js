@@ -167,21 +167,24 @@ import MiniSearch from "minisearch";
     if (!hits.length && terms.every(term => term.length >= 5 && /^[a-z]+$/u.test(term))) {
       hits = engine.search(phrase, { ...options, fuzzy: 0.2 });
     }
-    const matches = hits.map(hit => {
+    // MiniSearch matches complete tokens, which can miss CJK substrings in
+    // longer unsegmented words. Merge substring matches even when other pages
+    // have token hits, instead of using substring search only as a fallback.
+    // Deduplicate by the validated local URL so a page appears only once.
+    const matchesByUrl = new Map();
+    for (const hit of hits) {
       const page = loaded.find(item => item.url === hit.id);
-      if (!page) return null;
-      return { page, score: hit.score };
-    }).filter(Boolean);
-    // MiniSearch tokenization is word-based; retain substring discovery for
-    // CJK writing systems that often have no spaces between words.
-    if (!matches.length && /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/u.test(phrase)) {
+      if (page) matchesByUrl.set(page.url, { page, score: hit.score });
+    }
+    if (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/u.test(phrase)) {
       for (const page of loaded) {
-        if (terms.every(term => page.titleSearch.includes(term) || page.bodySearch.includes(term))) {
-          matches.push({ page, score: 1 });
+        if (!matchesByUrl.has(page.url) &&
+            terms.every(term => page.titleSearch.includes(term) || page.bodySearch.includes(term))) {
+          matchesByUrl.set(page.url, { page, score: 1 });
         }
       }
     }
-    return matches.map(({ page, score }) => {
+    return [...matchesByUrl.values()].map(({ page, score }) => {
       if (page.titleSearch === phrase) score += 100;
       else if (page.titleSearch.startsWith(phrase)) score += 40;
       if (page.bodySearch.includes(phrase)) score += 10;
