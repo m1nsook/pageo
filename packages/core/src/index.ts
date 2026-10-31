@@ -10,6 +10,7 @@ export type ProjectSummary = {
   name: string;
   createdAt: number;
   updatedAt: number;
+  visual: ProjectVisual;
 };
 
 export type ProjectDocument = {
