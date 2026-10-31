@@ -342,6 +342,19 @@ mod tests {
     }
 
     #[test]
+    fn recoverable_images_round_trip_inside_portable_project_backup() {
+        let root=temp("media-recovery");let original=root.join("example");
+        fs::create_dir(&original).unwrap();sample(&original);
+        fs::create_dir(original.join("removed-assets")).unwrap();
+        let image=b"\x89PNG\r\n\x1a\nrecoverable";
+        fs::write(original.join("removed-assets/unused.png"),image).unwrap();
+        let bytes=make_backup(&original,"example").unwrap();
+        let restored=root.join("imported");
+        let id=install_backup(&bytes,&restored).unwrap();
+        assert_eq!(fs::read(restored.join(id).join("removed-assets/unused.png")).unwrap(),image);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
     fn refuses_traversal_duplicate_paths_and_corrupt_archives() {
         for path in ["../evil", "docs/../../evil.md", "assets/malicious.svg", "docs/sub/page.md", ".env", "docs\\evil.md"] {
             assert!(!valid_source_path(path),"{path}");
