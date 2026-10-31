@@ -53,7 +53,9 @@ fn read_pages(folder: &Path) -> Result<Manifest, String> {
         &fs::read_to_string(folder.join(MANIFEST)).map_err(|e| e.to_string())?
     ).map_err(|e| e.to_string())?;
     if manifest.format_version != 1 || manifest.pages.is_empty() || manifest.pages.len() > 500 ||
-        manifest.pages[0].id != HOME { return Err("Invalid pages manifest".into()); }
+        manifest.pages[0].id != HOME || !manifest.pages[0].is_public {
+        return Err("Invalid pages manifest: Overview must remain public".into());
+    }
     let mut known = HashSet::new();
     for page in &manifest.pages {
         if !valid_id(&page.id) || !valid_layout(&page.layout) || !valid_navigation_group(&page.nav_group) || page.title.trim().is_empty() ||
@@ -294,6 +296,21 @@ mod tests {
         assert_eq!(fs::read_to_string(&fresh).unwrap(), "# New page");
         assert!(write_new_document(&fresh, "# Another").is_err());
         assert_eq!(fs::read_to_string(&fresh).unwrap(), "# New page");
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn malformed_manifest_cannot_make_overview_private() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "paglora-private-overview-{}-{nonce}", std::process::id()
+        ));
+        fs::create_dir(&dir).unwrap();
+        let manifest = dir.join(MANIFEST);
+        fs::write(&manifest, r#"{"formatVersion":1,"pages":[{"id":"index","title":"Overview","isPublic":false,"layout":"docs"}]}"#).unwrap();
+        assert!(read_pages(&dir).is_err(), "Overview cannot be hidden by editing pages.json");
+        fs::write(&manifest, r#"{"formatVersion":1,"pages":[{"id":"index","title":"Overview","isPublic":true,"layout":"docs"}]}"#).unwrap();
+        assert!(read_pages(&dir).is_ok(), "legacy manifests with default navGroup remain supported");
         fs::remove_dir_all(&dir).unwrap();
     }
 
