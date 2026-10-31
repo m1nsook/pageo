@@ -67,6 +67,7 @@ export function InlineSitePreview({
   const viewportRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const wheelZoomRef = useRef<(delta: number) => void>(() => {});
+  const keyboardZoomRef = useRef<(key: string) => void>(() => {});
   const zoomValueRef = useRef(100);
   const selectedRef = useRef(selectedBlock);
   selectedRef.current = selectedBlock;
@@ -102,8 +103,20 @@ export function InlineSitePreview({
       event.preventDefault();
       wheelZoomRef.current(event.deltaY);
     };
+    const onKey = (event: KeyboardEvent) => {
+      // Zoom shortcuts apply only when the canvas viewport has focus.
+      // Never steal normal typing, IME composition, or browser shortcuts elsewhere.
+      if ((!event.ctrlKey && !event.metaKey) || event.altKey || event.isComposing) return;
+      if (!["+", "=", "-", "_", "0"].includes(event.key)) return;
+      event.preventDefault();
+      keyboardZoomRef.current(event.key);
+    };
     viewport.addEventListener("wheel", wheel, { passive: false });
-    return () => viewport.removeEventListener("wheel", wheel);
+    viewport.addEventListener("keydown", onKey);
+    return () => {
+      viewport.removeEventListener("wheel", wheel);
+      viewport.removeEventListener("keydown", onKey);
+    };
   }, []);
 
   useEffect(() => {
@@ -159,6 +172,12 @@ export function InlineSitePreview({
       event.preventDefault();
       wheelZoomRef.current(event.deltaY);
     }, { passive: false });
+    doc.addEventListener("keydown", event => {
+      if ((!event.ctrlKey && !event.metaKey) || event.altKey || event.isComposing) return;
+      if (!["+", "=", "-", "_", "0"].includes(event.key)) return;
+      event.preventDefault();
+      keyboardZoomRef.current(event.key);
+    });
 
     let editing: HTMLElement | null = null;
     const beginInlineText = (block: HTMLElement, selected: CanvasBlockSelection) => {
@@ -290,6 +309,10 @@ export function InlineSitePreview({
     setFit(false);
   }
   wheelZoomRef.current = delta => { if (delta !== 0) changeZoom(delta > 0 ? -10 : 10); };
+  keyboardZoomRef.current = key => {
+    if (key === "0") setFit(true);
+    else changeZoom(key === "+" || key === "=" ? 10 : -10);
+  };
 
   return (
     <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-muted/30" aria-label="Website design canvas">
@@ -338,7 +361,9 @@ export function InlineSitePreview({
       </p>}
       <div
         ref={viewportRef}
-        className="min-h-0 flex-1 overflow-auto bg-muted/40 p-6"
+        tabIndex={0}
+        aria-label="Website design canvas viewport"
+        className="min-h-0 flex-1 overflow-auto bg-muted/40 p-6 focus-visible:outline-2 focus-visible:outline-ring"
         style={{ backgroundImage: "radial-gradient(circle, var(--border) 1px, transparent 1px)", backgroundSize: "22px 22px" }}
       >
         {html ? (
@@ -358,7 +383,7 @@ export function InlineSitePreview({
         </div>}
       </div>
       <p className="shrink-0 border-t border-border bg-card px-4 py-2 text-[11px] text-muted-foreground">
-        {deviceNames[device]} · {frameWidth} px · Wheel on canvas or Ctrl+wheel over page to zoom · Double-click plain text to edit · Esc to cancel
+        {deviceNames[device]} · {frameWidth} px · Wheel on canvas or Ctrl+wheel over page to zoom · Ctrl+plus/minus to zoom, Ctrl+0 to fit · Double-click plain text to edit · Esc to cancel
       </p>
     </section>
   );
