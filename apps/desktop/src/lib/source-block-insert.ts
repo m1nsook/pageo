@@ -20,7 +20,7 @@ function sourceBlocks(source: string): { offset: number; signature: string }[] {
     if (token.type === "space") continue;
     const firstItem = "items" in token && Array.isArray(token.items)
       ? token.items.map(item => item.text).join(" ") : "";
-    const text = typeof token.text === "string" ? token.text : firstItem;
+    const text = "text" in token && typeof token.text === "string" ? token.text : firstItem;
     blocks.push({ offset, signature: signature(text || token.raw) });
   }
   return blocks;
