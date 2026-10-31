@@ -20,8 +20,8 @@ import { PageNavigation, type PageAction } from "@/components/editor/page-naviga
 import { FormatToolbar } from "@/components/editor/format-toolbar";
 import { BlockPalette } from "@/components/editor/block-palette";
 import type { BlockKind } from "@/components/editor/block-catalog";
-import { insertComponentAtMarkdownBoundary } from "@/lib/source-block-insert";
-import { blockDropBoundary, selectionBlockBoundary } from "@/lib/block-insertion";
+import { insertComponentAtBoundary, parseSourceComponents } from "@/lib/component-source-model";
+import { SourceComponentCanvas } from "@/components/editor/source-component-canvas";
 import { SiteBuilder } from "@/components/editor/site-builder";
 import { SitePreview } from "@/components/editor/site-preview";
 import { SiteDesigner } from "@/components/editor/site-designer";
@@ -102,6 +102,9 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving" | "error">("saved");
   const [saveError, setSaveError] = useState("");
   const [viewMode, setViewMode] = useState<"edit" | "split" | "site">("site");
+  const [componentMode, setComponentMode] = useState<"compose" | "write">("compose");
+  const [componentBoundary, setComponentBoundary] = useState(0);
+  const [, refreshComponents] = useState(0);
   const [splitResetToken, setSplitResetToken] = useState(0);
   const [switchingView, setSwitchingView] = useState(false);
   const [siteRevision, setSiteRevision] = useState(0);
@@ -153,39 +156,34 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     },
   });
 
-  function insertAtSourcePosition(kind: BlockKind, point?: { y: number }): boolean {
-    if (leaving || switchingView || !editor || editor.isDestroyed) return false;
+  function insertSourceComponent(kind: BlockKind, boundary: number): boolean {
+    if (leaving || switchingView || viewMode === "site") return false;
     try {
-      // The visible editor's caret or release point identifies a top-level
-      // boundary. Match it to the ORIGINAL Markdown tokens, not getMarkdown()
-      // from a malformed Tiptap parse. Never silently append to the page end.
-      const boundary = point === undefined
-        ? selectionBlockBoundary(editor)
-        : blockDropBoundary(editor, point.y);
-      const visibleBlocks: { text: string }[] = [];
-      editor.state.doc.forEach(node => { visibleBlocks.push({ text: node.textContent }); });
-      const next = insertComponentAtMarkdownBoundary(latest.current, kind, visibleBlocks, boundary);
-      if (next === latest.current) return false;
-      latest.current = next;
-      revision.current += 1;
+      // One source-owned model determines BOTH rendered insertion positions
+      // and exact saved Markdown offsets. Tiptap is not consulted.
+      const nextSource = insertComponentAtBoundary(latest.current, kind, boundary);
+      latest.current = nextSource;
+      revision.current++;
       rawSourceFallbackActive.current = true;
-      if (saveTimer.current) clearTimeout(saveTimer.current);
       setSaveState("unsaved");
+      setSaveError("");
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      refreshComponents(n => n + 1);
+      setComponentBoundary(Math.min(boundary + 1, parseSourceComponents(nextSource).blocks.length));
 
-      // Rehydrate the editor without emitting an autosave of its potentially
-      // malformed parse. Persist the exact original source with one added block.
+      // Text Write mode can reuse a valid parse, but is never the authority
+      // for component positioning or persistence.
       try {
-        editor.commands.setContent(next, { contentType: "markdown", emitUpdate: false });
-        editor.state.doc.check();
+        editor?.commands.setContent(nextSource, { contentType: "markdown", emitUpdate: false });
+        editor?.state.doc.check();
         rawSourceFallbackActive.current = false;
-      } catch { /* Preserve original Markdown when parser remains invalid. */ }
+      } catch { /* Source remains authoritative and safely saved. */ }
       void persist().catch(() => undefined);
       return true;
     } catch (error) {
-      // Position ambiguity is not an excuse to append at the end.
       const reason = friendlyError(error);
+      toast.error("Could not insert component", { description: reason });
       setSaveError(reason);
-      toast.error("Could not place component here", { description: reason });
       return false;
     }
   }
@@ -287,6 +285,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   }
 
   function editCanvasBlock(block: CanvasBlockSelection) {
+    setComponentMode("write");
     if (block.pageId !== current.page.id || leaving || switchingView) return;
     setSelectedBlock(block);
     setPendingBlock(block);
@@ -302,23 +301,41 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   // source-mapped inline edits in site mode without losing editor state.
   const editorPane = (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto" aria-label={t("studio.editor.documentationEditor")}>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-4 py-2">
+        <div className="flex items-center gap-1 rounded-md bg-muted p-1">
+          <Button size="sm" type="button" variant={componentMode === "compose" ? "secondary" : "ghost"}
+            onClick={() => setComponentMode("compose")}>Components</Button>
+          <Button size="sm" type="button" variant={componentMode === "write" ? "secondary" : "ghost"}
+            onClick={() => { setComponentMode("write"); editor?.commands.focus(); }}>Write</Button>
+        </div>
+        <span className="text-xs text-muted-foreground">Markdown · autosaved</span>
+      </div>
+      {saveError && <p role="alert" className="mx-5 mt-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+        {t("studio.editor.saveError", { message: saveError })}
+      </p>}
+      <section className="relative min-h-0 min-w-0 flex-1 overflow-y-auto"
+        aria-label={t("studio.editor.documentationEditor")}>
+        {componentMode === "compose" && (
+          <SourceComponentCanvas source={latest.current}
+            selectedBoundary={componentBoundary} onSelectBoundary={setComponentBoundary}
+            onEditText={() => { setComponentMode("write"); editor?.commands.focus(); }} />
+        )}
+        <div className={componentMode === "write" ? "relative min-h-full" :
+          "pointer-events-none absolute inset-0 -z-10 overflow-hidden opacity-0"} aria-hidden={componentMode !== "write"}>
           <FormatToolbar editor={editor} />
-          <div data-editor-drop-zone className="mx-auto min-h-[calc(100%-3rem)] max-w-3xl animate-in fade-in-0 px-6 py-9 duration-200 lg:px-10 lg:py-12">
-            {saveError && <p role="alert" className="mb-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{t("studio.editor.saveError", { message: saveError })}</p>}
+          <div className="mx-auto max-w-3xl px-6 py-9 lg:px-10 lg:py-12">
             <div onKeyDown={(event) => {
-              // ProseMirror handles Ctrl/Cmd+B inside the editor. Keep it from
-              // bubbling to shadcn Sidebar's global collapse shortcut.
               if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b" &&
                   event.target instanceof HTMLElement && event.target.isContentEditable) {
                 event.stopPropagation();
               }
             }}>
-              <EditorContent editor={editor}/>
+              <EditorContent editor={editor} />
             </div>
           </div>
-        </section>
         </div>
+      </section>
+    </div>
   );
   const previewPane = (
     <InlineSitePreview
@@ -383,6 +400,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
                 if (saveTimer.current) clearTimeout(saveTimer.current);
                 latest.current = markdown;
                 revision.current += 1;
+                refreshComponents(n => n + 1);
+                setComponentBoundary(0);
                 rawSourceFallbackActive.current = true;
                 try {
                   editor.commands.setContent(markdown, { contentType: "markdown", emitUpdate: false });
@@ -418,7 +437,9 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           onEditBlock={() => { if (selectedBlock) editCanvasBlock(selectedBlock); }}
           onClearBlock={() => setSelectedBlock(null)}
           onChange={(action, id, value) => modify(action, id, value)}
-          onEditContent={() => void selectView("edit")} /> : viewMode === "edit" && showBlockTools ? <BlockPalette editor={editor} disabled={leaving} onInvalidDocument={insertAtSourcePosition} /> : undefined}
+          onEditContent={() => void selectView("edit")} /> : viewMode === "edit" && showBlockTools ? <BlockPalette disabled={leaving || switchingView || componentMode !== "compose"}
+          selectedBoundary={componentBoundary} onSelectedBoundaryChange={setComponentBoundary}
+          onInsert={insertSourceComponent} /> : undefined}
       />
       <StudioQuickFind open={findOpen} onOpenChange={onFindOpenChange}
         projectId={document.project.id} shortcut={findShortcut} entries={pages.map(page => ({ id: page.id, title: page.title, description: page.navGroup, kind: "page" as const }))}
