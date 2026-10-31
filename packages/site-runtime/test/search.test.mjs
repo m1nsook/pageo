@@ -363,3 +363,14 @@ test("CJK substring results are included even when MiniSearch finds token matche
   assert.ok(urls.includes("compound.html"));
   assert.equal(new Set(urls).size, 2, "each page should appear only once");
 });
+
+
+test("search rejects unbounded malformed indexes before indexing", async () => {
+  const pages = Array.from({ length: 2001 }, (_, index) => ({
+    title: `Page ${index}`, url: `page-${index}.html`, text: "public documentation",
+  }));
+  const app = fixture(pages);
+  const { results } = await app.open();
+  assert.match(results.children[0].textContent, /Search index could not be loaded/);
+  assert.equal(results.children[1].className, "paglora-search-retry");
+});
