@@ -405,7 +405,8 @@ fn valid_site_url(value: &str) -> bool {
     if host.split('.').any(|label| label.is_empty() || label.starts_with('-') || label.ends_with('-')) {
         return false;
     }
-    !path.split('/').any(|segment| segment == "." || segment == "..") &&
+    !path.starts_with('/') &&
+        !path.split('/').any(|segment| segment == "." || segment == "..") &&
         !path.contains("//") &&
         path.bytes().all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, b'/' | b'-' | b'_' | b'.' | b'~'))
 }
