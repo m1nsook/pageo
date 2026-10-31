@@ -110,8 +110,8 @@ function ProjectCard({ project, onOpen, onExportBackup, onTrash, onVisualSave }:
   );
 }
 
-export function Dashboard({ projects, trashItems, restoringTrashId, onRestoreProject, onUpdateVisual, openCreate, openProject, onExportBackup, onImportBackup, onTrashProject, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
-  projects: ProjectSummary[]; trashItems: TrashedProject[]; restoringTrashId: string | null; onRestoreProject: (trashId: string) => void; onUpdateVisual: (id: string, visual: ProjectVisual) => Promise<void>; openCreate: () => void; openProject: (id: string) => void;
+export function Dashboard({ projects, trashItems, restoringTrashId, onRestoreProject, onDeleteTrashedProject, onUpdateVisual, openCreate, openProject, onExportBackup, onImportBackup, onTrashProject, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
+  projects: ProjectSummary[]; trashItems: TrashedProject[]; restoringTrashId: string | null; onRestoreProject: (trashId: string) => void; onDeleteTrashedProject: (trashId: string, confirmation: string) => void; onUpdateVisual: (id: string, visual: ProjectVisual) => Promise<void>; openCreate: () => void; openProject: (id: string) => void;
   onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; onTrashProject: (id: string) => void; backupNotice: string; backupPath: string;
   view: WorkspaceView; loading: boolean; search: string; setSearch: (value: string) => void; desktop: boolean; error: string;
 }) {
@@ -211,7 +211,7 @@ export function Dashboard({ projects, trashItems, restoringTrashId, onRestorePro
               {!search && <EmptyContent><Button onClick={openCreate}><Plus /> Create project</Button></EmptyContent>}
             </Empty>
           )}
-          {desktop && <ProjectTrashPanel items={trashItems} busy={restoringTrashId} onRestore={onRestoreProject} />}
+          {desktop && <ProjectTrashPanel items={trashItems} busy={restoringTrashId} onRestore={onRestoreProject} onDelete={onDeleteTrashedProject} />}
           <p className="mt-6 text-xs text-muted-foreground">{t("studio.backup.description")}</p>
           <div className="mt-8 flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4" /> Paglora works without a cloud account.</div>
         </div>

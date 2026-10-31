@@ -19,7 +19,7 @@ test("project removal moves local project files instead of erasing them", () => 
   const rust = read("src-tauri/src/projects.rs").replace(/\r\n/g, "\n");
   assert.match(rust, /fn move_project_to_trash\(/);
   assert.match(rust, /fs::rename\(&folder, &destination\)/);
-  assert.doesNotMatch(rust.slice(rust.indexOf("fn move_project_to_trash"), rust.indexOf("#\[tauri::command\]\npub fn trash_project")), /remove_dir_all/);
+  assert.doesNotMatch(rust.slice(rust.indexOf("fn move_project_to_trash"), rust.indexOf("fn purge_from")), /remove_dir_all/);
   assert.match(read("src-tauri/src/lib.rs"), /projects::trash_project/);
   assert.match(read("src/lib/projects.ts"), /invoke<string>\("trash_project"/);
   assert.match(read("src/components/studio/workspace-content.tsx"), /Move to trash/);
