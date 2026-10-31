@@ -19,6 +19,8 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { PageNavigation, type PageAction } from "@/components/editor/page-navigation";
 import { FormatToolbar } from "@/components/editor/format-toolbar";
 import { BlockPalette } from "@/components/editor/block-palette";
+import type { BlockKind } from "@/components/editor/block-catalog";
+import { appendComponentToMarkdown } from "@/lib/source-block-append";
 import { SiteBuilder } from "@/components/editor/site-builder";
 import { SitePreview } from "@/components/editor/site-preview";
 import { SiteDesigner } from "@/components/editor/site-designer";
@@ -94,6 +96,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const revision = useRef(0);
+  // Original Markdown stays authoritative when Tiptap parses an invalid tree.
+  const rawSourceFallbackActive = useRef(false);
   const [saveState, setSaveState] = useState<"saved" | "unsaved" | "saving" | "error">("saved");
   const [saveError, setSaveError] = useState("");
   const [viewMode, setViewMode] = useState<"edit" | "split" | "site">("site");
@@ -131,6 +135,15 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     contentType: "markdown",
     editorProps: { attributes: { class: "editor-content focus:outline-none" } },
     onUpdate: ({ editor: current }) => {
+      if (rawSourceFallbackActive.current) {
+        try {
+          current.state.doc.check();
+          rawSourceFallbackActive.current = false;
+        } catch {
+          setSaveError("The visual parser cannot safely save this page. Your original Markdown is preserved; edit it in Source.");
+          return; // Never serialize malformed Tiptap content over valid .md.
+        }
+      }
       latest.current = preservePagloraMarkers(current.getMarkdown());
       revision.current += 1;
       setSaveState("unsaved");
@@ -138,6 +151,37 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
       saveTimer.current = setTimeout(() => { void persist().catch(() => undefined); }, 850);
     },
   });
+
+  function appendInvalidPageBlock(kind: BlockKind): boolean {
+    if (leaving || switchingView || !editor || editor.isDestroyed) return false;
+    try {
+      // Append to the current unsaved source, never getMarkdown() from an
+      // invalid ProseMirror document or silently replace any existing bytes.
+      const next = appendComponentToMarkdown(latest.current, kind);
+      if (next === latest.current) return false;
+      latest.current = next;
+      revision.current += 1;
+      rawSourceFallbackActive.current = true;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      setSaveState("unsaved");
+
+      // Best effort rehydrate Edit. If Tiptap is still invalid, the original
+      // source plus the new block is already queued for an exact native save.
+      try {
+        editor.commands.setContent(next, { contentType: "markdown", emitUpdate: false });
+        editor.state.doc.check();
+        rawSourceFallbackActive.current = false;
+      } catch {
+        // Keep the raw-source guard active to prevent destructive autosaves.
+      }
+      void persist().catch(() => undefined);
+      return true;
+    } catch (error) {
+      setSaveState("error");
+      setSaveError(friendlyError(error));
+      return false;
+    }
+  }
 
   // Desktop Ctrl+S saves the active Markdown file instead of opening WebView's
   // "Save page as..." dialog. The existing serialized autosave queue is reused.
@@ -332,6 +376,11 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
                 latest.current = markdown;
                 revision.current += 1;
                 editor.commands.setContent(markdown, { contentType: "markdown", emitUpdate: false });
+                rawSourceFallbackActive.current = true;
+                try {
+                  editor.state.doc.check();
+                  rawSourceFallbackActive.current = false;
+                } catch { /* Keep original source authoritative. */ }
                 setSaveState("saved");
                 setSaveError("");
               }
@@ -358,7 +407,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           onEditBlock={() => { if (selectedBlock) editCanvasBlock(selectedBlock); }}
           onClearBlock={() => setSelectedBlock(null)}
           onChange={(action, id, value) => modify(action, id, value)}
-          onEditContent={() => void selectView("edit")} /> : viewMode === "edit" && showBlockTools ? <BlockPalette editor={editor} disabled={leaving} /> : undefined}
+          onEditContent={() => void selectView("edit")} /> : viewMode === "edit" && showBlockTools ? <BlockPalette editor={editor} disabled={leaving} onInvalidDocument={appendInvalidPageBlock} /> : undefined}
       />
       <StudioQuickFind open={findOpen} onOpenChange={onFindOpenChange}
         projectId={document.project.id} shortcut={findShortcut} entries={pages.map(page => ({ id: page.id, title: page.title, description: page.navGroup, kind: "page" as const }))}
