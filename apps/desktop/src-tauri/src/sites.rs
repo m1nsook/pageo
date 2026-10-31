@@ -378,10 +378,64 @@ fn default_settings(name: &str) -> SiteSettings {
     }
 }
 
+// Preserve valid settings when Windows is interrupted between rename steps.
+const SETTINGS_STAGED: &str = "site.json.tmp";
+const SETTINGS_BACKUP: &str = "site.json.previous";
+
+fn regular_settings_file(path: &Path) -> Result<bool, String> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_file() => Ok(true),
+        Ok(_) => Err("Site settings path must be a regular file".into()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
 fn read_settings(dir: &Path, name: &str) -> Result<SiteSettings, String> {
-    if !dir.join(CONFIG).exists() { return Ok(default_settings(name)); }
-    serde_json::from_str(&fs::read_to_string(dir.join(CONFIG)).map_err(|e| e.to_string())?)
+    let current = dir.join(CONFIG);
+    let backup = dir.join(SETTINGS_BACKUP);
+    let path = if regular_settings_file(&current)? {
+        current
+    } else if regular_settings_file(&backup)? {
+        backup
+    } else {
+        return Ok(default_settings(name));
+    };
+    serde_json::from_str(&fs::read_to_string(path).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())
+}
+
+// Write a complete staged JSON file before replacing the last good copy.
+// Retain the backup through Windows' non-atomic two-rename window.
+fn write_settings(dir: &Path, settings: &SiteSettings) -> Result<(), String> {
+    let current = dir.join(CONFIG);
+    let staged = dir.join(SETTINGS_STAGED);
+    let backup = dir.join(SETTINGS_BACKUP);
+    let has_current = regular_settings_file(&current)?;
+    regular_settings_file(&staged)?;
+    let has_backup = regular_settings_file(&backup)?;
+    let json = format!("{}\n", serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?);
+    fs::write(&staged, json).map_err(|e| e.to_string())?;
+
+    // Keep an existing recovery backup if the primary was already missing.
+    if has_current && has_backup {
+        fs::remove_file(&backup).map_err(|e| e.to_string())?;
+    }
+    if has_current {
+        if let Err(error) = fs::rename(&current, &backup) {
+            let _ = fs::remove_file(&staged);
+            return Err(format!("Unable to stage existing site settings: {error}"));
+        }
+    }
+    if let Err(error) = fs::rename(&staged, &current) {
+        if regular_settings_file(&backup).unwrap_or(false) {
+            let _ = fs::rename(&backup, &current);
+        }
+        let _ = fs::remove_file(&staged);
+        return Err(format!("Unable to replace site settings: {error}"));
+    }
+    if regular_settings_file(&backup)? { let _ = fs::remove_file(&backup); }
+    Ok(())
 }
 
 fn valid_google_font_family(value: &str) -> bool {
@@ -917,9 +971,7 @@ pub fn load_site_settings(app: AppHandle, project_id: String) -> Result<SiteSett
 pub fn save_site_settings(app: AppHandle, project_id: String, settings: SiteSettings) -> Result<(), String> {
     validate_settings(&settings)?;
     let (dir, _) = project_folder(&app, &project_id)?;
-    fs::write(dir.join(CONFIG),
-        format!("{}\n", serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?)
-    ).map_err(|e| e.to_string())
+    write_settings(&dir, &settings)
 }
 
 /// Preview uses the exact same HTML and CSS renderer as static export.
@@ -1085,6 +1137,39 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
 #[cfg(test)]
 mod website_font_tests {
     use super::*;
+
+    #[test]
+    fn site_settings_survive_an_interrupted_windows_style_replace() {
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!("paglora-site-settings-{}-{unique}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+
+        let mut settings = default_settings("Docs");
+        settings.accent_color = "#cc3355".into();
+        write_settings(&dir, &settings).unwrap();
+        assert_eq!(read_settings(&dir, "Docs").unwrap().accent_color, "#cc3355");
+
+        // Simulate interruption between renaming the live file to backup
+        // and moving the staged file into place.
+        fs::rename(dir.join(CONFIG), dir.join(SETTINGS_BACKUP)).unwrap();
+        fs::write(dir.join(SETTINGS_STAGED), b"{incomplete").unwrap();
+        assert_eq!(read_settings(&dir, "Docs").unwrap().accent_color, "#cc3355");
+
+        settings.accent_color = "#115599".into();
+        write_settings(&dir, &settings).unwrap();
+        assert_eq!(read_settings(&dir, "Docs").unwrap().accent_color, "#115599");
+        assert!(!dir.join(SETTINGS_BACKUP).exists());
+        assert!(!dir.join(SETTINGS_STAGED).exists());
+
+        // Existing project files still deserialize with defaulted fields.
+        let mut legacy = serde_json::to_value(&settings).unwrap();
+        legacy.as_object_mut().unwrap().remove("accentColor");
+        fs::write(dir.join(CONFIG), serde_json::to_string(&legacy).unwrap()).unwrap();
+        assert_eq!(read_settings(&dir, "Docs").unwrap().accent_color, "#2196f3");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+
 
     #[test]
     fn export_report_warns_about_private_and_missing_page_links_only() {
