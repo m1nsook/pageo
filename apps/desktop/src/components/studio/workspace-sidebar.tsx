@@ -69,7 +69,7 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="gap-3 p-3">
-        <div className="rounded-lg bg-muted/70 p-3 group-data-[collapsible=icon]:hidden">
+        <div className="rounded-lg border border-sidebar-border bg-card/65 p-3 group-data-[collapsible=icon]:hidden">
           <div className="flex items-center gap-2 text-xs font-medium"><ShieldCheck className="size-4" /> {t("studio.nav.privateByDesign")}</div>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t("studio.nav.privateDescription")}</p>
         </div>
