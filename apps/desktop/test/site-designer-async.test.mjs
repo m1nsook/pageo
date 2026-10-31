@@ -6,7 +6,10 @@ const source = readFileSync(new URL("../src/components/editor/site-designer.tsx"
 
 // Source-level guard checks; native Windows UI verification remains necessary.
 test("site designer invalidates in-flight work on dialog/project changes", () => {
-  assert.match(source, /generation\.current\+\+;\s*if \(!open\) return/);
+  assert.match(source, /generation\.current\+\+;/);
+  assert.match(source, /previewRequest\.current\+\+;/);
+  assert.match(source, /setPreviewFrames\(\[\{ html: "", revision: 0 \}, \{ html: "", revision: 0 \}\]\)/);
+  assert.match(source, /if \(!open\) return/);
   assert.match(source, /setBusy\(false\);\s*setUploading\(false\);\s*setLoading\(true\)/);
 });
 
@@ -22,6 +25,8 @@ test("late save results cannot mark a different project saved", () => {
   assert.match(source, /if \(generation\.current === startedGeneration\) setBusy\(false\)/);
 });
 
-test("failed live previews do not leave stale published content on screen", () => {
-  assert.match(source, /\.catch\(cause => \{ if \(mounted\) \{ setPreview\(""\); setError\(String\(cause\)\); \} \}\);/);
+test("designer retains a previous ready preview when rendering fails", () => {
+  assert.match(source, /setError\(String\(cause\)\)/);
+  assert.match(source, /setRenderingPreview\(false\)/);
+  assert.doesNotMatch(source, /setPreview\(" "\)/);
 });
