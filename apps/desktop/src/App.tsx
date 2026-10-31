@@ -341,7 +341,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
       </header>
       <StudioNavigationLayout mode={viewMode}
         left={showPages ? <PageNavigation pages={pages} currentId={current.page.id} busy={leaving} onNavigate={(id) => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }} onAction={modify}/> : undefined}
-        center={<StudioResizableSplit source={editorPane} preview={previewPane}
+        center={<StudioResizableSplit source={editorPane} preview={viewMode === "edit" ? null : previewPane}
           mode={viewMode} resetToken={splitResetToken} />}
         right={viewMode === "site" && showInspector ? <PageInspector page={current.page} busy={leaving || switchingView}
           selectedBlock={selectedBlock}

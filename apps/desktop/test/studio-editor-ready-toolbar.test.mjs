@@ -27,7 +27,7 @@ test("Canvas and Edit keep a single connected editor while changing active views
  const app=read("src/App.tsx");
  const split=read("src/components/editor/studio-resizable-split.tsx");
  const outer=read("src/components/editor/studio-navigation-layout.tsx");
- assert.match(app,/center=\{<StudioResizableSplit source=\{editorPane\} preview=\{previewPane\}/);
+ assert.match(app,/center=\{<StudioResizableSplit source=\{editorPane\} preview=\{viewMode === "edit" \? null : previewPane\}/);
  assert.match(app,/mode=\{viewMode\} resetToken=\{splitResetToken\}/);
  assert.match(split,/mode: "edit" \| "split" \| "site"/);
  assert.match(split,/aria-hidden=\{mode === "site"\}/);
