@@ -238,7 +238,7 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
         setStorageDestination(`${parent}${selected.includes("\\") ? "\\" : "/"}Paglora Projects`);
       } else setRecoverPath(selected);
     } catch (error) {
-      toast.error("Could not choose a folder", { description: String(error) });
+      toast.error(t("studio.storage.pickerError"), { description: String(error) });
     } finally { setFolderPicking(false); }
   }
   return (
@@ -278,32 +278,32 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
                     onClick={() => {
                       if (!navigator.clipboard?.writeText) return;
                       void navigator.clipboard.writeText(location).catch(error => console.warn("Could not copy local storage path", error));
-                    }}><Copy className="size-3.5" /> Copy path</Button>
+                    }}><Copy className="size-3.5" /> {t("studio.storage.copyPath")}</Button>
                 </div>
                 {desktop && storageStatus?.isCustom && !storageStatus.available && (
                   <div role="alert" className="space-y-3 rounded-md border border-destructive/30 bg-destructive/5 p-3">
-                    <p className="text-sm font-semibold text-destructive">Custom workspace unavailable</p>
+                    <p className="text-sm font-semibold text-destructive">{t("studio.storage.offline")}</p>
                     <p className="text-xs leading-relaxed text-muted-foreground">
-                      {storageStatus.error || "The configured drive could not be opened."} Paglora has NOT created a replacement empty workspace. Reconnect your drive or select another existing copy of the same workspace below.
+                      {storageStatus.error || t("studio.storage.offlineReason")} {t("studio.storage.offlineHelp")}
                     </p>
-                    <Button type="button" size="sm" variant="outline" disabled={storageMigrating} onClick={onCheckStorage}>Retry original location</Button>
+                    <Button type="button" size="sm" variant="outline" disabled={storageMigrating} onClick={onCheckStorage}>{t("studio.storage.retry")}</Button>
                     <form className="grid gap-2" onSubmit={event => {
                       event.preventDefault();
                       if (recoverConfirmation !== "RECONNECT" || !recoverPath.trim() || storageMigrating) return;
                       void onReconnectStorage(recoverPath.trim(), recoverConfirmation).then(() => {setRecoverPath("");setRecoverConfirmation("");}).catch(() => undefined);
                     }}>
-                      <Label htmlFor="storage-reconnect-folder">Existing Paglora projects folder (absolute path)</Label>
+                      <Label htmlFor="storage-reconnect-folder">{t("studio.storage.existing")}</Label>
                       <div className="flex flex-wrap gap-2"><Input id="storage-reconnect-folder" className="min-w-44 flex-1" value={recoverPath} onChange={e => setRecoverPath(e.target.value)}
                         placeholder="E:\\Paglora Projects" autoComplete="off" disabled={storageMigrating || folderPicking} />
-                        <Button type="button" size="sm" variant="outline" disabled={storageMigrating || folderPicking} onClick={() => void browseFolder("existing")}>Browse…</Button></div>
-                      <Label htmlFor="storage-reconnect-confirm">Type RECONNECT to confirm</Label>
+                        <Button type="button" size="sm" variant="outline" disabled={storageMigrating || folderPicking} onClick={() => void browseFolder("existing")}>{t("studio.storage.browse")}</Button></div>
+                      <Label htmlFor="storage-reconnect-confirm">{t("studio.storage.confirm")}</Label>
                       <Input id="storage-reconnect-confirm" value={recoverConfirmation} onChange={e => setRecoverConfirmation(e.target.value)}
                         autoComplete="off" disabled={storageMigrating} />
                       <Button type="submit" size="sm" disabled={storageMigrating || !recoverPath.trim() || recoverConfirmation !== "RECONNECT"}>
-                        {storageMigrating ? <LoaderCircle className="size-4 animate-spin" /> : <FolderOpen className="size-4" />} Reconnect existing workspace
+                        {storageMigrating ? <LoaderCircle className="size-4 animate-spin" /> : <FolderOpen className="size-4" />} {t("studio.storage.reconnect")}
                       </Button>
                     </form>
-                    <p className="text-xs text-muted-foreground">Only an existing, validated, non-empty Paglora workspace is accepted. No files will be overwritten; the previous configured path is kept in app data for recovery.</p>
+                    <p className="text-xs text-muted-foreground">{t("studio.storage.recoveryHelp")}</p>
                   </div>
                 )}
                 {(!storageStatus?.isCustom || storageStatus.available) && <form className="flex flex-wrap items-end gap-2 pt-1" onSubmit={event => {
@@ -312,22 +312,20 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
                   void onMigrateStorage(storageDestination.trim()).then(() => setStorageDestination("")).catch(() => undefined);
                 }}>
                   <div className="min-w-0 flex-1 space-y-1">
-                    <Label htmlFor="storage-new-folder">Move projects to a new folder</Label>
+                    <Label htmlFor="storage-new-folder">{t("studio.storage.new")}</Label>
                     <div className="flex flex-wrap gap-2"><Input id="storage-new-folder" className="min-w-44 flex-1" placeholder="D:\\Paglora Projects" value={storageDestination}
                       onChange={event => setStorageDestination(event.target.value)}
                       disabled={!desktop || storageMigrating || folderPicking} autoComplete="off" />
-                      <Button type="button" size="sm" variant="outline" disabled={!desktop || storageMigrating || folderPicking} onClick={() => void browseFolder("new")}>Browse parent…</Button></div>
+                      <Button type="button" size="sm" variant="outline" disabled={!desktop || storageMigrating || folderPicking} onClick={() => void browseFolder("new")}>{t("studio.storage.browseParent")}</Button></div>
                   </div>
                   <Button variant="outline" type="submit" disabled={!desktop || storageMigrating || !storageDestination.trim()}>
                     {storageMigrating ? <LoaderCircle className="size-4 animate-spin" /> : <FolderOpen className="size-4" />}
-                    {storageMigrating ? "Copying and verifying…" : "Move projects"}
+                    {storageMigrating ? t("studio.storage.copying") : t("studio.storage.move")}
                   </Button>
                 </form>}
                 {storageError && <p role="alert" className="text-xs text-destructive">{storageError}</p>}
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Enter an absolute path for a <strong>new folder that does not exist yet</strong> (its parent must exist).
-                  Paglora copies and verifies every file before changing its active location. Originals remain in the previous
-                  folder as a recovery copy; backups remain in Paglora app data.
+                  {t("studio.storage.migrationHelp")}
                 </p>
               </CardContent>
             </Card>
@@ -336,8 +334,8 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
                 <AccordionItem value="shortcuts" className="border-0">
                   <CardHeader>
                     <AccordionTrigger className="w-full py-0 hover:no-underline">
-                      <span className="text-left"><CardTitle>Keyboard shortcuts</CardTitle>
-                        <CardDescription className="mt-1">Customize Studio commands. Conflicts and reserved keys are checked automatically.</CardDescription></span>
+                      <span className="text-left"><CardTitle>{t("studio.shortcuts.title")}</CardTitle>
+                        <CardDescription className="mt-1">{t("studio.shortcuts.description")}</CardDescription></span>
                     </AccordionTrigger>
                   </CardHeader>
                   <AccordionContent className="px-4 pb-3">

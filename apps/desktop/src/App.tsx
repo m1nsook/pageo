@@ -491,13 +491,13 @@ export default function App() {
     const invalid = validateBinding(command, stroke, shortcuts);
     if (invalid) return invalid;
     if (!persistShortcuts({ ...shortcuts, [command]: stroke })) return "Could not save shortcut preferences on this computer.";
-    toast.success("Shortcut updated", { description: "Changes take effect immediately." });
+    toast.success(t("studio.shortcuts.updated"), { description: t("studio.shortcuts.updatedDetail") });
     return null;
   };
 
   const resetShortcuts = () => {
-    if (persistShortcuts({ ...DEFAULT_SHORTCUTS })) toast.success("Shortcuts reset to defaults");
-    else toast.error("Could not save shortcut preferences");
+    if (persistShortcuts({ ...DEFAULT_SHORTCUTS })) toast.success(t("studio.shortcuts.resetDone"));
+    else toast.error(t("studio.shortcuts.saveError"));
   };
 
   const refresh = useCallback(async () => {
@@ -620,13 +620,13 @@ export default function App() {
       setLocation(next);
       await inspectStorage();
       await refresh();
-      toast.success("Projects copied to new location", {
-        description: "Every source file was verified. Original files were preserved for recovery.",
+      toast.success(t("studio.storage.migrated"), {
+        description: t("studio.storage.migratedDetail"),
       });
     } catch (cause) {
       const message = friendlyError(cause);
       setStorageError(message);
-      toast.error("Project storage was not changed", { description: message });
+      toast.error(t("studio.storage.migrationError"), { description: message });
       throw cause;
     } finally {
       setStorageMigrating(false);
@@ -641,11 +641,11 @@ export default function App() {
       setLocation(next);
       await inspectStorage();
       await refresh();
-      toast.success("Existing workspace reconnected", { description: "Your projects are accessible at the selected location." });
+      toast.success(t("studio.storage.reconnected"), { description: t("studio.storage.reconnectedDetail") });
     } catch(error) {
       const message=friendlyError(error);
       setStorageError(message);
-      toast.error("Workspace was not reconnected", { description:message });
+      toast.error(t("studio.storage.reconnectError"), { description:message });
       throw error;
     } finally {setStorageMigrating(false);}
   }

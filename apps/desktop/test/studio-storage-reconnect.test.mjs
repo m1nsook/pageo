@@ -13,7 +13,7 @@ test("an offline custom drive never silently selects an empty workspace",()=>{
 test("Settings exposes a guarded existing-folder recovery only when custom storage is unavailable",()=>{
  const ui=read("src/components/studio/workspace-content.tsx");
  assert.match(ui,/storageStatus\?\.isCustom && !storageStatus\.available/);
- assert.match(ui,/Retry original location/);
+ assert.match(ui,/studio\.storage\.retry/);
  assert.match(ui,/recoverConfirmation !== "RECONNECT"/);
  assert.match(ui,/onReconnectStorage\(recoverPath\.trim\(\), recoverConfirmation\)/);
  assert.match(read("src/App.tsx"),/await inspectStorage\(\)/);
