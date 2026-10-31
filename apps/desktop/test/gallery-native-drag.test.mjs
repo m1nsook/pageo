@@ -30,6 +30,7 @@ test("source insertion reuses undoable Tiptap pipeline without an HTML parser",(
  assert.match(read("src/lib/block-insertion.ts"),/scrollIntoView\(\)/);
  assert.match(palette,/draggable=\{!disabled && Boolean\(editor\)\}/);
  assert.match(palette,/onClick=\{\(\) => click\(kind\)\}/);
- assert.doesNotMatch(palette,/setPointerCapture|onPointerMove|onPointerUp/);
+ assert.doesNotMatch(palette,/setPointerCapture/);
+ assert.match(palette,/window\.addEventListener\("pointerup", onPointerUp, true\)/);
  assert.doesNotMatch(palette,/innerHTML|DOMParser/);
 });

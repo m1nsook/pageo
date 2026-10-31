@@ -34,5 +34,5 @@ test("toolbar uses Tiptap Markdown insertion and keeps references editable", () 
   const source = read("src/components/editor/bibliography-popover.tsx");
   assert.match(source, /insertContent\(markdown, \{ contentType: "markdown" \}\)/);
   assert.match(source, /formatBibliography\(entries, style\)/);
-  assert.match(read("src/components/editor/format-toolbar.tsx"), /<BibliographyPopover editor=\{editor\}/);
+  assert.match(read("src/components/editor/format-toolbar.tsx"), /<BibliographyPopover editor=\{enabled \? editor : null\}/);
 });
