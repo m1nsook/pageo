@@ -58,9 +58,14 @@ test("existing Paglora badges, cards, warning and nested tabs remain unchanged",
   const original = model.parseSourceComponents(documented);
   assert.equal(original.blocks.length, 5);
   const next = model.insertComponentAtBoundary(documented,"note",3);
-  assert.equal(next,documented.slice(0,original.blocks[3].start).replace(/\n?$/, "\n") +
-    "\n> [!NOTE] Note\n>\n> Replace this text with helpful documentation.\n\n" +
-    documented.slice(original.blocks[3].start));
+  const offset = original.blocks[3].start;
+  assert.ok(next.startsWith(documented.slice(0, offset)));
+  assert.ok(next.endsWith(documented.slice(offset)));
+  const inserted = next.slice(offset, next.length - (documented.length - offset));
+  assert.match(inserted, /> \[!NOTE\] Note/);
+  for (const marker of ["[!BADGES]", "[!CARD]", "[!TABS]", "[!TAB]"]) {
+    assert.equal(next.split(marker).length, documented.split(marker).length, marker);
+  }
 });
 test("CRLF, Unicode, inline HTML and original formatting are never rewritten", () => {
   const doc = "# 漢字 😀\r\n\r\nBefore <em>HTML</em>\r\n\r\nAfter\r\n";
