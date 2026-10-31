@@ -18,7 +18,7 @@ pub fn run() {
             projects::list_projects,
             projects::create_project,
             projects::load_project,
-            projects::save_document,
+            projects::save_document, projects::update_project_visual,
             projects::projects_directory, projects::trash_project,
             projects::list_trashed_projects, projects::restore_trashed_project,
             storage::project_storage_directory, storage::migrate_project_storage,
