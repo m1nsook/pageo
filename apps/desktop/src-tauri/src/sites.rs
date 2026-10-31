@@ -256,6 +256,53 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 :root[dir="rtl"] .page-pager .next{text-align:left}
 @media(max-width:800px){:root[dir="rtl"] .site-nav,:root[dir="rtl"] .site-body.nav-right .site-nav{border:0}}
 
+/* Site layouts: additional project-owned presentations, no framework runtime.
+   Classic remains byte-for-byte compatible with previous site designs. */
+:root[data-site-layout="inset"] body{background:var(--subtle)}
+:root[data-site-layout="inset"] .site-header{top:12px;max-width:min(1460px,calc(100% - 32px));margin:16px auto 0;border:1px solid var(--line);border-radius:16px;box-shadow:0 7px 28px rgba(0,0,0,.045)}
+:root[data-site-layout="inset"] .site-header.not-sticky{top:auto}
+:root[data-site-layout="inset"] .top-bar{min-height:66px}
+:root[data-site-layout="inset"] .site-body{max-width:1460px;margin:14px auto 32px;border:1px solid var(--line);border-radius:16px;background:var(--bg);box-shadow:0 18px 65px rgba(0,0,0,.045);overflow:clip}
+:root[data-site-layout="inset"] .site-nav{background:color-mix(in srgb,var(--subtle) 63%,var(--bg))}
+:root[data-site-layout="inset"] .site-footer{background:transparent}
+:root[data-site-layout="inset"] .site-footer-inner{max-width:1420px}
+:root[data-site-layout="reading"] .site-header{border-bottom:1px solid var(--line)}
+:root[data-site-layout="reading"] .top-bar{max-width:1330px;min-height:62px}
+:root[data-site-layout="reading"] .site-body{max-width:1330px;grid-template-columns:minmax(195px,235px) minmax(0,1fr) minmax(155px,205px)}
+:root[data-site-layout="reading"] .site-nav{border-right:0;padding-top:43px}
+:root[data-site-layout="reading"] .site-main{padding-top:66px}
+:root[data-site-layout="reading"] .docs{font-size:16px;line-height:1.9}
+:root[data-site-layout="reading"] .docs h1{letter-spacing:-.055em}
+:root[data-site-layout="reading"] .toc-inner a{border-left-color:transparent}
+:root[data-site-layout="reading"] .site-body.nav-right{grid-template-columns:minmax(155px,205px) minmax(0,1fr) minmax(195px,235px)}
+:root[data-site-layout="reading"] .site-body.nav-right .site-nav{border-left:0}
+:root[data-site-layout="reading"] .site-body.nav-top{grid-template-columns:minmax(0,1fr) minmax(155px,205px)}
+:root[data-site-layout="reading"] .site-body.nav-top .site-nav{border-bottom:1px solid var(--line)}
+/* Each palette supplies a complete background/text/border/code family for both
+   appearances. The independent custom accent is applied later in the head. */
+:root[data-site-palette="graphite"]{--bg:#ffffff;--fg:#191a1d;--muted:#62646b;--line:#e4e5e8;--subtle:#f6f6f7;--hover:#ebebee;--code-bg:#18191d;--code-fg:#f7f7f8;--header-bg:rgba(255,255,255,.96)}
+:root[data-site-palette="lavender"]{--bg:#fdfcff;--fg:#282035;--muted:#736780;--line:#e8e2f1;--subtle:#f7f3fc;--hover:#efe8f8;--code-bg:#231b32;--code-fg:#f4eefc;--header-bg:rgba(253,252,255,.96)}
+:root[data-site-palette="linen"]{--bg:#fffdf9;--fg:#29251f;--muted:#736c61;--line:#eae5db;--subtle:#faf6ed;--hover:#f1eadc;--code-bg:#2b2925;--code-fg:#f8f3e9;--header-bg:rgba(255,253,249,.96)}
+:root[data-site-palette="graphite"][data-color-mode="dark"]{--bg:#101114;--fg:#f0f0f2;--muted:#a7a8af;--line:#2d3036;--subtle:#191b20;--hover:#26282f;--code-bg:#090a0c;--code-fg:#eeeef1;--header-bg:rgba(16,17,20,.96)}
+:root[data-site-palette="lavender"][data-color-mode="dark"]{--bg:#17121e;--fg:#f4eefa;--muted:#b5a9c1;--line:#362b44;--subtle:#231a2f;--hover:#32253e;--code-bg:#110d17;--code-fg:#f4eefa;--header-bg:rgba(23,18,30,.96)}
+:root[data-site-palette="linen"][data-color-mode="dark"]{--bg:#1c1915;--fg:#f5eee4;--muted:#b6a99b;--line:#3b352d;--subtle:#272119;--hover:#373026;--code-bg:#110f0d;--code-fg:#f7f0e9;--header-bg:rgba(28,25,21,.96)}
+@media(prefers-color-scheme:dark){
+:root[data-site-palette="graphite"]:not([data-color-mode="light"]){--bg:#101114;--fg:#f0f0f2;--muted:#a7a8af;--line:#2d3036;--subtle:#191b20;--hover:#26282f;--code-bg:#090a0c;--code-fg:#eeeef1;--header-bg:rgba(16,17,20,.96)}
+:root[data-site-palette="lavender"]:not([data-color-mode="light"]){--bg:#17121e;--fg:#f4eefa;--muted:#b5a9c1;--line:#362b44;--subtle:#231a2f;--hover:#32253e;--code-bg:#110d17;--code-fg:#f4eefa;--header-bg:rgba(23,18,30,.96)}
+:root[data-site-palette="linen"]:not([data-color-mode="light"]){--bg:#1c1915;--fg:#f5eee4;--muted:#b6a99b;--line:#3b352d;--subtle:#272119;--hover:#373026;--code-bg:#110f0d;--code-fg:#f7f0e9;--header-bg:rgba(28,25,21,.96)}
+}
+@media(max-width:1180px){
+:root[data-site-layout="reading"] .site-body,:root[data-site-layout="reading"] .site-body.nav-right{grid-template-columns:230px minmax(0,1fr)}
+:root[data-site-layout="reading"] .site-body.nav-right{grid-template-columns:minmax(0,1fr) 230px}
+:root[data-site-layout="reading"] .site-body.nav-top{grid-template-columns:1fr}
+}
+@media(max-width:800px){
+:root[data-site-layout="inset"] .site-header{top:0;max-width:none;margin:0;border-radius:0;border-inline:0}
+:root[data-site-layout="inset"] .site-body{margin:0;border:0;border-radius:0;box-shadow:none}
+:root[data-site-layout="reading"] .site-body,:root[data-site-layout="reading"] .site-body.nav-right,:root[data-site-layout="reading"] .site-body.nav-top{display:block}
+:root[data-site-layout="reading"] .site-main{padding-top:30px}
+}
+
 "#;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -272,6 +319,8 @@ fn width_default() -> u16 { 790 }
 fn theme_default() -> String { "system".into() }
 fn language_default() -> String { "en".into() }
 fn accent_default() -> String { "#2196f3".into() }
+fn site_layout_default() -> String { "classic".into() }
+fn site_palette_default() -> String { "original".into() }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -302,6 +351,11 @@ pub struct SiteSettings {
     theme_mode: String,
     #[serde(default = "accent_default")]
     accent_color: String,
+    // Optional visual theme settings; old site.json files keep their design.
+    #[serde(default = "site_layout_default")]
+    site_layout: String,
+    #[serde(default = "site_palette_default")]
+    site_palette: String,
     #[serde(default = "language_default")]
     language: String,
     // Optional remote font on the published site. Blank keeps the default Geist.
@@ -378,6 +432,8 @@ fn default_settings(name: &str) -> SiteSettings {
         footer_links: Vec::new(),
         theme_mode: theme_default(),
         accent_color: accent_default(),
+        site_layout: site_layout_default(),
+        site_palette: site_palette_default(),
         language: language_default(),
         google_font_family: String::new(),
     }
@@ -514,6 +570,12 @@ fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
     }
     if !["system", "light", "dark"].contains(&settings.theme_mode.as_str()) {
         return Err("Unsupported website color mode".into());
+    }
+    if !["classic", "inset", "reading"].contains(&settings.site_layout.as_str()) {
+        return Err("Unsupported website layout preset".into());
+    }
+    if !["original", "graphite", "lavender", "linen"].contains(&settings.site_palette.as_str()) {
+        return Err("Unsupported website color palette".into());
     }
     // An explicit allowlist prevents HTML attribute injection in <html lang>.
     if !["en", "ko", "pl", "de", "fr", "es", "ja", "zh-CN", "zh-TW", "pt-BR",
@@ -751,12 +813,21 @@ fn filename(id: &str) -> String { format!("{id}.html") }
 
 // Match browser chrome to the exported page's configured light/dark palette.
 // System mode uses media-qualified tags so browser UI follows OS changes.
-fn theme_color_meta(mode: &str) -> &'static str {
+fn theme_color_meta(mode: &str, palette: &str) -> String {
+    // Browser chrome matches the same light/dark surfaces as the chosen
+    // palette. A visitor's appearance toggle may change after page load,
+    // but the default chrome always matches the configured website theme.
+    let (light, dark) = match palette {
+        "graphite" => ("#ffffff", "#101114"),
+        "lavender" => ("#fdfcff", "#17121e"),
+        "linen" => ("#fffdf9", "#1c1915"),
+        _ => ("#ffffff", "#11151d"),
+    };
     match mode {
-        "light" => r##"<meta name="theme-color" content="#ffffff">"##,
-        "dark" => r##"<meta name="theme-color" content="#11151d">"##,
-        _ => r##"<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#11151d" media="(prefers-color-scheme: dark)">"##,
+        "light" => format!(r#"<meta name="theme-color" content="{light}">"#),
+        "dark" => format!(r#"<meta name="theme-color" content="{dark}">"#),
+        _ => format!(r#"<meta name="theme-color" content="{light}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="{dark}" media="(prefers-color-scheme: dark)">"#),
     }
 }
 
@@ -896,7 +967,7 @@ fn render_site_page_with_description(
     } else { String::new() };
     let description = escape(&page_meta_description(&settings.description, search_text));
     let theme_mode = &settings.theme_mode;
-    let theme_color = theme_color_meta(theme_mode);
+    let theme_color = theme_color_meta(theme_mode, &settings.site_palette);
     let language = &settings.language;
     let og_locale = social_locale(language);
     let direction = if language == "ar" { "rtl" } else { "ltr" };
@@ -922,11 +993,13 @@ fn render_site_page_with_description(
     let breadcrumb_title = escape(&page.title);
     let header_links = link_html(&settings.header_links, "header-links");
     let nav_position = &settings.navigation_position;
+    let site_layout = &settings.site_layout;
+    let site_palette = &settings.site_palette;
     let content_width = settings.content_width;
     let layout = &page.layout;
     let runtime_scripts = site_runtime_script_tags();
     format!(r##"<!doctype html>
-<html lang="{language}" dir="{direction}" data-color-mode="{theme_mode}">
+<html lang="{language}" dir="{direction}" data-color-mode="{theme_mode}" data-site-layout="{site_layout}" data-site-palette="{site_palette}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1276,6 +1349,56 @@ mod website_font_tests {
             assert!(html.find(r#"<link rel="stylesheet" href="styles.css">"#).unwrap()
                 < html.find(&format!(r#":root[data-color-mode="dark"]{{{vars}}}"#)).unwrap());
         }
+    }
+
+    #[test]
+    fn layout_and_palette_settings_preserve_legacy_projects() {
+        let mut settings = default_settings("Docs");
+        assert_eq!(settings.site_layout, "classic");
+        assert_eq!(settings.site_palette, "original");
+        let mut legacy = serde_json::to_value(&settings).unwrap();
+        legacy.as_object_mut().unwrap().remove("siteLayout");
+        legacy.as_object_mut().unwrap().remove("sitePalette");
+        let restored: SiteSettings = serde_json::from_value(legacy).unwrap();
+        assert_eq!(restored.site_layout, "classic");
+        assert_eq!(restored.site_palette, "original");
+        for layout in ["classic", "inset", "reading"] {
+            settings.site_layout = layout.into();
+            assert!(validate_settings(&settings).is_ok(), "{layout}");
+        }
+        for palette in ["original", "graphite", "lavender", "linen"] {
+            settings.site_palette = palette.into();
+            assert!(validate_settings(&settings).is_ok(), "{palette}");
+        }
+        settings.site_layout = r#"classic" onclick="alert(1)"#.into();
+        assert!(validate_settings(&settings).is_err());
+        settings.site_layout = "classic".into();
+        settings.site_palette = "../unsafe".into();
+        assert!(validate_settings(&settings).is_err());
+    }
+
+    #[test]
+    fn theme_presets_share_preview_and_export_renderer_and_support_dark() {
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Documentation".into(),
+        };
+        let mut settings = default_settings("Docs");
+        settings.site_layout = "inset".into();
+        settings.site_palette = "lavender".into();
+        settings.accent_color = "#b047d9".into();
+        for mode in ["light", "dark", "system"] {
+            settings.theme_mode = mode.into();
+            let html = render_site_page(&settings, &[page.clone()], &page, "<p>Docs</p>", &[]);
+            assert!(html.contains(r#"data-site-layout="inset" data-site-palette="lavender""#));
+            assert!(html.contains("--brand:#b047d9;"), "{mode}");
+            assert!(html.contains(r##"<meta name="theme-color" content="#17121e""##) || mode == "light");
+        }
+        assert!(SITE_CSS.contains(r#":root[data-site-layout="inset"] .site-body"#));
+        assert!(SITE_CSS.contains(r#":root[data-site-layout="reading"] .site-nav"#));
+        assert!(SITE_CSS.contains(r#":root[data-site-palette="lavender"][data-color-mode="dark"]"#));
+        assert!(SITE_CSS.contains(r#":root[data-site-palette="lavender"]:not([data-color-mode="light"])"#));
+        assert!(SITE_CSS.contains(r#"@media(max-width:800px)"#));
     }
 
     #[test]
