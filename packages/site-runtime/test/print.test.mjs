@@ -27,7 +27,8 @@ function fixture() {
   vm.runInNewContext(script, {
     document: doc, URL, location: { href: "https://docs.example.test/index.html" },
     localStorage: { getItem() { return null; } },
-    addEventListener(name, fn) { listeners.set(name, fn); },
+    addEventListener(name, fn) { if (name !== "storage") throw new Error("unexpected global listener " + name); },
+    window: { addEventListener(name, fn) { listeners.set(name, fn); } },
     requestAnimationFrame(fn) { fn(); },
   });
   return { listeners, disclosures, panels };

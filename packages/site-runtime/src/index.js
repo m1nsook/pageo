@@ -305,8 +305,11 @@
   // when interactive tabs/accordions are collapsed on screen. Keep an exact
   // snapshot and restore it after the browser's print dialog closes.
   // No network, storage or project data changes are involved.
+  // The print lifecycle belongs to the browser Window. Using its explicit
+  // event target also keeps the runtime usable in scriptless/test environments.
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   let printSnapshot = null;
-  addEventListener("beforeprint", () => {
+  window.addEventListener("beforeprint", () => {
     if (printSnapshot) return; // browsers may dispatch beforeprint repeatedly
     const disclosures = Array.from(document.querySelectorAll?.(".docs details") ?? []);
     const panels = Array.from(document.querySelectorAll?.(
@@ -318,12 +321,13 @@
     for (const node of disclosures) node.open = true;
     for (const node of panels) node.hidden = false;
   });
-  addEventListener("afterprint", () => {
+  window.addEventListener("afterprint", () => {
     if (!printSnapshot) return;
     for (const [node, open] of printSnapshot.disclosures) node.open = open;
     for (const [node, hidden] of printSnapshot.panels) node.hidden = hidden;
     printSnapshot = null;
   });
+  }
 
   // Expose sharable heading anchors without changing project Markdown.
   for (const heading of document.querySelectorAll?.(".docs h2[id], .docs h3[id], .docs h4[id]") ?? []) {
