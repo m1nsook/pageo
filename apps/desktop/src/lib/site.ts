@@ -210,7 +210,7 @@ function groupAdjacentCards(container: HTMLElement) {
     current.before(grid);
     grid.appendChild(current);
     while (next?.classList.contains("paglora-card")) {
-      const after = next.nextElementSibling;
+      const after: Element | null = next.nextElementSibling;
       grid.appendChild(next);
       next = after;
     }
