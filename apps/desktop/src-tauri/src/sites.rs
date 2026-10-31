@@ -532,6 +532,8 @@ pub struct SiteSettings {
     #[serde(default)]
     logo_url: String,
     #[serde(default)]
+    favicon_url: String,
+    #[serde(default)]
     header_links: Vec<SiteLink>,
     #[serde(default)]
     footer_links: Vec<SiteLink>,
@@ -619,6 +621,7 @@ fn default_settings(name: &str) -> SiteSettings {
         show_footer: true,
         content_width: width_default(),
         logo_url: String::new(),
+        favicon_url: String::new(),
         header_links: Vec::new(),
         footer_links: Vec::new(),
         theme_mode: theme_default(),
@@ -816,6 +819,11 @@ fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
     if !settings.logo_url.is_empty() &&
         !safe_link(&settings.logo_url, true) && !valid_asset_url(&settings.logo_url) {
         return Err("Logo must use an HTTPS URL or a local assets/ image".into());
+    }
+    if !settings.favicon_url.is_empty() &&
+        !(settings.favicon_url.starts_with("https://") && safe_link(&settings.favicon_url, true)) &&
+        !valid_asset_url(&settings.favicon_url) {
+        return Err("Favicon must use an HTTPS URL or a local assets/ image".into());
     }
     for (links, name) in [
         (&settings.header_links, "Header"),
@@ -1524,6 +1532,14 @@ fn render_site_page_with_description(
     } else {
         format!("<img class=\"brand-logo\" src=\"{}\" alt=\"\">", escape(&settings.logo_url))
     };
+    let favicon = if settings.favicon_url.is_empty() { String::new() } else {
+        let kind = if settings.favicon_url.ends_with(".png") { "image/png" }
+            else if settings.favicon_url.ends_with(".jpg") || settings.favicon_url.ends_with(".jpeg") { "image/jpeg" }
+            else if settings.favicon_url.ends_with(".webp") { "image/webp" }
+            else if settings.favicon_url.ends_with(".gif") { "image/gif" }
+            else { "image/png" };
+        format!("<link rel=\"icon\" type=\"{kind}\" href=\"{}\">", escape(&settings.favicon_url))
+    };
     let link_html = |items: &[SiteLink], class_name: &str| -> String {
         if items.is_empty() { return String::new(); }
         let mut out = format!("<nav class=\"{}\" aria-label=\"Site links\">", class_name);
@@ -1582,6 +1598,7 @@ fn render_site_page_with_description(
 <html lang="{language}" dir="{direction}" data-color-mode="{theme_mode}" data-site-layout="{site_layout}" data-site-palette="{site_palette}" data-card-layout="{card_layout}">
 <head>
 <meta charset="utf-8">
+{favicon}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{description}">
 {canonical}
@@ -1672,6 +1689,7 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
     let mut doc = doc.replace("</head>", &format!("{override_css}</head>"));
     let mut names = referenced_local_assets(&doc);
     if let Some(name) = settings.logo_url.strip_prefix("assets/") { names.insert(name.to_string()); }
+    if let Some(name) = settings.favicon_url.strip_prefix("assets/") { names.insert(name.to_string()); }
     let mut total_bytes = css_bytes;
     for name in names {
         let (bytes, mime) = read_asset(&dir, &name)?;
@@ -1682,6 +1700,9 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
         let from = format!("src=\"assets/{name}\"");
         let to = format!("src=\"data:{mime};base64,{}\"", base64_image(&bytes));
         doc = doc.replace(&from, &to);
+        let icon_from = format!("href=\"assets/{name}\"");
+        let icon_to = format!("href=\"data:{mime};base64,{}\"", base64_image(&bytes));
+        doc = doc.replace(&icon_from, &icon_to);
     }
     // Project-owned CSS always comes last, overriding designer presets.
     Ok(doc)
@@ -1755,6 +1776,9 @@ fn build_site_from_disk_progress(dir:&Path,project_name:&str,target:&Path,render
         // logo. Unreferenced/private project assets never leave the project.
         let mut image_names = HashSet::new();
         if let Some(name) = settings.logo_url.strip_prefix("assets/") {
+            image_names.insert(name.to_string());
+        }
+        if let Some(name) = settings.favicon_url.strip_prefix("assets/") {
             image_names.insert(name.to_string());
         }
         for page in &public_pages {
@@ -2240,6 +2264,31 @@ mod website_font_tests {
         assert_eq!(site_text_direction("ko"), "ltr");
         assert_eq!(social_locale("sv-SE"), "sv_SE");
         assert_eq!(social_locale("en"), "en_US");
+    }
+
+    #[test]
+    fn favicon_is_opt_in_safe_and_preserves_legacy_projects() {
+        let mut settings = default_settings("Docs");
+        assert!(settings.favicon_url.is_empty());
+        let mut old = serde_json::to_value(&settings).unwrap();
+        old.as_object_mut().unwrap().remove("faviconUrl");
+        let legacy: SiteSettings = serde_json::from_value(old).unwrap();
+        assert!(legacy.favicon_url.is_empty());
+        settings.favicon_url = "assets/project-icon.png".into();
+        assert!(validate_settings(&settings).is_ok());
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Docs".into(),
+        };
+        let output = render_site_page(&settings, &[page.clone()], &page, "<p>Hi</p>", &[]);
+        assert!(output.contains(r#"<link rel="icon" type="image/png" href="assets/project-icon.png">"#));
+        settings.favicon_url = "https://example.com/icon.webp".into();
+        assert!(validate_settings(&settings).is_ok());
+        for value in ["javascript:alert(1)", "http://example.com/favicon.png", "../favicon.png",
+            "assets/../evil.png", "data:image/svg+xml,bad", "assets/icon.svg"] {
+            settings.favicon_url = value.into();
+            assert!(validate_settings(&settings).is_err(), "{value}");
+        }
     }
 
     #[test]
