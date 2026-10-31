@@ -30,7 +30,7 @@ Paglora exports a portable static documentation website with no required server-
 
 - Responsive navigation, headings, table of contents and light/dark appearance.
 - Offline-capable search, keyboard navigation and code copying.
-- Callouts, cards, steps, content tabs, code groups, task lists and tables.
+- Callouts, cards, guided steps, content tabs, code groups, FAQ accordions, task lists and tables.
 - Optional canonical URLs, sitemaps and page-specific metadata.
 - Public-page-only output: pages marked private are excluded from the website, search index and sitemap.
 
