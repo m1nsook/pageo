@@ -5,7 +5,7 @@ import vm from "node:vm";
 
 const script = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
 
-function execute({ mode = "system", stored = null, storageThrows = false } = {}) {
+function execute({ mode = "system", stored = null, storageThrows = false, translations = null } = {}) {
   const attributes = new Map();
   const listeners = {};
   const storage = new Map();
@@ -19,6 +19,7 @@ function execute({ mode = "system", stored = null, storageThrows = false } = {})
   const context = {
     document: {
       documentElement: root,
+      getElementById(id) { return id === "paglora-i18n" && translations ? { textContent: JSON.stringify(translations) } : null; },
       querySelector(selector) { return selector === ".top-bar" ? header : null; },
       createElement(tag) { assert.equal(tag, "button"); return button; },
     },
@@ -78,4 +79,14 @@ test("clearing the cross-tab preference restores the configured default", () => 
   assert.equal(root.dataset.colorMode, "dark");
   listeners.storage({ key: "paglora:theme:/docs/", newValue: null });
   assert.equal(root.dataset.colorMode, "light");
+});
+
+test("site runtime uses translated UI labels when an offline dictionary is embedded", () => {
+  const translated = {
+    "site.appearance.dark": "Ciemny",
+    "site.appearance.change": "Wygląd: {mode}. Zmień motyw",
+  };
+  const { button, attributes } = execute({ stored: "dark", translations: translated });
+  assert.match(button.textContent, /Ciemny/);
+  assert.match(attributes.get("aria-label"), /Wygląd: Ciemny/);
 });
