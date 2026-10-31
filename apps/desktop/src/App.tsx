@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import type { ProjectDocument, ProjectSummary, ProjectVisual } from "@paglora/core";
 import { validateProjectName } from "@paglora/core";
 import { useTranslation } from "@/i18n";
@@ -155,7 +155,30 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     return () => window.removeEventListener("keydown", saveShortcut);
   }, [persist]);
 
-  useEffect(() => { editor?.setEditable(viewMode !== "site"); }, [editor, viewMode]);
+  // Studio starts in Canvas (read-only) but the SAME editor is used by
+  // the formatting toolbar, block palette and autosave. Reassert editability
+  // when switching views AND after React mounts its editable ProseMirror DOM.
+  // A passive effect could leave commands pointing at a detached readonly
+  // editor during the initial Canvas -> Edit layout transition.
+  useLayoutEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const editing = viewMode !== "site";
+    editor.setEditable(editing);
+    if (!editing) return;
+    const frame = requestAnimationFrame(() => {
+      if (editor.isDestroyed) return;
+      editor.setEditable(true);
+      // Selecting Edit should put the typing caret into the real Tiptap
+      // document, not leave focus on the view-switching button. Never steal
+      // focus from a dialog or another active text input.
+      const active = window.document.activeElement;
+      if (editor.view.dom.isConnected && !(active instanceof Element &&
+          active.closest('[data-slot="dialog-content"], [data-paglora-source-editor], input, textarea'))) {
+        editor.commands.focus();
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [editor, viewMode]);
   useEffect(() => {
     if (viewMode !== "edit" || !pendingBlock || !editor) return;
     const position = pendingBlock.pageId === current.page.id
@@ -177,7 +200,12 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   }
   async function selectView(next: "edit" | "split" | "site") {
     if (next === viewMode || leaving || switchingView) return;
-    if (next === "edit") { setViewMode(next); return; }
+    if (next === "edit") {
+      // Do not wait for the default Canvas mode's disabled editor effect.
+      editor?.setEditable(true);
+      setViewMode(next);
+      return;
+    }
     setSwitchingView(true);
     try {
       // Before revealing the public site, flush the Markdown save queue.
@@ -316,11 +344,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
       </header>
       <StudioNavigationLayout mode={viewMode}
         left={showPages ? <PageNavigation pages={pages} currentId={current.page.id} busy={leaving} onNavigate={(id) => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }} onAction={modify}/> : undefined}
-        center={viewMode === "split"
-          ? <StudioResizableSplit source={editorPane} preview={previewPane} resetToken={splitResetToken} />
-          : viewMode === "edit"
-            ? editorPane
-            : <><div className="hidden" aria-hidden="true">{editorPane}</div>{previewPane}</>}
+        center={<StudioResizableSplit source={editorPane} preview={viewMode === "edit" ? null : previewPane}
+          mode={viewMode} resetToken={splitResetToken} />}
         right={viewMode === "site" && showInspector ? <PageInspector page={current.page} busy={leaving || switchingView}
           selectedBlock={selectedBlock}
           allowTextEdit={Boolean(editor && selectedBlock && selectedBlock.pageId === current.page.id && editableCanvasText(editor, selectedBlock))}

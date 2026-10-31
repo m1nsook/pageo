@@ -46,10 +46,10 @@ test("unknown block names are rejected before an OS drag begins",()=>{
 });
 test("dragstart, drop and dragend route to native editor and clean all state",()=>{
  const palette=read("src/components/editor/block-palette.tsx"),gallery=read("src/components/editor/block-component-gallery.tsx");
- assert.match(palette,/onDragStart=\{\(event\) => dragStart\(event,kind\)\}/);
- assert.match(palette,/onDragEnd=\{dragEnd\}/);
- assert.match(palette,/document\.addEventListener\("dragover",over,true\)/);
- assert.match(palette,/document\.addEventListener\("drop",drop,true\)/);
+ assert.match(palette,/onDragStart=\{event => startNative\(event, kind\)\}/);
+ assert.match(palette,/document\.addEventListener\("dragend", endNative, true\)/);
+ assert.match(palette,/document\.addEventListener\("dragover", over, true\)/);
+ assert.match(palette,/document\.addEventListener\("drop", drop, true\)/);
  assert.match(palette,/finishBlockDrag\(\)/);
  assert.match(gallery,/onDragEnd=\{finishBlockDrag\}/);
 });

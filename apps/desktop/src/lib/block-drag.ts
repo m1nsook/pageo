@@ -1,39 +1,40 @@
 import { BLOCKS, type BlockKind } from "@/components/editor/block-catalog";
 
-// The browser's native drag gesture handles both Library and sidebar Palette.
-// A source-owned in-memory session is also required: arbitrary files, URLs,
-// selected text, and OS drags must never insert a documentation component.
 const MIME = "application/x-paglora-block";
 const PLAIN_PREFIX = "paglora:block:";
 let activeBlock: BlockKind | null = null;
 const known = (value: string): value is BlockKind => BLOCKS.some(block => block.kind === value);
 
-export function beginBlockDrag(data: DataTransfer, kind: BlockKind) {
+/** Real WebView2 drags can expose empty dataTransfer.types/getData at drop.
+ * A drag may be accepted only if it was started by Paglora in THIS window.
+ */
+export function activeDraggedBlock(): BlockKind | null {
+  return activeBlock;
+}
+export function beginBlockDrag(data: DataTransfer, kind: BlockKind): boolean {
   if (!known(kind)) return false;
   activeBlock = kind;
-  data.effectAllowed = "copy";
-  data.setData(MIME, kind);
-  // WebView2 can expose only text/plain during dragover. This exact marker
-  // keeps the fallback distinct from normal dragged words or external URLs.
-  data.setData("text/plain", PLAIN_PREFIX + kind);
+  try { data.effectAllowed = "copy"; } catch { /* WebView2 fallback */ }
+  try { data.setData(MIME, kind); } catch { /* WebView2 fallback */ }
+  try { data.setData("text/plain", PLAIN_PREFIX + kind); } catch { /* WebView2 fallback */ }
   return true;
 }
-
 export function canAcceptBlockDrag(data: DataTransfer | null): boolean {
-  if (!data || !activeBlock) return false;
-  const types = Array.from(data.types);
-  return types.includes(MIME) || types.includes("text/plain");
+  if (!activeBlock) return false;
+  if (data && Array.from(data.types ?? []).includes("Files")) return false;
+  return true;
 }
-
 export function readBlockDrop(data: DataTransfer | null): BlockKind | null {
-  if (!data || !activeBlock) return null;
-  const fromCustom = data.getData(MIME);
-  const fromText = data.getData("text/plain");
-  const raw = fromCustom || (fromText.startsWith(PLAIN_PREFIX) ? fromText.slice(PLAIN_PREFIX.length) : "");
-  return known(raw) && raw === activeBlock && (fromCustom === raw || fromText === PLAIN_PREFIX + raw)
-    ? raw : null;
+  if (!canAcceptBlockDrag(data) || !activeBlock) return null;
+  let custom = "", plain = "";
+  try { custom = data?.getData(MIME) ?? ""; } catch { /* WebView2 fallback */ }
+  try { plain = data?.getData("text/plain") ?? ""; } catch { /* WebView2 fallback */ }
+  // If a payload exists it must match the source-owned session. Never honor
+  // an external URL, raw HTML, mismatched type, or an arbitrary text selection.
+  if (custom && custom !== activeBlock) return null;
+  if (plain && plain !== PLAIN_PREFIX + activeBlock) return null;
+  return activeBlock;
 }
-
-export function finishBlockDrag() {
+export function finishBlockDrag(): void {
   activeBlock = null;
 }
