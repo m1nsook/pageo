@@ -10,6 +10,8 @@ export type PageSearchHit = {
   navGroup: string;
   excerpt: string;
   isPublic: boolean;
+  score: number;
+  matchKind: "title" | "group" | "content";
 };
 
 /** Local-only bounded content finder (includes private drafts; never exported). */

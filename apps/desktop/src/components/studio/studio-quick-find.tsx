@@ -27,6 +27,7 @@ export function StudioQuickFind({ open, onOpenChange, entries, onSelect, shortcu
     }
     let active = true;
     setSearching(true);
+    setHits([]);
     const timer = window.setTimeout(() => {
       void searchProjectPages(projectId, query.trim())
         .then(result => { if (active) setHits(result); })
@@ -40,17 +41,19 @@ export function StudioQuickFind({ open, onOpenChange, entries, onSelect, shortcu
 
   const shown = useMemo(() => {
     if (!projectId || query.trim().length < 2) return entries;
-    const found = new Map(hits.map(hit => [hit.id, hit]));
-    return entries.map(item => {
-      const match = found.get(item.id);
-      return match ? { ...item, description: `${match.isPublic ? "" : "Private · "}${match.excerpt}` } : item;
+    // Backend index owns fuzzy ranking and filtering for saved Markdown.
+    // cmdk's default client-side title substring filtering would hide body-only hits.
+    const byId = new Map(entries.map(entry => [entry.id, entry]));
+    return hits.flatMap(hit => {
+      const item = byId.get(hit.id);
+      return item ? [{ ...item, description: `${hit.isPublic ? "" : "Private · "}${hit.excerpt}`, score: hit.score }] : [];
     });
   }, [entries, hits, projectId, query]);
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange} title={title}
-      description={projectId ? "Search page titles, navigation groups and saved Markdown locally. Private drafts stay in Studio." : "Search project names and categories on this computer."}
+      description={projectId ? "Ranked local search across titles, groups and saved Markdown, with typo tolerance. Private drafts stay in Studio." : "Search project names and categories on this computer."}
       className="w-[min(94vw,560px)] sm:max-w-xl">
-      <Command className="rounded-md!">
+      <Command className="rounded-md!" shouldFilter={!projectId || query.trim().length < 2}>
         <CommandInput autoFocus value={query} onValueChange={setQuery} placeholder={projectId ? "Search pages and content…" : title + "…"} aria-label={title} />
         <CommandList className="max-h-[min(52vh,380px)]">
           <CommandEmpty className="py-7 text-muted-foreground">{searching ? "Searching saved pages…" : `No matching ${projectId ? "pages" : "projects"}.`}</CommandEmpty>
