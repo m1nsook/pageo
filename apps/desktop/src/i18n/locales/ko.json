@@ -118,6 +118,23 @@
     "studio.pages.documentationPages": "문서 페이지",
     "studio.pages.expandGroup": "{group} 펼치기",
     "studio.pages.collapseGroup": "{group} 접기",
-    "studio.pages.dragHint": "핸들을 잡고 페이지를 드래그하거나 메뉴에서 위로/아래로 이동을 사용하세요."
+    "studio.pages.dragHint": "핸들을 잡고 페이지를 드래그하거나 메뉴에서 위로/아래로 이동을 사용하세요.",
+    "studio.editor.hidePages": "페이지 패널 숨기기",
+    "studio.editor.showPages": "페이지 패널 표시",
+    "studio.editor.backToProjects": "프로젝트 목록으로 돌아가기",
+    "studio.editor.saving": "저장 중",
+    "studio.editor.savedLocally": "로컬에 저장됨",
+    "studio.editor.saveFailed": "저장 실패",
+    "studio.editor.unsaved": "저장되지 않음",
+    "studio.editor.hideTools": "시각 편집기 도구 숨기기",
+    "studio.editor.showTools": "시각 편집기 도구 표시",
+    "studio.editor.hideProperties": "페이지 속성 숨기기",
+    "studio.editor.showProperties": "페이지 속성 표시",
+    "studio.editor.editorView": "편집기 보기",
+    "studio.editor.edit": "편집",
+    "studio.editor.split": "분할",
+    "studio.editor.canvas": "캔버스",
+    "studio.editor.documentationEditor": "문서 편집기",
+    "studio.editor.saveError": "저장할 수 없습니다: {message}. 종료하기 전에 디스크 권한을 확인하세요."
   }
 }

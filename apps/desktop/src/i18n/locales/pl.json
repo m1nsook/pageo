@@ -118,6 +118,23 @@
     "studio.pages.documentationPages": "Strony dokumentacji",
     "studio.pages.expandGroup": "Rozwiń: {group}",
     "studio.pages.collapseGroup": "Zwiń: {group}",
-    "studio.pages.dragHint": "Przytrzymaj uchwyt, aby przeciągnąć stronę, lub użyj opcji przesuwania w jej menu."
+    "studio.pages.dragHint": "Przytrzymaj uchwyt, aby przeciągnąć stronę, lub użyj opcji przesuwania w jej menu.",
+    "studio.editor.hidePages": "Ukryj panel stron",
+    "studio.editor.showPages": "Pokaż panel stron",
+    "studio.editor.backToProjects": "Wróć do projektów",
+    "studio.editor.saving": "Zapisywanie",
+    "studio.editor.savedLocally": "Zapisano lokalnie",
+    "studio.editor.saveFailed": "Błąd zapisu",
+    "studio.editor.unsaved": "Niezapisane",
+    "studio.editor.hideTools": "Ukryj narzędzia edytora wizualnego",
+    "studio.editor.showTools": "Pokaż narzędzia edytora wizualnego",
+    "studio.editor.hideProperties": "Ukryj właściwości strony",
+    "studio.editor.showProperties": "Pokaż właściwości strony",
+    "studio.editor.editorView": "Widok edytora",
+    "studio.editor.edit": "Edytuj",
+    "studio.editor.split": "Podzielony",
+    "studio.editor.canvas": "Kanwa",
+    "studio.editor.documentationEditor": "Edytor dokumentacji",
+    "studio.editor.saveError": "Nie udało się zapisać: {message}. Przed wyjściem sprawdź uprawnienia do dysku."
   }
 }
