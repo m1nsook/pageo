@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Code2, LoaderCircle, RefreshCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader,
   DialogTitle, DialogTrigger,
@@ -128,9 +129,9 @@ export function ThemeSourceEditor({
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-muted/30">
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
               <span className="text-xs font-medium">Published website preview</span>
-              <Button variant="ghost" size="icon-sm" title="Refresh from saved files" aria-label="Refresh site preview" disabled={loading || saving} onClick={() => void refresh().catch(cause => setError(errorMessage(cause)))}>
+              <StudioTooltip label="Refresh from saved files"><Button variant="ghost" size="icon-sm" aria-label="Refresh site preview" disabled={loading || saving} onClick={() => void refresh().catch(cause => setError(errorMessage(cause)))}>
                 <RefreshCcw />
-              </Button>
+              </Button></StudioTooltip>
             </div>
             <div className="min-h-0 flex-1 p-2">
               {html && <iframe
