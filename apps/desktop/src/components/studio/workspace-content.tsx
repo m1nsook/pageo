@@ -5,7 +5,8 @@ import { ArrowRightIcon, BookOpenIcon, SparkleIcon } from "@phosphor-icons/react
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Kbd } from "@/components/ui/kbd";
+import { StudioShortcutSettings } from "@/components/studio/studio-shortcut-settings";
+import type { ShortcutBindings, StudioCommand } from "@/lib/studio-shortcuts";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -173,14 +174,8 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
   );
 }
 
-export function Settings({ location, desktop, updater, onOpenReleaseNotes }: { location: string; desktop: boolean; updater: StudioUpdaterControls; onOpenReleaseNotes: () => void }) {
+export function Settings({ location, desktop, updater, onOpenReleaseNotes, shortcuts, onAssignShortcut, onResetShortcuts }: { location: string; desktop: boolean; updater: StudioUpdaterControls; onOpenReleaseNotes: () => void; shortcuts: ShortcutBindings; onAssignShortcut: (command: StudioCommand, stroke: string) => string | null; onResetShortcuts: () => void }) {
   const { locale, setLocale, t } = useTranslation();
-  const rows = [
-    { keys: ["Ctrl", "F"], name: "Find projects or pages", detail: "Find by name or navigation group" },
-    { keys: ["Ctrl", "S"], name: "Save current page", detail: "Also saves a file in the source editor" },
-    { keys: ["Alt", "↑ / ↓"], name: "Move Markdown block", detail: "With a selected block in the Blocks outline" },
-    { keys: ["Esc"], name: "Close menu or search", detail: "Dismisses the current overlay" },
-  ];
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden">
       <WorkspaceHeader section={t("studio.nav.settings")} />
@@ -224,24 +219,16 @@ export function Settings({ location, desktop, updater, onOpenReleaseNotes }: { l
               </CardContent>
             </Card>
             <Card className="gap-0 md:col-span-2">
-              <Accordion type="single" collapsible>
+              <Accordion type="single" collapsible defaultValue="shortcuts">
                 <AccordionItem value="shortcuts" className="border-0">
                   <CardHeader>
                     <AccordionTrigger className="w-full py-0 hover:no-underline">
                       <span className="text-left"><CardTitle>Keyboard shortcuts</CardTitle>
-                        <CardDescription className="mt-1">Current built-in shortcuts and navigation. Custom keybindings are planned.</CardDescription></span>
+                        <CardDescription className="mt-1">Customize Studio commands. Conflicts and reserved keys are checked automatically.</CardDescription></span>
                     </AccordionTrigger>
                   </CardHeader>
                   <AccordionContent className="px-4 pb-3">
-                    <div className="divide-y divide-border/70">
-                      {rows.map(row => (
-                        <div key={row.name} className="flex items-center justify-between gap-3 py-2.5">
-                          <div><p className="text-sm font-medium">{row.name}</p><p className="text-xs text-muted-foreground">{row.detail}</p></div>
-                          <div className="flex shrink-0 items-center gap-1">{row.keys.map(key => <Kbd key={key}>{key}</Kbd>)}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">On macOS, use Command instead of Ctrl. Monaco source files have their own text-find command.</p>
+                    <StudioShortcutSettings bindings={shortcuts} onAssign={onAssignShortcut} onReset={onResetShortcuts} />
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
