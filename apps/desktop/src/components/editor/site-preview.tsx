@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Eye, Laptop, LoaderCircle, Monitor, RefreshCcw, Smartphone, Tablet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -126,9 +127,9 @@ export function SitePreview({ projectId, onBeforePreview }: {
               <Icon /> <span className="hidden sm:inline">{label}</span>
             </Button>
           )}
-          <Button className="ml-auto" variant="outline" size="icon-sm" disabled={busy} aria-label="Refresh preview" title="Refresh preview" onClick={() => void refresh(selected)}>
+          <StudioTooltip label="Refresh preview"><Button className="ml-auto" variant="outline" size="icon-sm" disabled={busy} aria-label="Refresh preview" onClick={() => void refresh(selected)}>
             {busy ? <LoaderCircle className="animate-spin"/> : <RefreshCcw/>}
-          </Button>
+          </Button></StudioTooltip>
         </div>
         <div className="relative flex min-h-0 flex-1 justify-center overflow-auto rounded-lg border border-border bg-muted/60 p-2 sm:p-4">
           {error && <div role="alert" className="absolute inset-x-3 top-3 z-10 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
