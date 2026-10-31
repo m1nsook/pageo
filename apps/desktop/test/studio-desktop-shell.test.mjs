@@ -84,7 +84,7 @@ test("Milestone A avoids native title tooltips and dead navigation promises", ()
   assert.doesNotMatch(card, /title=\{project\.name\}/);
   const sidebar = read("src/components/studio/workspace-sidebar.tsx");
   assert.doesNotMatch(sidebar, /Templates are planned|studio\.nav\.soon/);
-  assert.match(sidebar, /studio\\.nav\\.documentation/);
+  assert.match(sidebar, /studio\.nav\.documentation/);
   for (const locale of ["en", "ko", "pl"]) {
     const messages = JSON.parse(read(`src/i18n/locales/${locale}.json`)).messages;
     assert.equal(typeof messages["studio.nav.documentation"], "string");
@@ -97,7 +97,7 @@ test("Milestone A avoids native title tooltips and dead navigation promises", ()
 
 test("every remaining Studio toolbar and outline native tooltip uses Paglora's shared component", () => {
   const outline = read("src/components/editor/block-outline.tsx");
-  assert.doesNotMatch(outline, /\\btitle=/);
+  assert.doesNotMatch(outline, /\btitle=/);
   assert.match(outline, /StudioTooltip label="Delete block/);
   assert.match(outline, /StudioTooltip label="Undo"/);
   const builder = read("src/components/editor/site-builder.tsx");
@@ -107,11 +107,11 @@ test("every remaining Studio toolbar and outline native tooltip uses Paglora's s
   assert.doesNotMatch(preview, /title="Refresh preview"/);
   assert.match(preview, /StudioTooltip label="Refresh preview"/);
   const designer = read("src/components/editor/site-designer.tsx");
-  assert.doesNotMatch(designer, /title=\\{t\\(color\\.name\\)\\}/);
-  assert.match(designer, /StudioTooltip key=\\{color\\.name\\}/);
+  assert.doesNotMatch(designer, /title=\{t\(color\.name\)\}/);
+  assert.match(designer, /StudioTooltip key=\{color\.name\}/);
   const trash = read("src/components/studio/project-trash-panel.tsx");
-  assert.doesNotMatch(trash, /title=\\{item\\.project\\.name\\}/);
-  assert.match(trash, /StudioTooltip label=\\{item\\.project\\.name\\}/);
+  assert.doesNotMatch(trash, /title=\{item\.project\.name\}/);
+  assert.match(trash, /StudioTooltip label=\{item\.project\.name\}/);
   // iframe title remains mandatory for accessibility; never remove it.
-  assert.match(preview, /title=\\{\\`Public website:/);
+  assert.match(preview, /title=\{\`Public website:/);
 });
