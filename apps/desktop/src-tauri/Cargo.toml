@@ -1,5 +1,6 @@
 [package]
 name = "paglora"
+default-run = "paglora"
 version = "0.2.0"
 description = "Paglora, a local-first documentation studio"
 authors = ["m1nsook"]
