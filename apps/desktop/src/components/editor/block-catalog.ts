@@ -1,12 +1,12 @@
 import type { JSONContent } from "@tiptap/core";
 import {
   AlignLeft, Heading1, Heading2, List, ListOrdered, MessageSquareQuote,
-  Code2, Minus, CreditCard, ListChecks, PanelsTopLeft, Layers, ListCollapse, type LucideIcon,
+  Code2, Minus, CreditCard, ListChecks, PanelsTopLeft, Layers, ListCollapse, Tags, type LucideIcon,
 } from "lucide-react";
 
 export type BlockKind =
   | "paragraph" | "heading1" | "heading2" | "bulletList"
-  | "orderedList" | "blockquote" | "card" | "steps" | "accordion" | "tabs" | "codeGroup" | "codeBlock" | "horizontalRule";
+  | "orderedList" | "blockquote" | "card" | "steps" | "accordion" | "tabs" | "codeGroup" | "badges" | "codeBlock" | "horizontalRule";
 
 export const BLOCKS: { kind: BlockKind; title: string; description: string; icon: LucideIcon }[] = [
   { kind: "paragraph", title: "Paragraph", description: "Normal text", icon: AlignLeft },
@@ -18,6 +18,7 @@ export const BLOCKS: { kind: BlockKind; title: string; description: string; icon
   { kind: "card", title: "Card", description: "Titled documentation panel", icon: CreditCard },
   { kind: "steps", title: "Steps", description: "Numbered tutorial timeline", icon: ListChecks },
   { kind: "accordion", title: "Accordion", description: "Expandable FAQ or answer", icon: ListCollapse },
+  { kind: "badges", title: "Badges", description: "Release status and feature labels", icon: Tags },
   { kind: "tabs", title: "Tabs", description: "Switchable content panels", icon: Layers },
   { kind: "codeGroup", title: "Code group", description: "Tabbed language examples", icon: PanelsTopLeft },
   { kind: "codeBlock", title: "Code block", description: "Commands or examples", icon: Code2 },
@@ -63,6 +64,17 @@ export function createMarkdownBlock(kind: BlockKind): JSONContent {
       content: [
         paragraph("[!ACCORDION] How does this work?"),
         paragraph("Write an answer with links, lists, or code. Readers can expand it."),
+      ],
+    };
+    case "badges": return {
+      type: "blockquote",
+      content: [
+        paragraph("[!BADGES] Release status"),
+        { type: "bulletList", content: [
+          { type: "listItem", content: [paragraph("[success] Stable")] },
+          { type: "listItem", content: [paragraph("[info] Available offline")] },
+          { type: "listItem", content: [paragraph("[warning] Preview")] },
+        ] },
       ],
     };
     case "tabs": return {

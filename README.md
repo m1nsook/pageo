@@ -30,7 +30,7 @@ Paglora exports a portable static documentation website with no required server-
 
 - Responsive navigation, headings, table of contents and light/dark appearance. On small screens, **Browse** opens a scrollable navigation panel with keyboard dismissal (Escape); links remain usable without JavaScript.
 - Offline-capable search, keyboard navigation and code copying.
-- Callouts, cards, guided steps, content tabs, code groups, FAQ accordions, task lists and tables.
+- Callouts, cards, guided steps, status badges, content tabs, code groups, FAQ accordions, task lists and tables.
 - Optional canonical URLs, sitemaps and page-specific metadata.
 - Public-page-only output: pages marked private are excluded from the website, search index and sitemap.
 
@@ -80,6 +80,20 @@ Project backups are different from published website exports: a `.paglora` backu
 ### Local images in Studio
 
 Open **Images** while editing a page to import PNG, JPEG, WebP or GIF files (up to 5 MiB), filter existing project images by filename and preview them offline. Small images have gallery thumbnails; large images are loaded only when selected to keep Studio responsive. Enter descriptive alternative text, then choose **Insert image** to place ordinary `![alt](assets/name.png)` Markdown at the cursor, or **Copy Markdown** to use the image elsewhere. The text editor shows a labeled image placeholder; the published-site preview displays the image. Assets remain local and only images referenced by public pages or the site logo are exported.
+
+### Status badges in documentation
+
+Use a plain Markdown blockquote to display compact status labels in Studio and exported documentation. The optional heading becomes an accessible group label; each item uses a validated `neutral`, `info`, `success`, `warning` or `danger` variant. Labels are plain text (up to 60 characters), not HTML or executable widgets.
+
+```md
+> [!BADGES] Release status
+>
+> - [success] Stable
+> - [info] Offline ready
+> - [warning] Experimental API
+```
+
+Insert **Badges** from the Studio Blocks palette or component library. A group supports 1–12 labels, wraps on mobile, follows the site's light/dark palette, and works without JavaScript. Unsupported or malformed groups remain visible as ordinary Markdown rather than losing content.
 
 ## Documentation and translations
 

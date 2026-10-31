@@ -161,6 +161,24 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs .paglora-steps-list>li>:last-child{margin-bottom:0}
 
 
+/* Source-owned status badges: no script, custom accent and dark mode aware. */
+.docs .paglora-badges{margin:22px 0;min-width:0}
+.docs .paglora-badges-title{margin-bottom:10px;color:var(--fg);font-size:13px;font-weight:700}
+.docs .paglora-badges-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.docs .paglora-badge{--badge-color:var(--fg);display:inline-flex;align-items:center;max-width:100%;padding:3px 11px;border:1px solid color-mix(in srgb,var(--badge-color) 35%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--badge-color) 8%,var(--bg));color:var(--badge-color);font-size:12px;font-weight:680;line-height:1.55;overflow-wrap:anywhere}
+.docs .paglora-badge-info{--badge-color:var(--brand)}
+.docs .paglora-badge-success{--badge-color:#137a4c}
+.docs .paglora-badge-warning{--badge-color:#906100}
+.docs .paglora-badge-danger{--badge-color:#ad3549}
+:root[data-color-mode="dark"] .docs .paglora-badge-success{--badge-color:#7bd8ac}
+:root[data-color-mode="dark"] .docs .paglora-badge-warning{--badge-color:#f4c36b}
+:root[data-color-mode="dark"] .docs .paglora-badge-danger{--badge-color:#ff9dad}
+@media(prefers-color-scheme:dark){
+  :root:not([data-color-mode="light"]) .docs .paglora-badge-success{--badge-color:#7bd8ac}
+  :root:not([data-color-mode="light"]) .docs .paglora-badge-warning{--badge-color:#f4c36b}
+  :root:not([data-color-mode="light"]) .docs .paglora-badge-danger{--badge-color:#ff9dad}
+}
+
 /* Code groups: every example remains readable with scripts disabled.
    The browser runtime progressively adds accessible, keyboard-driven tabs. */
 .docs .paglora-code-group{margin:28px 0;min-width:0}

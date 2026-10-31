@@ -109,7 +109,7 @@ function enhance(root, document, translate) {
     const marker = first.firstChild;
     if (!marker || marker.nodeType !== 3) continue;
     const text = marker.textContent || "";
-    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|TABS|CODEGROUP|ACCORDION)\](?:\s|$)/i.exec(text);
+    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|TABS|CODEGROUP|ACCORDION|BADGES)\](?:\s|$)/i.exec(text);
     if (!match) continue;
     const kind = match[1].toUpperCase();
     if (kind === "CARD") {
@@ -154,6 +154,47 @@ function enhance(root, document, translate) {
       while(quote.firstChild)details.appendChild(quote.firstChild);
       quote.replaceWith(details);continue;
     }
+
+    if (kind === "BADGES") {
+      // Match Studio's strict, non-destructive Markdown contract.
+      if (first.childNodes.length !== 1 || quote.children.length !== 2 ||
+          quote.children[1].tagName !== "UL") continue;
+      const title = text.slice(match[0].length).trim();
+      if (title.length > 160) continue;
+      const items = [...quote.children[1].children];
+      if (!items.length || items.length > 12 || items.some(item => item.tagName !== "LI")) continue;
+      const entries = items.map(item => {
+        const source = item.children.length === 1 && item.firstElementChild?.tagName === "P"
+          ? item.firstElementChild : item;
+        if (source.childNodes.length !== 1 || source.firstChild?.nodeType !== 3) return null;
+        const raw = (source.textContent || "").trim();
+        const parsed = /^(?:\[(neutral|info|success|warning|danger)\]\s+)?([^\[\]\r\n]{1,60})$/i.exec(raw);
+        if (!parsed || !parsed[2].trim()) return null;
+        return { variant: (parsed[1] || "neutral").toLowerCase(), label: parsed[2].trim() };
+      });
+      if (entries.some(entry => !entry)) continue;
+      const group = document.createElement("section");
+      group.className = "paglora-badges";
+      group.setAttribute("aria-label", title || "Status badges");
+      if (title) {
+        const heading = document.createElement("div");
+        heading.className = "paglora-badges-title";
+        heading.textContent = title;
+        group.appendChild(heading);
+      }
+      const row = document.createElement("div");
+      row.className = "paglora-badges-row";
+      entries.forEach(entry => {
+        const badge = document.createElement("span");
+        badge.className = "paglora-badge paglora-badge-" + entry.variant;
+        badge.textContent = entry.label;
+        row.appendChild(badge);
+      });
+      group.appendChild(row);
+      quote.replaceWith(group);
+      continue;
+    }
+
     if (kind === "TABS") {
       const sources=[...quote.children].slice(1);
       if (sources.length<2 || sources.length>8) continue;

@@ -27,6 +27,14 @@ hr { border: 0; border-top: 1px solid #d8dbe2; }
 details { padding: 12px; border: 1px solid #d5dce6; border-radius: 5px; }
 .paglora-card, .paglora-callout { border: 1px solid #c8d8eb; border-radius: 8px; padding: 12px; background: #f3f7ff; }
 .paglora-steps { border-left: 2px solid #2196f3; padding-left: 14px; }
+.paglora-badges { margin: 12px 0; }
+.paglora-badges-title { font-weight: 700; margin-bottom: 9px; }
+.paglora-badges-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.paglora-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; border: 1px solid #ccd6e4; font-size: 12px; font-weight: 650; background: #f4f7fb; }
+.paglora-badge-info { color: #145da3; border-color: #bad6f5; background: #eaf4ff; }
+.paglora-badge-success { color: #116b45; border-color: #a7dcc3; background: #e8f8f0; }
+.paglora-badge-warning { color: #815600; border-color: #efd28a; background: #fff6dc; }
+.paglora-badge-danger { color: #a12b43; border-color: #f2b3c1; background: #fff0f3; }
 .paglora-tabs, .paglora-code-group { border: 1px solid #d6dbe4; border-radius: 8px; padding: 12px; }
 `;
 

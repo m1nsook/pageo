@@ -15,6 +15,7 @@ Paglora is in early development. Desktop milestone numbers are separate from the
 - Improved small-screen Browse navigation with a scrollable, sticky, RTL-aware panel that overlays content rather than pushing long articles down. Native `<details>` keeps page links usable without scripts; progressive enhancement adds Escape dismissal, outside-click closing, and header-height tracking for wrapped headers.
 
 ### Documentation authoring
+- Added source-owned `[!BADGES]` release/feature status labels with five validated color variants, Studio block/gallery insertion, responsive light/dark static styling and matching Studio/headless sanitization. Malformed groups stay readable as Markdown.
 - Added source-owned `[!ACCORDION]` FAQ questions with Studio insertion, native keyboard-accessible `<details>` behavior, compact adjacent-question groups, and matching headless/Studio static output. Malformed markers remain visible Markdown.
 - Added nested Markdown `[!TABS]` / `[!TAB]` content panels with Studio insertion, safe preview/export parity, script-free readable fallback, and keyboard-accessible published tabs (including RTL navigation).
 - Added Markdown `[!CODEGROUP]` fenced-code examples with Studio insertion, safe language labels, script-free stacked fallback, and progressively enhanced accessible tabs in published sites. No new project schema.
