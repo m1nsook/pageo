@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, Image as ImageIcon, ImagePlus, LoaderCircle, Upload, X } from "lucide-react";
+import { Check, Copy, Image as ImageIcon, ImagePlus, LoaderCircle, ScanSearch, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { defaultImageAlt, imageMarkdown } from "@/lib/image-markdown";
 import { filterSiteAssets, IMAGE_GALLERY_PAGE_SIZE, INLINE_THUMBNAIL_LIMIT } from "@/lib/asset-gallery";
-import { importSiteAsset, listSiteAssets, previewSiteAsset, type SiteAsset } from "@/lib/site";
+import { importSiteAsset, listSiteAssets, loadSiteSettings, previewSiteAsset, type SiteAsset } from "@/lib/site";
+import { listPages, loadPage } from "@/lib/pages";
+import { loadThemeCss } from "@/lib/source";
+import { auditImageReferences, type AssetReference } from "@/lib/media-reference-audit";
 
 /** Only small images get inline gallery thumbnails; large images are loaded only
  * when selected, avoiding a multi-hundred-megabyte WebView gallery. */
@@ -54,12 +57,14 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
   const [copied, setCopied] = useState(false);
   const [query, setQuery] = useState("");
   const [visibleLimit, setVisibleLimit] = useState(IMAGE_GALLERY_PAGE_SIZE);
+  const [auditing, setAuditing] = useState(false);
+  const [audit, setAudit] = useState<AssetReference[] | null>(null);
   const generation = useRef(0);
 
   useEffect(() => {
     const version = ++generation.current;
     setAssets([]); setSelected(""); setAlt(""); setPreview(""); setError(""); setCopied(false);
-    setQuery(""); setVisibleLimit(IMAGE_GALLERY_PAGE_SIZE);
+    setQuery(""); setVisibleLimit(IMAGE_GALLERY_PAGE_SIZE); setAudit(null);
     if (!open) return;
     setLoading(true);
     void listSiteAssets(projectId)
@@ -99,11 +104,34 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
       if (generation.current !== version) return;
       const items = await listSiteAssets(projectId);
       if (generation.current !== version) return;
-      setAssets(items); setQuery(""); setVisibleLimit(IMAGE_GALLERY_PAGE_SIZE); choose(url);
+      setAssets(items); setAudit(null); setQuery(""); setVisibleLimit(IMAGE_GALLERY_PAGE_SIZE); choose(url);
     } catch (cause) {
       if (generation.current === version) setError(String(cause));
     } finally {
       if (generation.current === version) setUploading(false);
+    }
+  }
+
+  async function inspectReferences() {
+    if (auditing || !assets.length) return;
+    const version = generation.current;
+    setAuditing(true);
+    setError("");
+    setAudit(null);
+    try {
+      const pages = await listPages(projectId);
+      // Fail closed: incomplete page reads must never be treated as proof of
+      // an unused image. Includes private Markdown too, without exporting it.
+      const [docs, css, settings] = await Promise.all([
+        Promise.all(pages.map(async page => ({ title: page.title, markdown: (await loadPage(projectId, page.id)).markdown }))),
+        loadThemeCss(projectId),
+        loadSiteSettings(projectId),
+      ]);
+      if (generation.current === version) setAudit(auditImageReferences(assets, docs, css, settings.logoUrl));
+    } catch (cause) {
+      if (generation.current === version) setError("Unable to complete image reference audit: " + String(cause));
+    } finally {
+      if (generation.current === version) setAuditing(false);
     }
   }
 
@@ -151,6 +179,20 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
             <Label htmlFor="paglora-image-search">Find an image</Label>
             <Input id="paglora-image-search" type="search" value={query} placeholder="Filter by filename"
               onChange={event => { setQuery(event.target.value); setVisibleLimit(IMAGE_GALLERY_PAGE_SIZE); }} />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Button type="button" size="sm" variant="outline" disabled={auditing || uploading} onClick={() => void inspectReferences()}>
+                {auditing ? <LoaderCircle className="size-4 animate-spin" /> : <ScanSearch className="size-4" />}
+                {auditing ? "Checking references…" : "Audit image references"}
+              </Button>
+              {audit && <span role="status" className="text-xs text-muted-foreground">{audit.filter(item => item.status === "referenced").length} referenced · {audit.filter(item => item.status === "not-found").length} with no text reference found</span>}
+            </div>
+            {audit && <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs leading-relaxed">
+              <p className="font-medium">Local reference report</p>
+              <p className="mt-1 text-muted-foreground">Checks saved public/private page Markdown, theme CSS and the site logo. No files are deleted. A missing text reference does not prove an image is safe to remove.</p>
+              <ul className="mt-2 max-h-36 space-y-1 overflow-y-auto">
+                {audit.map(item => <li key={item.url} className="flex gap-2"><span className="min-w-0 flex-1 truncate">{item.url.slice(7)}</span><span className={item.locations.length ? "text-emerald-500" : "text-muted-foreground"}>{item.locations.length ? item.locations.join(", ") : "No text reference found"}</span></li>)}
+              </ul>
+            </div>}
             <p role="status" className="text-xs text-muted-foreground">
               Showing {visibleAssets.length} of {matchingAssets.length} matching images
             </p>
