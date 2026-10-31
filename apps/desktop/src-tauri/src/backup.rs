@@ -40,7 +40,7 @@ fn valid_source_path(name: &str) -> bool {
     let subpath = if let Some(value) = name.strip_prefix("docs/") {
         if !value.ends_with(".md") { return false; }
         value
-    } else if let Some(value) = name.strip_prefix("assets/") {
+    } else if let Some(value) = name.strip_prefix("assets/").or_else(||name.strip_prefix("removed-assets/")) {
         if ![".png", ".jpg", ".webp", ".gif"].iter().any(|ext| value.ends_with(ext)) { return false; }
         value
     } else { return false; };
@@ -69,7 +69,7 @@ fn source_files(folder: &Path) -> Result<Vec<(String, Vec<u8>)>, String> {
            !valid_source_path(&name) {return Err(format!("Unsafe stylesheet in backup: {name}"));}
         files.push((name,fs::read(full).map_err(|e|e.to_string())?));
     }
-    for directory in ["docs", "assets"] {
+    for directory in ["docs", "assets", "removed-assets"] {
         let full = folder.join(directory);
         if !full.exists() { continue; }
         if !fs::symlink_metadata(&full).map_err(|e| e.to_string())?.file_type().is_dir() {
@@ -341,6 +341,19 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
 
+    #[test]
+    fn recoverable_images_round_trip_inside_portable_project_backup() {
+        let root=temp("media-recovery");let original=root.join("example");
+        fs::create_dir(&original).unwrap();sample(&original);
+        fs::create_dir(original.join("removed-assets")).unwrap();
+        let image=b"\x89PNG\r\n\x1a\nrecoverable";
+        fs::write(original.join("removed-assets/unused.png"),image).unwrap();
+        let bytes=make_backup(&original,"example").unwrap();
+        let restored=root.join("imported");
+        let id=install_backup(&bytes,&restored).unwrap();
+        assert_eq!(fs::read(restored.join(id).join("removed-assets/unused.png")).unwrap(),image);
+        fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn refuses_traversal_duplicate_paths_and_corrupt_archives() {
         for path in ["../evil", "docs/../../evil.md", "assets/malicious.svg", "docs/sub/page.md", ".env", "docs\\evil.md"] {

@@ -291,6 +291,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
             <RotateCcw className="size-3.5" /> Reset layout
           </Button>}
           <AssetLibrary projectId={document.project.id} canInsert={viewMode !== "site" && !leaving && !switchingView && Boolean(editor)}
+            onBeforeCleanup={persist}
             onInsertImage={(src, alt) => Boolean(editor?.chain().focus().insertContent({ type: "pagloraImage", attrs: { src, alt } }).run())} />
           <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"}
             pages={pages} onBeforePreview={persist} onPageSourceSaved={(pageId, markdown) => {

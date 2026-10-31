@@ -49,6 +49,19 @@ export const saveSiteSettings = (projectId: string, settings: SiteSettings) =>
   invoke<void>("save_site_settings", { projectId, settings });
 
 export type SiteAsset = { url: string; bytes: number; mime: string };
+export type UnusedAssetCandidate = { url: string; bytes: number; fingerprint: string };
+/** Native source review reads ALL saved docs (including private pages), registered
+ * CSS, unregistered source checks, and site metadata. No irreversible deletion.
+ */
+export const reviewUnusedSiteAssets = (projectId: string) =>
+  invoke<UnusedAssetCandidate[]>("review_unused_site_assets", { projectId });
+export const moveUnusedSiteAsset = (projectId: string, url: string, fingerprint: string, confirmation: string) =>
+  invoke<void>("move_unused_site_asset", { projectId, url, fingerprint, confirmation });
+export const listRecoverableSiteAssets = (projectId: string) =>
+  invoke<SiteAsset[]>("list_recoverable_site_assets", { projectId });
+export const restoreSiteAsset = (projectId: string, url: string) =>
+  invoke<void>("restore_site_asset", { projectId, url });
+
 
 /** List only validated project-owned passive images, never arbitrary disk paths. */
 export const listSiteAssets = (projectId: string) =>
