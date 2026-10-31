@@ -317,6 +317,39 @@ pub fn restore_trashed_project(app: AppHandle, trash_id: String) -> Result<Proje
     Err("Trashed project not found.".into())
 }
 
+/// Irreversibly delete an app-owned trash entry; never accept a client path.
+fn purge_from(trash: &Path, trash_id: &str) -> Result<(), String> {
+    if !check_trash_dir(trash)? { return Err("Trashed project not found.".into()); }
+    let entry = trash.join(trash_id);
+    parse_trashed_project(trash_id, &entry)?;
+    let mut files = 0;
+    ensure_regular_project_tree(&entry, 0, &mut files)?;
+    fs::remove_dir_all(&entry).map_err(|error| format!("Permanent deletion failed: {error}"))
+}
+
+#[tauri::command]
+pub fn permanently_delete_trashed_project(app: AppHandle, trash_id: String, confirmation: String) -> Result<(), String> {
+    if trash_id.is_empty() || trash_id.len() > 180 ||
+        !trash_id.bytes().all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == b'-') {
+        return Err("Invalid trash identifier.".into());
+    }
+    let root = root(&app)?;
+    let current = trash_folder_for(&root)?;
+    let legacy = app.path().app_data_dir().map_err(|e| e.to_string())?.join("trash");
+    for folder in [&current, &legacy] {
+        if !check_trash_dir(folder)? { continue; }
+        let entry = folder.join(&trash_id);
+        if fs::symlink_metadata(&entry).is_ok() {
+            let item = parse_trashed_project(&trash_id, &entry)?;
+            if confirmation != item.project.name {
+                return Err("Enter the exact project name to confirm permanent deletion.".into());
+            }
+            return purge_from(folder, &trash_id);
+        }
+    }
+    Err("Trashed project not found.".into())
+}
+
 #[tauri::command]
 pub fn trash_project(app: AppHandle, id: String) -> Result<String, String> {
     let projects = root(&app)?;
@@ -422,6 +455,38 @@ mod tests {
         assert_eq!(restored.id, "sample");
         assert_eq!(fs::read_to_string(projects.join("sample/note.md")).unwrap(), "restore all source files");
         assert!(list_trash_at(&trash).unwrap().is_empty());
+        fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[test]
+    fn purge_only_removes_validated_trash_and_preserves_siblings() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let temp = std::env::temp_dir().join(format!("paglora-purge-{}-{nonce}", std::process::id()));
+        let projects = temp.join("projects");
+        let trash = temp.join("trash");
+        fs::create_dir_all(projects.join("sample")).unwrap();
+        let config = ProjectConfig { format_version: FORMAT_VERSION, id: "sample".into(), name: "Sample".into(), created_at: 1, updated_at: 5, visual: ProjectVisual::default() };
+        write_config(&projects.join("sample"), &config).unwrap();
+        fs::write(projects.join("sample").join("private.md"), "private file").unwrap();
+        let removed = move_project_to_trash(&projects, &trash, "sample").unwrap();
+        let id = removed.file_name().unwrap().to_str().unwrap().to_owned();
+        fs::write(trash.join("keep.txt"), "untouched").unwrap();
+        purge_from(&trash, &id).unwrap();
+        assert!(!removed.exists());
+        assert!(restore_from(&trash, &projects, &id).is_err());
+        assert_eq!(fs::read_to_string(trash.join("keep.txt")).unwrap(), "untouched");
+        fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[test]
+    fn purge_refuses_entries_without_matching_manifests() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let temp = std::env::temp_dir().join(format!("paglora-purge-invalid-{}-{nonce}", std::process::id()));
+        let trash = temp.join("trash");
+        fs::create_dir_all(trash.join("wrong-123-0")).unwrap();
+        fs::write(trash.join("wrong-123-0/private.txt"), "untouched").unwrap();
+        assert!(purge_from(&trash, "wrong-123-0").is_err());
+        assert!(trash.join("wrong-123-0/private.txt").exists());
         fs::remove_dir_all(temp).unwrap();
     }
 

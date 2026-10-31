@@ -21,6 +21,7 @@ pub fn run() {
             projects::save_document, projects::update_project_visual,
             projects::projects_directory, projects::trash_project,
             projects::list_trashed_projects, projects::restore_trashed_project,
+            projects::permanently_delete_trashed_project,
             storage::project_storage_directory, storage::migrate_project_storage,
             backup::export_project_backup, backup::import_project_backup,
             updates::check_studio_update, updates::install_studio_update,

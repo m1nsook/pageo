@@ -56,6 +56,12 @@ export async function restoreTrashedProject(trashId: string): Promise<ProjectSum
   return invoke<ProjectSummary>("restore_trashed_project", { trashId });
 }
 
+/** Permanently destroy a validated app-owned trash entry, after exact-name confirmation. */
+export async function permanentlyDeleteTrashedProject(trashId: string, confirmation: string): Promise<void> {
+  requireDesktop();
+  return invoke<void>("permanently_delete_trashed_project", { trashId, confirmation });
+}
+
 /** Copy and verify all projects into a new, nonexistent directory; originals are retained. */
 export async function migrateProjectStorage(destination: string): Promise<string> {
   requireDesktop();

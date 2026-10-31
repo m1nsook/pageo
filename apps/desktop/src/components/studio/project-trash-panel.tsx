@@ -1,16 +1,21 @@
 import { useState } from "react";
-import { ArchiveRestore, ChevronDown, ChevronUp, FolderClock, LoaderCircle } from "lucide-react";
+import { ArchiveRestore, ChevronDown, ChevronUp, FolderClock, LoaderCircle, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import type { TrashedProject } from "@/lib/projects";
 
-export function ProjectTrashPanel({ items, busy, onRestore }: {
+export function ProjectTrashPanel({ items, busy, onRestore, onDelete }: {
   items: TrashedProject[];
   busy: string | null;
   onRestore: (trashId: string) => void;
+  onDelete: (trashId: string, confirmation: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [selected, setSelected] = useState<TrashedProject | null>(null);
+  const [confirmation, setConfirmation] = useState("");
   return (
     <section aria-label="Recently removed projects" className="mt-8 rounded-lg border border-border bg-card/50">
       <Button variant="ghost" className="flex h-auto w-full justify-between rounded-lg px-4 py-3 text-left"
@@ -39,6 +44,9 @@ export function ProjectTrashPanel({ items, busy, onRestore }: {
                     {busy === item.trashId ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : <ArchiveRestore aria-hidden="true" className="size-3.5" />}
                     Restore
                   </Button>
+                  <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={busy !== null} onClick={() => { setSelected(item); setConfirmation(""); }} aria-label={`Permanently delete ${item.project.name}`}>
+                    <Trash2 aria-hidden="true" className="size-3.5" /> Delete forever
+                  </Button>
                 </div>
               ))}
             </div>
@@ -49,6 +57,27 @@ export function ProjectTrashPanel({ items, busy, onRestore }: {
           </p>
         </div>
       )}
+      <AlertDialog open={selected !== null} onOpenChange={open => { if (!open) { setSelected(null); setConfirmation(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete “{selected?.project.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This destroys the project's documents, private drafts and images. There is no recovery or undo.
+              Enter the exact project name to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input aria-label="Type project name to confirm permanent deletion" value={confirmation}
+            onChange={event => setConfirmation(event.target.value)} autoComplete="off" spellCheck={false}
+            placeholder={selected?.project.name} />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" disabled={!selected || busy !== null || confirmation !== selected.project.name}
+              onClick={() => { if (selected) onDelete(selected.trashId, confirmation); setSelected(null); setConfirmation(""); }}>
+              Delete permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
