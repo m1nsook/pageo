@@ -1,38 +1,35 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import {readFileSync} from "node:fs";
 import test from "node:test";
 const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
-test("only the Gallery dialog becomes non-modal, preserving other native dialog overlays",()=>{
- const dialog=read("src/components/ui/dialog.tsx"),gallery=read("src/components/editor/block-component-gallery.tsx");
- assert.match(dialog,/showOverlay = true/);
- assert.match(dialog,/\{showOverlay && <DialogOverlay \/>\}/);
- assert.match(gallery,/<Dialog modal=\{false\}/);
- assert.match(gallery,/<DialogContent showOverlay=\{false\}/);
- assert.match(gallery,/aria-label=\{\`Drag \$\{item\.title\} example into the editor\`\}/);
+const palette=read("src/components/editor/block-palette.tsx");
+const gallery=read("src/components/editor/block-component-gallery.tsx");
+test("Gallery and Palette use pointer gestures, never forbidden native browser drag",()=>{
+ assert.match(palette,/beginPointerBlock\(kind, event\.pointerId/);
+ assert.match(palette,/window\.addEventListener\("pointerup", release, true\)/);
+ assert.match(palette,/editorDropZone\(event\.clientX, event\.clientY\)/);
+ assert.match(gallery,/beginPointerBlock\(kind, event\.pointerId/);
+ assert.match(gallery,/beginPointerBlock\(kind, event\.pointerId/);
+ assert.doesNotMatch(gallery,/onDragStart|dataTransfer/);
+ assert.doesNotMatch(palette,/onDragStart|dataTransfer/);
+ assert.match(gallery,/draggable=\{false\}/);
+ assert.match(palette,/draggable=\{false\}/);
 });
-test("gallery drag uses a closed native payload and editor-only destination validation",()=>{
- const gallery=read("src/components/editor/block-component-gallery.tsx");
- const palette=read("src/components/editor/block-palette.tsx");
- assert.match(gallery,/beginBlockDrag\(event\.dataTransfer, kind\)/);
- assert.match(read("src/lib/block-drag.ts"),/data\.setData\(MIME, kind\)/);
- assert.match(read("src/lib/block-drag.ts"),/data\.effectAllowed = "copy"/);
- assert.match(gallery,/onDragStart=\{event => dragExample\(event,kind\)\}/);
- assert.match(palette,/closest\("\[data-editor-drop-zone\]"\)/);
- assert.match(palette,/readBlockDrop\(event\.dataTransfer\)/);
- assert.match(palette,/insert\(kind, \{ y: event\.clientY \}\)/);
- assert.match(palette,/new Event\("paglora:gallery-block-dropped"\)/);
- assert.match(gallery,/setOpen\(false\)/);
-});
-test("source insertion uses a validated native ProseMirror transaction without an HTML parser",()=>{
- const palette=read("src/components/editor/block-palette.tsx");
- assert.match(read("src/lib/block-insertion.ts"),/createMarkdownBlock\(kind\)/);
- assert.match(read("src/lib/block-insertion.ts"),/state\.schema\.nodeFromJSON\(createMarkdownBlock\(kind\)\)/);
- assert.match(read("src/lib/block-insertion.ts"),/transaction\.doc\.check\(\)/);
- assert.doesNotMatch(read("src/lib/block-insertion.ts"),/\.insertContentAt\(/);
- assert.match(read("src/lib/block-insertion.ts"),/scrollIntoView\(\)/);
- assert.match(palette,/draggable=\{!disabled && Boolean\(editor\)\}/);
+test("component click and pointer drop share one verified editor insertion path",()=>{
+ const ins=read("src/lib/block-insertion.ts");
+ assert.match(ins,/state\.schema\.nodeFromJSON\(createMarkdownBlock\(kind\)\)/);
+ assert.match(ins,/view\.dispatch\(transaction\)/);
+ assert.match(ins,/transaction\.doc\.check\(\)/);
+ assert.doesNotMatch(ins,/\.insertContentAt\(/);
+ assert.match(palette,/insertBlockIntoEditor\(editor, kind, point\?\.y, reason =>/);
  assert.match(palette,/onClick=\{\(\) => click\(kind\)\}/);
- assert.doesNotMatch(palette,/\.setPointerCapture\(/);
- assert.match(palette,/window\.addEventListener\("pointerup", onPointerUp, true\)/);
- assert.doesNotMatch(palette,/innerHTML|DOMParser/);
+ assert.match(palette,/document\.dispatchEvent\(new Event\("paglora:gallery-block-dropped"\)\)/);
+});
+
+test("the Gallery stays non-modal without changing ordinary dialog overlays", () => {
+  const dialog = read("src/components/ui/dialog.tsx");
+  assert.match(dialog, /showOverlay = true/);
+  assert.match(dialog, /\{showOverlay && <DialogOverlay \/>\}/);
+  assert.match(gallery, /<Dialog modal=\{false\}/);
+  assert.match(gallery, /<DialogContent showOverlay=\{false\}/);
 });
