@@ -261,7 +261,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   );
 
   return (
-    <main className="flex h-full min-w-0 flex-1 flex-col bg-background">
+    <main data-paglora-project-root className="flex h-full min-w-0 flex-1 flex-col bg-background">
       <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-3 py-2 lg:px-5">
         <div className="flex min-w-0 items-center gap-2">
           <StudioTooltip label={showPages ? t("studio.editor.hidePages") : t("studio.editor.showPages")}><Button variant="ghost" size="icon-sm" aria-label={showPages ? t("studio.editor.hidePages") : t("studio.editor.showPages")} aria-pressed={showPages} onClick={() => setShowPages(value => !value)}>{showPages ? <PanelLeftClose /> : <PanelLeftOpen />}</Button></StudioTooltip>
