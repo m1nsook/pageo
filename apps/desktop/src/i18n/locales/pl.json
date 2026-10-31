@@ -234,6 +234,20 @@
     "studio.backup.invalid": "Wybierz plik .paglora mniejszy niż 96 MiB.",
     "studio.backup.description": "Przenośne kopie projektu zawierają strony, ustawienia wyglądu, CSS i obrazy. Kopie pozostają na komputerze.",
     "studio.backup.copyPath": "Kopiuj ścieżkę kopii",
-    "studio.backup.result": "Wynik kopii i importu"
+    "studio.backup.result": "Wynik kopii i importu",
+    "studio.updater.available": "Dostępna jest wersja Paglora Studio v{version}",
+    "studio.updater.description": "Dostępna jest nowsza stabilna wersja. Przejrzyj zmiany przed instalacją.",
+    "studio.updater.noNotes": "Pełną listę zmian znajdziesz w wydaniach GitHub.",
+    "studio.updater.later": "Później",
+    "studio.updater.install": "Zainstaluj podpisaną aktualizację",
+    "studio.updater.installing": "Weryfikowanie i instalowanie…",
+    "studio.updater.stableTitle": "Aktualizacje Studio · Kanał stabilny",
+    "studio.updater.stableDescription": "Instalowane są tylko podpisane, wersjonowane wydania. Kompilacje nightly są wykluczone.",
+    "studio.updater.check": "Sprawdź aktualizacje",
+    "studio.updater.checking": "Sprawdzanie stabilnych wydań…",
+    "studio.updater.upToDate": "Używasz najnowszej stabilnej wersji Studio.",
+    "studio.updater.onlyInstalled": "Sprawdzanie aktualizacji jest dostępne w zainstalowanej wersji Studio.",
+    "studio.updater.checkError": "Nie udało się sprawdzić aktualizacji: {error}",
+    "studio.updater.installError": "Instalacja aktualizacji nie powiodła się: {error}"
   }
 }

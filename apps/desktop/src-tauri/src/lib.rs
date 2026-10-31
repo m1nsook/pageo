@@ -3,6 +3,7 @@ mod pages;
 mod sites;
 mod source;
 mod backup;
+mod updates;
 
 /// Build a website from a local project without launching Desktop.
 pub fn build_headless(project_dir: &std::path::Path, output: &std::path::Path, rendered: &std::path::Path) -> Result<String, String> {
@@ -11,6 +12,7 @@ pub fn build_headless(project_dir: &std::path::Path, output: &std::path::Path, r
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             projects::list_projects,
             projects::create_project,
@@ -18,6 +20,7 @@ pub fn run() {
             projects::save_document,
             projects::projects_directory,
             backup::export_project_backup, backup::import_project_backup,
+            updates::check_studio_update, updates::install_studio_update,
             pages::list_pages, pages::load_page, pages::create_page,
             pages::rename_page, pages::duplicate_page, pages::delete_page,
             pages::reorder_pages, pages::save_page, pages::set_page_visibility,

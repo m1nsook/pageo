@@ -26,6 +26,7 @@ import { preservePagloraMarkers } from "@/lib/markdown-markers";
 import { PageInspector } from "@/components/editor/page-inspector";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
+import { StudioUpdateDialog, useStudioUpdater } from "@/components/studio/studio-updater";
 import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
 import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, setPageLayout, setPageNavigationGroup, type Page, type PageDocument } from "@/lib/pages";
 
@@ -332,6 +333,7 @@ function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; o
 
 export default function App() {
   const desktop = isTauri();
+  const updater = useStudioUpdater(desktop);
   const [view, setView] = useState<WorkspaceView>("home");
   const [search, setSearch] = useState("");
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -408,9 +410,10 @@ export default function App() {
     <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); void refresh(); }} onSaved={onSaved}/> : view === "settings" ? <Settings desktop={desktop} location={location}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} backupNotice={backupNotice} backupPath={backupPath}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); void refresh(); }} onSaved={onSaved}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} backupNotice={backupNotice} backupPath={backupPath}/>}
       </SidebarInset>
       <CreateProjectDialog open={creating} onOpenChange={setCreating} onCreate={create} disabled={!desktop}/>
+      <StudioUpdateDialog updater={updater}/>
     </SidebarProvider>
   );
 }

@@ -31,7 +31,7 @@ jobs:
           cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml --lib
       - name: Build Windows test installer
         working-directory: apps/desktop
-        run: bun run bundle:windows
+        run: bun tauri build --config src-tauri/tauri.nightly.conf.json
       - name: Upload nightly artifact (never a release)
         uses: actions/upload-artifact@v4
         with:
