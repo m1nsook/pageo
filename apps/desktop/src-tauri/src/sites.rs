@@ -1044,6 +1044,10 @@ fn read_candidate_sources(project:&Path)->Result<Vec<String>,String>{
     // fields can still reference an imported asset by name.
     for name in ["site.json","pages.json","paglora.json"] {
         let path=project.join(name);
+        if name=="site.json" && !path.exists() {
+            // Legacy projects may use default settings without site.json.
+            continue;
+        }
         if !fs::symlink_metadata(&path).map_err(|e|e.to_string())?.file_type().is_file(){
             return Err(format!("Missing or unsafe project metadata: {name}"));
         }
@@ -1144,24 +1148,31 @@ fn restore_image_at(project:&Path,url:&str)->Result<(),String>{
     fs::rename(source,target).map_err(|e|format!("Could not restore image: {e}"))?;
     Ok(())
 }
+fn verified_cleanup_project(app:&AppHandle,project_id:&str)->Result<PathBuf,String>{
+    let (project,_)=project_folder(app,project_id)?;
+    if !fs::symlink_metadata(&project).map_err(|e|e.to_string())?.file_type().is_dir(){
+        return Err("Project folder must be a real directory".into());
+    }
+    Ok(project)
+}
 #[tauri::command]
 pub fn review_unused_site_assets(app:AppHandle,project_id:String)->Result<Vec<UnusedAssetCandidate>,String>{
-    let (project,_)=project_folder(&app,&project_id)?;
+    let project=verified_cleanup_project(&app,&project_id)?;
     unused_candidates_at(&project)
 }
 #[tauri::command]
 pub fn move_unused_site_asset(app:AppHandle,project_id:String,url:String,fingerprint:String,confirmation:String)->Result<(),String>{
-    let (project,_)=project_folder(&app,&project_id)?;
+    let project=verified_cleanup_project(&app,&project_id)?;
     move_unused_at(&project,&url,&fingerprint,&confirmation)
 }
 #[tauri::command]
 pub fn list_recoverable_site_assets(app:AppHandle,project_id:String)->Result<Vec<SiteAsset>,String>{
-    let (project,_)=project_folder(&app,&project_id)?;
+    let project=verified_cleanup_project(&app,&project_id)?;
     recoverable_assets_at(&project)
 }
 #[tauri::command]
 pub fn restore_site_asset(app:AppHandle,project_id:String,url:String)->Result<(),String>{
-    let (project,_)=project_folder(&app,&project_id)?;
+    let project=verified_cleanup_project(&app,&project_id)?;
     restore_image_at(&project,&url)
 }
 
@@ -2347,6 +2358,13 @@ mod asset_cleanup_tests {
         fs::remove_file(dir.join("assets/unused.png")).unwrap();
         restore_image_at(&dir,"assets/unused.png").unwrap();
         assert!(dir.join("assets/unused.png").exists());
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn legacy_project_without_site_settings_can_recover_unused_images(){
+        let dir=fixture();
+        fs::remove_file(dir.join("site.json")).unwrap();
+        assert_eq!(unused_candidates_at(&dir).unwrap().len(),4);
         fs::remove_dir_all(dir).unwrap();
     }
     #[test]
