@@ -419,6 +419,11 @@ export default function App() {
   const [active, setActive] = useState<ProjectDocument | null>(null);
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(desktop);
+  const [openingProjectId, setOpeningProjectId] = useState<string | null>(null);
+  const openingRef = useRef(false);
+  const [backupBusy, setBackupBusy] = useState<"import" | "export" | null>(null);
+  const [backupProjectId, setBackupProjectId] = useState<string | null>(null);
+  const backupRef = useRef(false);
   const [error, setError] = useState("");
   const [location, setLocation] = useState("");
   const [storageMigrating, setStorageMigrating] = useState(false);
@@ -537,10 +542,17 @@ export default function App() {
     toast.success("Project created", { description: name.trim() });
   }
   async function open(id: string) {
+    if (openingRef.current || backupRef.current) return;
+    openingRef.current = true;
+    setOpeningProjectId(id);
     try { setError(""); setActive(await loadProject(id)); }
     catch (cause) { setError(friendlyError(cause)); }
+    finally { openingRef.current = false; setOpeningProjectId(null); }
   }
   async function exportBackup(id: string) {
+    if (backupRef.current || openingRef.current) return;
+    backupRef.current = true;
+    setBackupBusy("export"); setBackupProjectId(id);
     try {
       setError(""); setBackupNotice("");
       const path = await exportProjectBackup(id);
@@ -548,11 +560,15 @@ export default function App() {
       setBackupNotice(t("studio.backup.saved", { path }));
       toast.success("Project backup saved", { description: "A portable backup is ready in your local backups folder." });
     } catch (cause) { setError(friendlyError(cause)); }
+    finally { backupRef.current = false; setBackupBusy(null); setBackupProjectId(null); }
   }
   async function importBackup(file: File) {
+    if (backupRef.current || openingRef.current) return;
     if (!file.name.toLowerCase().endsWith(".paglora") || file.size > 96 * 1024 * 1024) {
       setError(t("studio.backup.invalid")); return;
     }
+    backupRef.current = true;
+    setBackupBusy("import"); setBackupProjectId(null);
     try {
       setError(""); setBackupNotice(""); setBackupPath("");
       const archive = Array.from(new Uint8Array(await file.arrayBuffer()));
@@ -561,6 +577,7 @@ export default function App() {
       setBackupNotice(t("studio.backup.imported", { id }));
       toast.success("Project imported", { description: "The project is now available in your workspace." });
     } catch (cause) { setError(friendlyError(cause)); }
+    finally { backupRef.current = false; setBackupBusy(null); setBackupProjectId(null); }
   }
   async function removeProject(id: string) {
     try {
@@ -679,7 +696,7 @@ export default function App() {
   const onSaved = useCallback((updated: ProjectSummary) => {
     setProjects((previous) => previous.map((p) => p.id === updated.id ? updated : p));
   }, []);
-  function navigate(next: WorkspaceView) { if (active || storageMigrating) return; setView(next); }
+  function navigate(next: WorkspaceView) { if (active || storageMigrating || openingRef.current || backupRef.current) return; setView(next); }
 
   return (
     <div data-paglora-desktop-shell={desktop ? "" : undefined} className="flex h-svh min-h-0 w-full flex-col overflow-hidden bg-background">
@@ -687,7 +704,7 @@ export default function App() {
       <SidebarProvider className="min-h-0 min-w-0 flex-1 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} storageStatus={storageStatus} onCheckStorage={() => void checkStorageAgain()} onReconnectStorage={reconnectStorage} onReturnStorage={returnStorage} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} trashItems={trashItems} restoringTrashId={restoringTrashId || deletingTrashId} onRestoreProject={(trashId) => void restoreProject(trashId)} onDeleteTrashedProject={(trashId, confirmation) => void deleteTrashedProject(trashId, confirmation)} onUpdateVisual={customizeProject} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} storageStatus={storageStatus} onCheckStorage={() => void checkStorageAgain()} onReconnectStorage={reconnectStorage} onReturnStorage={returnStorage} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} backupBusy={backupBusy} backupProjectId={backupProjectId} openingProjectId={openingProjectId} trashItems={trashItems} restoringTrashId={restoringTrashId || deletingTrashId} onRestoreProject={(trashId) => void restoreProject(trashId)} onDeleteTrashedProject={(trashId, confirmation) => void deleteTrashedProject(trashId, confirmation)} onUpdateVisual={customizeProject} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
       </SidebarInset>
       {!active && <StudioQuickFind open={findOpen} onOpenChange={setFindOpen} shortcut={shortcutLabel(shortcuts.find)}
         entries={projects.map(project => ({ id: project.id, title: project.name, description: "Local documentation project", kind: "project" as const }))}
