@@ -61,6 +61,40 @@
     try { localStorage.setItem(storageKey, next); } catch { /* storage disabled */ }
   });
 
+  // Small-screen navigation stays native <details> without scripts. JavaScript
+  // only enhances the scrollable panel with dismissal and header-height tracking.
+  const mobileNav = document.querySelector(".mobile-nav");
+  if (mobileNav) {
+    const summary = mobileNav.querySelector(":scope > summary");
+    const siteHeader = document.querySelector(".site-header");
+    function syncMobileOffset() {
+      const height = siteHeader?.getBoundingClientRect?.().height;
+      if (Number.isFinite(height) && height > 0 && height < 400) {
+        mobileNav.style?.setProperty("--paglora-header-height", Math.ceil(height) + "px");
+      }
+    }
+    syncMobileOffset();
+    if (siteHeader && typeof ResizeObserver !== "undefined") {
+      new ResizeObserver(syncMobileOffset).observe(siteHeader);
+    }
+    mobileNav.addEventListener("keydown", event => {
+      if (event.key !== "Escape" || !mobileNav.open) return;
+      event.preventDefault();
+      mobileNav.open = false;
+      summary?.focus?.();
+    });
+    mobileNav.addEventListener("click", event => {
+      if (event.target?.closest?.("a[href]")) mobileNav.open = false;
+    });
+    document.addEventListener("pointerdown", event => {
+      if (mobileNav.open && !mobileNav.contains(event.target)) mobileNav.open = false;
+    });
+    addEventListener("resize", () => {
+      syncMobileOffset();
+      if (typeof innerWidth === "number" && innerWidth > 800) mobileNav.open = false;
+    }, { passive: true });
+  }
+
   // Give generated Markdown code blocks copy controls. Clipboard access
   // requires a secure context; a failure never affects readable code.
   for (const code of document.querySelectorAll?.(".docs pre > code") ?? []) {

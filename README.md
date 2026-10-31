@@ -28,7 +28,7 @@ Paglora is a free, open-source, **local-first documentation studio** powered by 
 
 Paglora exports a portable static documentation website with no required server-side runtime. Published sites support:
 
-- Responsive navigation, headings, table of contents and light/dark appearance.
+- Responsive navigation, headings, table of contents and light/dark appearance. On small screens, **Browse** opens a scrollable navigation panel with keyboard dismissal (Escape); links remain usable without JavaScript.
 - Offline-capable search, keyboard navigation and code copying.
 - Callouts, cards, guided steps, content tabs, code groups, FAQ accordions, task lists and tables.
 - Optional canonical URLs, sitemaps and page-specific metadata.
