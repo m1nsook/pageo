@@ -51,8 +51,11 @@ function sourceBoundary(source: string, editorBlocks: readonly VisibleSourceBloc
     const after = signature(editorBlocks[boundary].text);
     const beforeSource = blocks[boundary - 1].signature;
     const afterSource = blocks[boundary].signature;
-    const overlap = (a: string, b: string) => !a || !b || a.includes(b) || b.includes(a);
-    if (overlap(before, beforeSource) || overlap(after, afterSource)) return blocks[boundary].offset;
+    const overlap = (a: string, b: string) => Boolean(a && b) && (a.includes(b) || b.includes(a));
+    // Both surrounding blocks must match if they contain text. An empty
+    // heading/hr alone is not sufficient evidence of a correct source offset.
+    if ((!before || overlap(before, beforeSource)) &&
+        (!after || overlap(after, afterSource))) return blocks[boundary].offset;
   }
 
   // In malformed editor trees the token/node counts can differ. Resolve a
