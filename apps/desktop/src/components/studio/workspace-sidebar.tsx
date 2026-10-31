@@ -1,6 +1,7 @@
 import { FolderOpen, Home, LayoutTemplate, Settings2, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ThemeSwitcher } from "@/components/studio/theme-switcher";
+import { useTranslation } from "@/i18n";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -10,9 +11,9 @@ import {
 export type WorkspaceView = "home" | "projects" | "settings";
 
 const destinations = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "projects", label: "Projects", icon: FolderOpen },
-  { id: "settings", label: "Settings", icon: Settings2 },
+  { id: "home", label: "studio.nav.home", icon: Home },
+  { id: "projects", label: "studio.nav.projects", icon: FolderOpen },
+  { id: "settings", label: "studio.nav.settings", icon: Settings2 },
 ] as const;
 
 export function WorkspaceSidebar({ view, onNavigate, editing }: {
@@ -20,6 +21,7 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
   onNavigate: (view: WorkspaceView) => void;
   editing: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="px-3 py-5">
@@ -32,7 +34,7 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("studio.nav.workspace")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {destinations.map(({ id, label, icon: Icon }) => (
@@ -40,11 +42,11 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
                   <SidebarMenuButton
                     isActive={!editing && view === id}
                     disabled={editing}
-                    tooltip={editing ? "Save and leave the editor first" : label}
+                    tooltip={editing ? "Save and leave the editor first" : t(label)}
                     onClick={() => onNavigate(id)}
                     className="transition-colors"
                   >
-                    <Icon /> <span>{label}</span>
+                    <Icon /> <span>{t(label)}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -53,13 +55,13 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
         </SidebarGroup>
         <SidebarSeparator />
         <SidebarGroup>
-          <SidebarGroupLabel>Resources</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("studio.nav.resources")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton disabled tooltip="Templates are planned">
-                  <LayoutTemplate /><span>Templates</span>
-                  <Badge variant="secondary" className="ml-auto text-[10px] group-data-[collapsible=icon]:hidden">Soon</Badge>
+                  <LayoutTemplate /><span>{t("studio.nav.templates")}</span>
+                  <Badge variant="secondary" className="ml-auto text-[10px] group-data-[collapsible=icon]:hidden">{t("studio.nav.soon")}</Badge>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -68,11 +70,11 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
       </SidebarContent>
       <SidebarFooter className="gap-3 p-3">
         <div className="rounded-lg bg-muted/70 p-3 group-data-[collapsible=icon]:hidden">
-          <div className="flex items-center gap-2 text-xs font-medium"><ShieldCheck className="size-4" /> Private by design</div>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Stored on this computer. No account or cloud required.</p>
+          <div className="flex items-center gap-2 text-xs font-medium"><ShieldCheck className="size-4" /> {t("studio.nav.privateByDesign")}</div>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t("studio.nav.privateDescription")}</p>
         </div>
         <div className="flex items-center justify-between gap-2 px-2 text-[11px] text-muted-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <span className="group-data-[collapsible=icon]:hidden">Paglora Studio</span>
+          <span className="group-data-[collapsible=icon]:hidden">{t("studio.nav.studioTitle")}</span>
           <ThemeSwitcher />
         </div>
       </SidebarFooter>
