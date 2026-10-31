@@ -27,6 +27,8 @@ import { PageInspector } from "@/components/editor/page-inspector";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { StudioUpdateDialog, useStudioUpdater } from "@/components/studio/studio-updater";
+import { StudioReleaseDialog, LAST_STUDIO_VERSION_KEY } from "@/components/studio/studio-release-dialog";
+import { STUDIO_VERSION } from "@/lib/release-notes";
 import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
 import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, setPageLayout, setPageNavigationGroup, type Page, type PageDocument } from "@/lib/pages";
 
@@ -334,6 +336,7 @@ function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; o
 export default function App() {
   const desktop = isTauri();
   const updater = useStudioUpdater(desktop);
+  const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
   const [view, setView] = useState<WorkspaceView>("home");
   const [search, setSearch] = useState("");
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -345,6 +348,22 @@ export default function App() {
   const [backupNotice, setBackupNotice] = useState("");
   const [backupPath, setBackupPath] = useState("");
   const { t } = useTranslation();
+
+  // Only an actual installed version change opens the release dialog automatically.
+  // Fresh installations record the first version without interrupting onboarding.
+  useEffect(() => {
+    if (!desktop || import.meta.env.DEV) return;
+    try {
+      const previous = localStorage.getItem(LAST_STUDIO_VERSION_KEY);
+      if (previous && previous !== STUDIO_VERSION) setReleaseNotesOpen(true);
+      else if (!previous) localStorage.setItem(LAST_STUDIO_VERSION_KEY, STUDIO_VERSION);
+    } catch { /* Release notes remain manually accessible without localStorage. */ }
+  }, [desktop]);
+
+  const closeReleaseNotes = () => {
+    try { localStorage.setItem(LAST_STUDIO_VERSION_KEY, STUDIO_VERSION); } catch {}
+    setReleaseNotesOpen(false);
+  };
 
   // Paglora is a desktop editor, not a web page. Prevent browser-only
   // print/save/reload/open shortcuts (and F5) in the Tauri WebView.
@@ -410,10 +429,11 @@ export default function App() {
     <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); void refresh(); }} onSaved={onSaved}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} backupNotice={backupNotice} backupPath={backupPath}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); void refresh(); }} onSaved={onSaved}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} backupNotice={backupNotice} backupPath={backupPath}/>}
       </SidebarInset>
       <CreateProjectDialog open={creating} onOpenChange={setCreating} onCreate={create} disabled={!desktop}/>
       <StudioUpdateDialog updater={updater}/>
+      <StudioReleaseDialog open={releaseNotesOpen} onClose={closeReleaseNotes}/>
     </SidebarProvider>
   );
 }

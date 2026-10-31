@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { ThemeSwitcher } from "@/components/studio/theme-switcher";
 import { LANGUAGES, useTranslation } from "@/i18n";
-import { STUDIO_VERSION, RELEASE_NOTES, RELEASE_URL } from "@/lib/release-notes";
+import { STUDIO_VERSION } from "@/lib/release-notes";
 import type { StudioUpdaterControls } from "@/components/studio/studio-updater";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -149,7 +149,7 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
   );
 }
 
-export function Settings({ location, desktop, updater }: { location: string; desktop: boolean; updater: StudioUpdaterControls }) {
+export function Settings({ location, desktop, updater, onOpenReleaseNotes }: { location: string; desktop: boolean; updater: StudioUpdaterControls; onOpenReleaseNotes: () => void }) {
   const { locale, setLocale, t } = useTranslation();
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden">
@@ -180,23 +180,6 @@ export function Settings({ location, desktop, updater }: { location: string; des
             <CardContent><div className="break-all rounded-md bg-muted p-3 font-mono text-xs text-foreground">{desktop ? location || t("studio.settings.storagePending") : t("studio.settings.desktopOnly")}</div><p className="mt-4 text-xs text-muted-foreground">{t("studio.settings.storageFuture")}</p></CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>What's New · Studio v{STUDIO_VERSION}</CardTitle>
-              <CardDescription>Release notes are available offline. Nightly builds are testing artifacts, not stable updates.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {RELEASE_NOTES.map(section => (
-                <section key={section.name} className="space-y-1.5">
-                  <h3 className="text-sm font-semibold">{section.name}</h3>
-                  <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                    {section.items.map((item,index) => <li key={index}>{item}</li>)}
-                  </ul>
-                </section>
-              ))}
-              <a href={RELEASE_URL} target="_blank" rel="noopener noreferrer"
-                className="text-sm text-primary underline underline-offset-4">View versions and release downloads on GitHub</a>
-            </CardContent>
-          </Card>
-          <Card>
             <CardHeader>
               <CardTitle>{t("studio.updater.stableTitle")}</CardTitle>
               <CardDescription>{t("studio.updater.stableDescription")}</CardDescription>
@@ -208,7 +191,15 @@ export function Settings({ location, desktop, updater }: { location: string; des
               {updater.message && <p role="status" className="text-sm text-muted-foreground">{updater.message}</p>}
             </CardContent>
           </Card>
-          <Card><CardHeader><CardTitle>{t("studio.settings.about")}</CardTitle><CardDescription>{t("studio.settings.aboutDescription")}</CardDescription></CardHeader></Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("studio.settings.about")}</CardTitle>
+              <CardDescription>{t("studio.settings.aboutDescription")} · Studio v{STUDIO_VERSION}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" onClick={onOpenReleaseNotes}>{t("studio.release.open")}</Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </main>

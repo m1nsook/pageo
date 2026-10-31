@@ -3,7 +3,7 @@
 //! Only authored project sources (never site exports or executable content) are packed.
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
-use std::{collections::{HashMap, HashSet}, fs, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::{HashMap, HashSet}, fs, path::Path, time::{SystemTime, UNIX_EPOCH}};
 use tauri::{AppHandle, Manager};
 
 const MAX_TOTAL: usize = 64 * 1024 * 1024;
@@ -206,6 +206,7 @@ pub fn import_project_backup(app: AppHandle, archive: Vec<u8>) -> Result<String,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
     fn temp(label: &str) -> PathBuf {
         let id=SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
         let path=std::env::temp_dir().join(format!("paglora-backup-{label}-{id}"));

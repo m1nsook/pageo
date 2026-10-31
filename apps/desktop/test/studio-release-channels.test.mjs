@@ -33,8 +33,28 @@ test("What's New shows actual curated release notes, including deprecated and re
   const settings=read("../src/components/studio/workspace-content.tsx");
   const md=read("../../../.github/releases/v0.2.0.md");
   assert.match(info,/parseReleaseNotes/);
-  assert.match(settings,/RELEASE_NOTES\.map/);
+  const dialog=read("../src/components/studio/studio-release-dialog.tsx");
+  const app=read("../src/App.tsx");
+  assert.doesNotMatch(settings,/RELEASE_NOTES\.map/);
+  assert.match(settings,/onOpenReleaseNotes/);
+  assert.match(dialog,/RELEASE_NOTES\.map/);
+  assert.match(dialog,/max-h-\[55svh\]/);
+  assert.match(app,/previous && previous !== STUDIO_VERSION/);
+  assert.match(app,/localStorage\.setItem\(LAST_STUDIO_VERSION_KEY, STUDIO_VERSION\)/);
   for(const heading of ["Added","Improved","Fixed","Deprecated","Removed","Known limitations"]){
     assert.ok(md.includes("## "+heading),heading);
   }
+});
+
+test("workspace sidebar only scrolls vertically",()=>{
+  const sidebar=read("../src/components/ui/sidebar.tsx");
+  const workspace=read("../src/components/studio/workspace-sidebar.tsx");
+  assert.match(sidebar,/overflow-x-hidden overflow-y-auto/);
+  assert.match(workspace,/<SidebarContent className="overflow-x-hidden overflow-y-auto">/);
+});
+
+test("backup module imports PathBuf only inside test code",()=>{
+  const backup=read("../src-tauri/src/backup.rs");
+  assert.doesNotMatch(backup.split("#[cfg(test)]")[0],/\bPathBuf\b/);
+  assert.match(backup,/mod tests \{\s*use super::\*;\s*use std::path::PathBuf;/);
 });
