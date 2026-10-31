@@ -1,8 +1,11 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { ProjectSummary } from "@paglora/core";
-import { Archive, ChevronRight, Clock3, Copy, FolderOpen, Plus, Search, ShieldCheck } from "lucide-react";
+import { Archive, ChevronRight, Clock3, Copy, ExternalLink, FolderOpen, Plus, Search, ShieldCheck, Trash2 } from "lucide-react";
 import { ArrowRightIcon, BookOpenIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Kbd } from "@/components/ui/kbd";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,9 +39,11 @@ function WorkspaceHeader({ section }: { section: string }) {
   );
 }
 
-function ProjectCard({ project, onOpen, onExportBackup }: { project: ProjectSummary; onOpen: () => void; onExportBackup: () => void }) {
+function ProjectCard({ project, onOpen, onExportBackup, onTrash }: { project: ProjectSummary; onOpen: () => void; onExportBackup: () => void; onTrash: () => void }) {
   const { t } = useTranslation();
+  const [confirmTrash, setConfirmTrash] = useState(false);
   return (
+    <>
     <ContextMenu>
       <ContextMenuTrigger asChild>
     <Card className="group gap-0 py-0 transition-[background-color,border-color,box-shadow] duration-150 hover:bg-muted/50 hover:ring-primary/45">
@@ -70,14 +75,32 @@ function ProjectCard({ project, onOpen, onExportBackup }: { project: ProjectSumm
             });
           }
         }}><Copy /> Copy project name</ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onSelect={() => setConfirmTrash(true)}><Trash2 /> Remove project…</ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
+    <AlertDialog open={confirmTrash} onOpenChange={setConfirmTrash}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove “{project.name}” from Paglora?</AlertDialogTitle>
+          <AlertDialogDescription>
+            The project and its pages will disappear from your workspace. All files are moved
+            into Paglora’s local trash folder for manual recovery, not permanently deleted.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep project</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onTrash}>Move to trash</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
-export function Dashboard({ projects, openCreate, openProject, onExportBackup, onImportBackup, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
+export function Dashboard({ projects, openCreate, openProject, onExportBackup, onImportBackup, onTrashProject, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
   projects: ProjectSummary[]; openCreate: () => void; openProject: (id: string) => void;
-  onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; backupNotice: string; backupPath: string;
+  onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; onTrashProject: (id: string) => void; backupNotice: string; backupPath: string;
   view: WorkspaceView; loading: boolean; search: string; setSearch: (value: string) => void; desktop: boolean; error: string;
 }) {
   const { t } = useTranslation();
@@ -131,7 +154,7 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
               {[0, 1, 2].map(n => <Card key={n} className="min-h-48"><CardHeader><Skeleton className="size-10" /></CardHeader><CardContent className="space-y-2"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-3 w-1/2" /></CardContent></Card>)}
             </div>
           ) : visible.length > 0 ? (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(p => <ProjectCard key={p.id} project={p} onOpen={() => openProject(p.id)} onExportBackup={() => onExportBackup(p.id)} />)}</div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(p => <ProjectCard key={p.id} project={p} onOpen={() => openProject(p.id)} onExportBackup={() => onExportBackup(p.id)} onTrash={() => onTrashProject(p.id)} />)}</div>
           ) : (
             <Empty className="mt-6 min-h-64 border border-dashed border-border bg-card">
               <EmptyHeader>
