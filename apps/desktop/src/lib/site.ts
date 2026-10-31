@@ -180,7 +180,7 @@ function enhanceCallouts(container: HTMLElement, language: string) {
     const marker = first.firstChild;
     if (!marker || marker.nodeType !== Node.TEXT_NODE) continue;
     const text = marker.textContent ?? "";
-    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|TABS|CODEGROUP|ACCORDION)\](?:\s|$)/i.exec(text);
+    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|TABS|CODEGROUP|ACCORDION|BADGES)\](?:\s|$)/i.exec(text);
     if (!match) continue;
     const type = match[1].toUpperCase();
     if (type === "CARD") {
@@ -238,6 +238,48 @@ function enhanceCallouts(container: HTMLElement, language: string) {
       first.remove();
       while (quote.firstChild) details.appendChild(quote.firstChild);
       quote.replaceWith(details);
+      continue;
+    }
+
+
+    if (type === "BADGES") {
+      // A bounded, plain-text list is the entire component contract. Reject
+      // malformed groups without dropping any authored content from the page.
+      if (first.childNodes.length !== 1 || quote.children.length !== 2 ||
+          quote.children[1].tagName !== "UL") continue;
+      const titleText = text.slice(match[0].length).trim();
+      if (titleText.length > 160) continue;
+      const items = Array.from(quote.children[1].children);
+      if (!items.length || items.length > 12 || items.some(item => item.tagName !== "LI")) continue;
+      const entries = items.map(item => {
+        const source = item.children.length === 1 && item.firstElementChild?.tagName === "P"
+          ? item.firstElementChild : item;
+        if (source.childNodes.length !== 1 || source.firstChild?.nodeType !== Node.TEXT_NODE) return null;
+        const raw = (source.textContent ?? "").trim();
+        const parsed = /^(?:\[(neutral|info|success|warning|danger)\]\s+)?([^\[\]\r\n]{1,60})$/i.exec(raw);
+        if (!parsed || !parsed[2].trim()) return null;
+        return { variant: (parsed[1] || "neutral").toLowerCase(), label: parsed[2].trim() };
+      });
+      if (entries.some(entry => !entry)) continue;
+      const group = document.createElement("section");
+      group.className = "paglora-badges";
+      group.setAttribute("aria-label", titleText || "Status badges");
+      if (titleText) {
+        const heading = document.createElement("div");
+        heading.className = "paglora-badges-title";
+        heading.textContent = titleText;
+        group.appendChild(heading);
+      }
+      const row = document.createElement("div");
+      row.className = "paglora-badges-row";
+      entries.forEach(entry => {
+        const badge = document.createElement("span");
+        badge.className = `paglora-badge paglora-badge-${entry!.variant}`;
+        badge.textContent = entry!.label;
+        row.appendChild(badge);
+      });
+      group.appendChild(row);
+      quote.replaceWith(group);
       continue;
     }
 

@@ -13,6 +13,7 @@ export const BLOCK_MARKDOWN_EXAMPLES: Record<BlockKind, string> = {
   card: "> [!CARD] Card title\n>\n> Describe this feature or link to a guide.",
   steps: "> [!STEPS] Getting started\n>\n> 1. Install the dependencies\n> 2. Run your first build",
   accordion: "> [!ACCORDION] How does this work?\n>\n> Write an answer with links, lists, or code. Readers can expand it.",
+  badges: "> [!BADGES] Release status\n>\n> - [success] Stable\n> - [info] Available offline\n> - [warning] Preview",
   tabs: "> [!TABS] Choose a platform\n>\n> > [!TAB] Windows\n> >\n> > Download the Windows installer.\n>\n> > [!TAB] macOS\n> >\n> > Install using your preferred package manager.",
   codeGroup: "> [!CODEGROUP] Install\n>\n> ```bash\n> bun install\n> ```\n>\n> ```powershell\n> bun install\n> ```",
   codeBlock: "```\nYour code here\n```",
