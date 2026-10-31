@@ -1,5 +1,5 @@
 //! Restricted external navigation. Do not accept renderer-controlled URLs.
-const DOCUMENTATION_URL: &str = "https://github.com/m1nsook/paglora#readme";
+const DOCUMENTATION_URL: &str = "https://m1nsook.github.io/paglora-docs/";
 
 #[tauri::command]
 pub fn open_documentation() -> Result<(), String> {
@@ -33,7 +33,7 @@ mod tests {
     use super::*;
     #[test]
     fn documentation_url_is_fixed_https_not_renderer_controlled() {
-        assert!(DOCUMENTATION_URL.starts_with("https://github.com/m1nsook/paglora"));
+        assert_eq!(DOCUMENTATION_URL, "https://m1nsook.github.io/paglora-docs/");
         assert!(documentation_command().get_args().any(|arg| arg == DOCUMENTATION_URL));
     }
 }
