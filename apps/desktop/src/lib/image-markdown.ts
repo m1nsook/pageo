@@ -4,11 +4,12 @@ export function isSafeImageSource(value: string): boolean {
     (value.length <= 2048 && /^https:\/\/[^\s<>"'()\\]+$/i.test(value));
 }
 
-export function imageMarkdown(alt: string, src: string): string {
+export function imageMarkdown(alt: string, src: string, title?: string | null): string {
   if (!isSafeImageSource(src)) throw new Error("Unsafe image URL");
   const label = alt.slice(0, 300).replace(/\r?\n/g, " ")
     .replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
-  return `![${label}](${src})`;
+  const caption = title ? ` "${title.slice(0, 200).replace(/\r?\n/g, " ").replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"` : "";
+  return `![${label}](${src}${caption})`;
 }
 
 export function defaultImageAlt(url: string): string {

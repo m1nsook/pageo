@@ -32,6 +32,6 @@ export const LocalImageNode = Node.create({
   renderMarkdown(node) {
     const src = String(node.attrs?.src ?? "");
     const alt = String(node.attrs?.alt ?? "");
-    return isSafeImageSource(src) ? imageMarkdown(alt, src) : alt;
+    return isSafeImageSource(src) ? imageMarkdown(alt, src, String(node.attrs?.title ?? "")) : alt;
   },
 });

@@ -21,6 +21,8 @@ test("local image Markdown serializes and parses with accessible alt text", () =
   assert.equal(tokens[0].tokens[0].href, "assets/guide-2.webp");
   assert.equal(tokens[0].tokens[0].text, "A [diagram]");
   assert.equal(defaultImageAlt("assets/first-screen-123.png"), "first screen 123");
+  const titled = marked.lexer(imageMarkdown("Screenshot", "assets/guide.png", "The setup screen"));
+  assert.equal(titled[0].tokens[0].title, "The setup screen");
   assert.equal(defaultImageAlt("assets/setup-screen-18b45ff0a21e3-0.png"), "setup screen");
 });
 
@@ -64,6 +66,7 @@ test("actual Tiptap image handlers round-trip safe tokens and reject unsafe sour
   const parsed = node.parseMarkdown({ href: "assets/guide.png", text: "Diagram" }, helpers);
   assert.deepEqual(parsed, { type: "pagloraImage", attrs: { src: "assets/guide.png", alt: "Diagram", title: null } });
   assert.equal(node.renderMarkdown(parsed), "![Diagram](assets/guide.png)");
+  assert.equal(node.renderMarkdown({ attrs: { src: "assets/guide.png", alt: "Diagram", title: "Setup" } }), "![Diagram](assets/guide.png \"Setup\")");
   assert.deepEqual(node.parseMarkdown({ href: "javascript:alert(1)", text: "Unsafe" }, helpers),
     { type: "text", text: "Unsafe" });
   assert.equal(node.renderMarkdown({ attrs: { src: "data:text/html,evil", alt: "Unsafe" } }), "Unsafe");
