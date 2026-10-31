@@ -59,7 +59,7 @@
     },
     "packages/cli": {
       "name": "paglora",
-      "version": "0.0.1-alpha.2",
+      "version": "0.0.1-alpha.3",
     },
     "packages/core": {
       "name": "@paglora/core",

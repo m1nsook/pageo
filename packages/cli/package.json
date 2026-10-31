@@ -1,6 +1,6 @@
 {
   "name": "paglora",
-  "version": "0.0.1-alpha.2",
+  "version": "0.0.1-alpha.3",
   "description": "Paglora CLI — create, inspect and validate local-first documentation projects.",
   "type": "module",
   "license": "MIT",
