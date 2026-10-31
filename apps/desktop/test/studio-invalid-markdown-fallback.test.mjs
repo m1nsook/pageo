@@ -56,6 +56,16 @@ test("a malformed visual alignment or unknown block refuses placement; never sil
   assert.throws(() => positioned(original, "invented-component", visible, 1),
     /Unknown documentation component/i);
 });
+test("source-position fingerprints never pretend to sanitize HTML or change original markup", () => {
+  const source = "# Docs\\n\\n<script>alert(1)</script>\\n\\n## Next\\n";
+  const visibleBlocks = [{ text: "Docs" }, { text: "alert(1)" }, { text: "Next" }];
+  // Positioning compares text only. It must keep existing Markdown bytes,
+  // including HTML, unchanged; the publishing renderer owns sanitization.
+  const result = positioned(source, "paragraph", visibleBlocks, 2);
+  assert.equal(result, "# Docs\\n\\n<script>alert(1)</script>\\n\\nWrite something...\\n\\n## Next\\n");
+  assert.doesNotMatch(read("src/lib/source-block-insert.ts"), /replace\\(\\/</);
+});
+
 test("failed Tiptap parse routes click/pointer to exact source placement, not old append fallback", () => {
   const insert = read("src/lib/block-insertion.ts");
   const palette = read("src/components/editor/block-palette.tsx");
