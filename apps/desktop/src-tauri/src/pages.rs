@@ -115,7 +115,7 @@ fn touch(folder: &Path) -> Result<serde_json::Value, String> {
 /// pages because its results never leave the desktop's Tauri command boundary.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct PageSearchHit {
+pub struct PageSearchHit {
     id: String,
     title: String,
     nav_group: String,
@@ -318,6 +318,28 @@ pub fn set_page_navigation_group(app: AppHandle, project_id: String, page_id: St
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn full_text_search_matches_private_local_markdown_without_exposing_filesystem_paths() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let temp = std::env::temp_dir().join(format!("paglora-local-search-{}-{nonce}", std::process::id()));
+        fs::create_dir_all(temp.join("docs")).unwrap();
+        initialize_pages(&temp).unwrap();
+        fs::write(temp.join("docs/index.md"), "# Public overview").unwrap();
+        let mut manifest = read_pages(&temp).unwrap();
+        manifest.pages.push(Page { id: "secret".into(), title: "Private notes".into(),
+            is_public: false, layout: "docs".into(), nav_group: "Internal".into() });
+        save_pages(&temp, &manifest).unwrap();
+        fs::write(temp.join("docs/secret.md"), "Confidential notes about comet velocity.").unwrap();
+        let results = search_pages_at(&temp, "comet").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "secret");
+        assert!(!results[0].is_public);
+        assert!(results[0].excerpt.contains("comet"));
+        assert!(search_pages_at(&temp, "c").is_err());
+        assert!(search_pages_at(&temp, &"x".repeat(81)).is_err());
+        fs::remove_dir_all(temp).unwrap();
+    }
+
     #[test]
     fn page_manifest_requires_layout_and_visibility() {
         let page: Page = serde_json::from_str(r#"{"id":"index","title":"Overview","isPublic":true,"layout":"docs"}"#).unwrap();
