@@ -15,27 +15,31 @@ const destinations = [
   { id: "settings", label: "studio.nav.settings", icon: GearSixIcon },
 ] as const;
 
-export function WorkspaceSidebar({ view, onNavigate, editing }: {
+export function WorkspaceSidebar({ view, onNavigate, editing, projectCount = 0 }: {
   view: WorkspaceView;
   onNavigate: (view: WorkspaceView) => void;
   editing: boolean;
+  projectCount?: number;
 }) {
   const { t } = useTranslation();
   return (
-    <Sidebar collapsible="icon" className="overflow-x-hidden border-r border-sidebar-border">
-      <SidebarHeader className="px-3 py-5">
-        <div className="flex h-10 items-center gap-3 px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <span className="flex size-9 shrink-0 items-center justify-center">
-            <img src="/paglora.svg" className="size-9 object-contain" alt="Paglora logo" />
+    <Sidebar collapsible="icon" className="studio-workspace-sidebar overflow-x-hidden border-r border-sidebar-border">
+      <SidebarHeader className="gap-0 px-3 pb-5 pt-5">
+        <div className="flex min-h-14 items-center gap-3 rounded-lg px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]">
+            <img src="/paglora.svg" className="size-8 object-contain" alt="Paglora logo" />
           </span>
-          <span className="font-display truncate text-lg font-extrabold tracking-tight group-data-[collapsible=icon]:hidden">paglora<span className="text-muted-foreground">.</span></span>
+          <span className="min-w-0 group-data-[collapsible=icon]:hidden">
+            <span className="font-display block truncate text-xl font-extrabold leading-tight tracking-[-.06em]">paglora<span className="text-primary">.</span></span>
+            <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-[.19em] text-muted-foreground">Studio workspace</span>
+          </span>
         </div>
       </SidebarHeader>
-      <SidebarContent className="overflow-x-hidden overflow-y-auto">
-        <SidebarGroup>
-          <SidebarGroupLabel>{t("studio.nav.workspace")}</SidebarGroupLabel>
+      <SidebarContent className="overflow-x-hidden overflow-y-auto px-2">
+        <SidebarGroup className="gap-2 px-1 py-2">
+          <SidebarGroupLabel className="px-3 text-[10px] font-extrabold tracking-[.14em]">{t("studio.nav.workspace")}</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1.5">
               {destinations.map(({ id, label, icon: Icon }) => (
                 <SidebarMenuItem key={id}>
                   <SidebarMenuButton
@@ -43,24 +47,27 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
                     disabled={editing}
                     tooltip={editing ? "Save and leave the editor first" : t(label)}
                     onClick={() => onNavigate(id)}
-                    className="transition-colors"
+                    className="studio-shell-nav-item h-11 rounded-md px-3 text-[13px] font-semibold transition-[background-color,color] duration-150 data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
                   >
-                    <Icon weight={view === id && !editing ? "fill" : "bold"} /> <span>{t(label)}</span>
+                    <Icon weight={view === id && !editing ? "fill" : "bold"} className="size-5 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">{t(label)}</span>
+                    {id === "projects" && <span className="ml-auto rounded bg-background/60 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-muted-foreground group-data-[collapsible=icon]:hidden">{projectCount}</span>}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarSeparator />
-        <SidebarGroup>
-          <SidebarGroupLabel>{t("studio.nav.resources")}</SidebarGroupLabel>
+        <SidebarSeparator className="my-3" />
+        <SidebarGroup className="gap-2 px-1">
+          <SidebarGroupLabel className="px-3 text-[10px] font-extrabold tracking-[.14em]">{t("studio.nav.resources")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={t("studio.nav.documentation")}>
+                <SidebarMenuButton asChild tooltip={t("studio.nav.documentation")}
+                  className="studio-shell-nav-item h-11 rounded-md px-3 text-[13px] font-semibold">
                   <a href="https://m1nsook.github.io/paglora-docs/" target="_blank" rel="noopener noreferrer">
-                    <BookOpenTextIcon weight="bold" /><span>{t("studio.nav.documentation")}</span>
+                    <BookOpenTextIcon weight="bold" className="size-5 shrink-0" /><span>{t("studio.nav.documentation")}</span>
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -68,13 +75,13 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="gap-3 p-3">
-        <div className="rounded-md border border-sidebar-border bg-card/60 p-3 group-data-[collapsible=icon]:hidden">
-          <div className="flex items-center gap-2 text-xs font-medium"><ShieldCheckIcon weight="bold" className="size-4" /> {t("studio.nav.privateByDesign")}</div>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t("studio.nav.privateDescription")}</p>
+      <SidebarFooter className="gap-3 border-t border-sidebar-border px-3 py-4">
+        <div className="rounded-lg border border-sidebar-border bg-card/50 px-3 py-3 group-data-[collapsible=icon]:hidden">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.07em]"><ShieldCheckIcon weight="bold" className="size-4 text-emerald-500" /> {t("studio.nav.privateByDesign")}</div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{t("studio.nav.privateDescription")}</p>
         </div>
-        <div className="flex items-center justify-between gap-2 px-2 text-[11px] text-muted-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <span className="group-data-[collapsible=icon]:hidden">{t("studio.nav.studioTitle")}</span>
+        <div className="flex min-h-9 items-center justify-between gap-2 px-2 text-[11px] text-muted-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <span className="font-semibold uppercase tracking-[.1em] group-data-[collapsible=icon]:hidden">Appearance</span>
           <ThemeSwitcher />
         </div>
       </SidebarFooter>
