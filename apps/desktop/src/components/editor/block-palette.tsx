@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useState } from "react";
 import type { Editor } from "@tiptap/core";
 import { Blocks, GripVertical, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,7 @@ import { createMarkdownBlock, BLOCKS, type BlockKind } from "@/components/editor
 import { BlockOutline } from "@/components/editor/block-outline";
 import { BlockComponentGallery } from "@/components/editor/block-component-gallery";
 import { cn } from "@/lib/utils";
-
-type Drag = { kind: BlockKind; x: number; y: number; active: boolean };
+import { beginBlockDrag, canAcceptBlockDrag, readBlockDrop, finishBlockDrag } from "@/lib/block-drag";
 
 function topLevelDropPos(editor: Editor, y: number): number {
   // Snap to boundaries between top-level nodes: inserting there cannot
@@ -32,8 +31,6 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
   const [search, setSearch] = useState("");
   const [dragging, setDragging] = useState<BlockKind | null>(null);
   const [overEditor, setOverEditor] = useState(false);
-  const [ghost, setGhost] = useState({ x: 0, y: 0 });
-  const pointer = useRef<Drag | null>(null);
 
   function insert(kind: BlockKind, point?: { y: number }) {
     if (!editor || disabled) return;
@@ -42,11 +39,12 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
     else editor.chain().focus().insertContent(node).run();
   }
 
-  // Native HTML5 drag/drop is used by the *non-modal Gallery* so its source
-  // can leave the Gallery portal. The sidebar Palette keeps pointer dragging.
+  // Both sidebar and Gallery now share one browser-native drag/drop route.
+  // The in-memory source marker prevents external text or file drops from
+  // creating blocks; WebView2 may omit custom MIME on dragover.
   useEffect(() => {
     if (!editor || disabled) return;
-    const isValid = (event: DragEvent) => event.dataTransfer?.types.includes("application/x-paglora-block") &&
+    const isValid = (event: DragEvent) => canAcceptBlockDrag(event.dataTransfer) &&
       event.target instanceof Element && Boolean(event.target.closest("[data-editor-drop-zone]"));
     const over = (event: DragEvent) => {
       if (!isValid(event)) return;
@@ -60,12 +58,14 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
     };
     const drop = (event: DragEvent) => {
       if (!isValid(event)) return;
-      const kind = event.dataTransfer?.getData("application/x-paglora-block");
-      if (!BLOCKS.some(block => block.kind === kind)) return;
+      const kind = readBlockDrop(event.dataTransfer);
+      if (!kind) return;
       event.preventDefault();
       event.stopPropagation();
       setOverEditor(false);
-      insert(kind as BlockKind, { y: event.clientY });
+      insert(kind, { y: event.clientY });
+      finishBlockDrag();
+      setDragging(null);
       document.dispatchEvent(new Event("paglora:gallery-block-dropped"));
     };
     document.addEventListener("dragover",over,true);
@@ -78,37 +78,14 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
     };
   }, [editor,disabled]);
 
-  function start(event: ReactPointerEvent<HTMLButtonElement>, kind: BlockKind) {
-    if (disabled || !editor || event.button !== 0) return;
-    pointer.current = { kind, x: event.clientX, y: event.clientY, active: false };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-  function move(event: ReactPointerEvent<HTMLButtonElement>) {
-    const drag = pointer.current;
-    if (!drag) return;
-    if (!drag.active && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6) return;
-    drag.active = true;
-    setDragging(drag.kind);
-    setGhost({ x: event.clientX, y: event.clientY });
-    const element = document.elementFromPoint(event.clientX, event.clientY);
-    setOverEditor(Boolean(element instanceof Element && element.closest("[data-editor-drop-zone]")));
-  }
-  function end(event: ReactPointerEvent<HTMLButtonElement>) {
-    const drag = pointer.current;
-    if (!drag) return;
-    pointer.current = null;
-    const element = document.elementFromPoint(event.clientX, event.clientY);
-    const over = element instanceof Element && Boolean(element.closest("[data-editor-drop-zone]"));
-    setDragging(null);
-    setOverEditor(false);
-    if (!drag.active) {
-      insert(drag.kind);
-    } else if (over) {
-      insert(drag.kind, { y: event.clientY });
+  function dragStart(event: React.DragEvent<HTMLButtonElement>,kind:BlockKind) {
+    if (disabled || !editor || !beginBlockDrag(event.dataTransfer,kind)) {
+      event.preventDefault(); return;
     }
+    setDragging(kind);
   }
-  function cancel() {
-    pointer.current = null;
+  function dragEnd() {
+    finishBlockDrag();
     setDragging(null);
     setOverEditor(false);
   }
@@ -138,12 +115,11 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
                   type="button"
                   variant="ghost"
                   disabled={disabled || !editor}
-                  className={cn("group h-auto min-h-14 w-full justify-start gap-3 px-2.5 py-2 text-left font-normal select-none touch-none", dragging === kind && "bg-primary/10")}
-                  onPointerDown={(event) => start(event, kind)}
-                  onPointerMove={move}
-                  onPointerUp={end}
-                  onPointerCancel={cancel}
-                  onClick={(event) => { if (event.detail === 0) insert(kind); }}
+                  draggable={!disabled && Boolean(editor)}
+                  className={cn("group h-auto min-h-14 w-full cursor-grab justify-start gap-3 px-2.5 py-2 text-left font-normal select-none active:cursor-grabbing", dragging === kind && "bg-primary/10")}
+                  onDragStart={(event) => dragStart(event,kind)}
+                  onDragEnd={dragEnd}
+                  onClick={() => insert(kind)}
                   aria-label={`Insert ${title}`}
                   aria-description="Click to insert, or drag onto the page"
                 >
@@ -161,15 +137,9 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
         </TabsContent>
         <TabsContent value="outline" className="min-h-0 overflow-hidden"><BlockOutline editor={editor} disabled={disabled} /></TabsContent>
       </Tabs>
-      {dragging && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed z-[100] flex items-center gap-2 rounded-lg border border-border bg-popover px-3 py-2 text-xs font-medium text-popover-foreground shadow-lg"
-          style={{ left: ghost.x + 14, top: ghost.y + 14 }}>
-          <Blocks className="size-3.5" /> {BLOCKS.find(item => item.kind === dragging)?.title}
-          {overEditor && <span className="text-emerald-600">Drop to insert</span>}
-        </div>
-      )}
+      {dragging && <div role="status" className="border-t border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        {overEditor ? "Release to insert block into the page" : "Drag over the page editor to insert"}
+      </div>}
     </aside>
   );
 }

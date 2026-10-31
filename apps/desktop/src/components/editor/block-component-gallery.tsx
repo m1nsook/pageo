@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { BLOCKS, type BlockKind } from "@/components/editor/block-catalog";
 import { BLOCK_MARKDOWN_EXAMPLES } from "@/lib/block-examples";
 import { nextGalleryKind } from "@/lib/gallery-navigation";
+import { beginBlockDrag, finishBlockDrag } from "@/lib/block-drag";
 import { renderPageContent } from "@/lib/site";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -61,9 +62,7 @@ export function BlockComponentGallery({ disabled, onInsert }: {
     if (disabled) { event.preventDefault(); return; }
     // A single native type, validated again by BlockPalette on drop. Never
     // allow pasted HTML, file:// paths or arbitrary JSON into the editor.
-    event.dataTransfer.setData("application/x-paglora-block", kind);
-    event.dataTransfer.setData("text/plain", "");
-    event.dataTransfer.effectAllowed = "copy";
+    if (!beginBlockDrag(event.dataTransfer, kind)) event.preventDefault();
   };
   useEffect(() => {
     if (!open) return;
@@ -110,7 +109,7 @@ export function BlockComponentGallery({ disabled, onInsert }: {
               <div className="space-y-1 p-2 pt-0">
                 {blocks.map(({ kind, title, icon: Icon }) => (
                   <Button type="button" key={kind} data-gallery-kind={kind} draggable={!disabled}
-                    onDragStart={event => dragExample(event,kind)}
+                    onDragStart={event => dragExample(event,kind)} onDragEnd={finishBlockDrag}
                     aria-description="Drag onto the editor, or select and click Insert"
                     variant={selected === kind ? "secondary" : "ghost"}
                     className="w-full justify-start gap-2 text-left" aria-pressed={selected === kind}
@@ -134,7 +133,7 @@ export function BlockComponentGallery({ disabled, onInsert }: {
               <div className="min-w-0 flex-1"><p className="truncate font-semibold">{item.title}</p><p className="text-xs leading-relaxed text-muted-foreground">{item.description}</p></div>
               <div className="flex items-center gap-2">
                 <button type="button" disabled={disabled} draggable={!disabled}
-                  onDragStart={event => dragExample(event,selected)}
+                  onDragStart={event => dragExample(event,selected)} onDragEnd={finishBlockDrag}
                   aria-label={`Drag ${item.title} example into the editor`}
                   className="flex cursor-grab select-none items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed">
                   <GripVertical className="size-3.5" /> Drag to page
