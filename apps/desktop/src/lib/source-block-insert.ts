@@ -39,12 +39,12 @@ function sourceBlocks(source: string): { offset: number; signature: string }[] {
   return blocks;
 }
 
-/** Text anchor is used ONLY when the parser splits/combines top-level blocks.
- * It is never used to modify the original Markdown.
+/** Text anchor is ONLY for comparing top-level editor/source blocks.
+ * It is not an HTML sanitizer and MUST NEVER be used for HTML output.
+ * Treat HTML markup as ordinary text; ambiguous mappings fail closed.
  */
 function signature(text: string): string {
   return text.toLowerCase().normalize("NFKC")
-    .replace(/<[^>]*>/g, "")
     .replace(/[^\p{L}\p{N}]+/gu, "")
     .slice(0, 180);
 }
