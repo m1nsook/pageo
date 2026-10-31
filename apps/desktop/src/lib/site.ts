@@ -404,7 +404,7 @@ export type TocHeading = { id: string; title: string; level: 2 | 3 };
  * Explicit IDs are generated after sanitization so neither raw HTML nor an
  * unsanitized Markdown heading can inject attributes into the exported site.
  */
-function renderPageContent(markdownHtml: string, language: string): { html: string; toc: TocHeading[]; searchText: string } {
+export function renderPageContent(markdownHtml: string, language: string): { html: string; toc: TocHeading[]; searchText: string } {
   const container = document.createElement("div");
   container.innerHTML = renderSafeMarkdown(markdownHtml);
   enhanceCallouts(container, language);
