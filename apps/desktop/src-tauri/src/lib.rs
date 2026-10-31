@@ -24,7 +24,7 @@ pub fn run() {
             storage::project_storage_directory, storage::migrate_project_storage,
             backup::export_project_backup, backup::import_project_backup,
             updates::check_studio_update, updates::install_studio_update,
-            pages::list_pages, pages::load_page, pages::create_page,
+            pages::list_pages, pages::load_page, pages::search_project_pages, pages::create_page,
             pages::rename_page, pages::duplicate_page, pages::delete_page,
             pages::reorder_pages, pages::save_page, pages::set_page_visibility,
             pages::set_page_layout, pages::set_page_navigation_group,
