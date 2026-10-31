@@ -12,6 +12,21 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { importSiteAsset, loadSiteSettings, previewPublicPage, saveSiteSettings, type SiteLink, type SiteSettings } from "@/lib/site";
 
+const SITE_LAYOUTS: { id: SiteSettings["siteLayout"]; name: string; detail: string }[] = [
+  { id: "classic", name: "Classic", detail: "Familiar edge-to-edge documentation" },
+  { id: "inset", name: "Inset", detail: "Floating header and framed content" },
+  { id: "reading", name: "Reading", detail: "Quiet layout with spacious typography" },
+];
+
+const SITE_PALETTES: {
+  id: SiteSettings["sitePalette"]; name: string; light: string; dark: string;
+}[] = [
+  { id: "original", name: "Original", light: "#ffffff", dark: "#11151d" },
+  { id: "graphite", name: "Graphite", light: "#ffffff", dark: "#101114" },
+  { id: "lavender", name: "Lavender", light: "#fdfcff", dark: "#17121e" },
+  { id: "linen", name: "Linen", light: "#fffdf9", dark: "#1c1915" },
+];
+
 function LinkEditor({ label, links, onChange }: { label: string; links: SiteLink[]; onChange: (next: SiteLink[]) => void }) {
   function update(index: number, key: keyof SiteLink, value: string) {
     onChange(links.map((link, i) => i === index ? { ...link, [key]: value } : link));
@@ -136,7 +151,7 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
           {loading && <p className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/> Loading website settings...</p>}
           {!loading && !settings && error && <p role="alert" className="m-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
           {settings && !loading && <form onSubmit={event => void save(event)} className="flex min-h-0 flex-1 flex-col">
-            <Tabs defaultValue="header" className="min-h-0 flex-1 gap-0">
+            <Tabs defaultValue="theme" className="min-h-0 flex-1 gap-0">
               <TabsList className="mx-3 mt-3 grid w-[calc(100%-24px)] grid-cols-4">
                 <TabsTrigger value="theme">Theme</TabsTrigger>
                 <TabsTrigger value="header">Header</TabsTrigger>
@@ -156,6 +171,56 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">Separate from the Paglora desktop appearance. Applies to real static exports.</p>
+                  </div>
+                  <div className="space-y-3">
+                    <Label>Website layout</Label>
+                    <div className="grid gap-2" role="group" aria-label="Website layout presets">
+                      {SITE_LAYOUTS.map(layout => (
+                        <button
+                          key={layout.id}
+                          type="button"
+                          aria-label={`${layout.name} layout`}
+                          aria-pressed={settings.siteLayout === layout.id}
+                          onClick={() => patch("siteLayout", layout.id)}
+                          className="flex items-center gap-3 rounded-xl border border-border p-3 text-left transition-colors hover:border-foreground/35 focus-visible:outline-2 focus-visible:outline-ring aria-pressed:border-primary aria-pressed:bg-primary/5"
+                        >
+                          <span aria-hidden="true" className="flex h-12 w-16 shrink-0 flex-col overflow-hidden rounded-md border border-border bg-card p-1">
+                            <span className="mb-1 h-1.5 rounded-sm bg-muted-foreground/40" />
+                            <span className="flex min-h-0 flex-1 gap-1">
+                              <span className={`w-3 rounded-sm bg-muted-foreground/20 ${layout.id === "inset" ? "m-0.5" : ""}`} />
+                              <span className={`flex-1 rounded-sm bg-primary/15 ${layout.id === "reading" ? "mx-1" : ""}`} />
+                              {layout.id !== "reading" && <span className="w-2 rounded-sm bg-muted-foreground/15" />}
+                            </span>
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-semibold">{layout.name}</span>
+                            <span className="block text-xs leading-5 text-muted-foreground">{layout.detail}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <Label>Website color palette</Label>
+                    <div className="grid grid-cols-2 gap-2" role="group" aria-label="Website color palettes">
+                      {SITE_PALETTES.map(palette => (
+                        <button
+                          key={palette.id}
+                          type="button"
+                          aria-label={`${palette.name} palette`}
+                          aria-pressed={settings.sitePalette === palette.id}
+                          onClick={() => patch("sitePalette", palette.id)}
+                          className="rounded-xl border border-border p-3 text-left transition-colors hover:border-foreground/35 focus-visible:outline-2 focus-visible:outline-ring aria-pressed:border-primary aria-pressed:bg-primary/5"
+                        >
+                          <span className="mb-2 flex h-7 overflow-hidden rounded-md border border-border/70">
+                            <span className="w-1/2" style={{ backgroundColor: palette.light }} />
+                            <span className="w-1/2" style={{ backgroundColor: palette.dark }} />
+                          </span>
+                          <span className="text-xs font-semibold">{palette.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Palettes coordinate backgrounds, text, borders and code blocks in both light and dark mode. Your custom accent stays independent.</p>
                   </div>
                   <Separator />
                   <div className="space-y-2">

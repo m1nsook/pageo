@@ -21,6 +21,10 @@ export type SiteSettings = {
   themeMode: "system" | "light" | "dark";
   language: "en" | "ko" | "pl" | "de" | "fr" | "es" | "ja" | "zh-CN" | "zh-TW" | "pt-BR" | "ru" | "uk" | "ar" | "tr" | "it" | "cs" | "hu" | "th";
   accentColor: string;
+  /** The generated HTML layout; legacy projects default to classic. */
+  siteLayout: "classic" | "inset" | "reading";
+  /** Neutral page surfaces; the custom accent is independent of the palette. */
+  sitePalette: "original" | "graphite" | "lavender" | "linen";
   googleFontFamily: string;
 };
 
