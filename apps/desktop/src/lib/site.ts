@@ -182,7 +182,10 @@ function enhanceCallouts(container: HTMLElement, language: string) {
       heading.className = "paglora-card-title";
       heading.textContent = text.slice(match[0].length).trim() || "Card";
       card.appendChild(heading);
-      first.remove();
+      // The marker/title and the first link may share one Markdown paragraph.
+      // Remove only the marker text so the card keeps its real content.
+      marker.textContent = "";
+      if (!first.textContent?.trim()) first.remove();
       while (quote.firstChild) card.appendChild(quote.firstChild);
       quote.replaceWith(card);
       continue;

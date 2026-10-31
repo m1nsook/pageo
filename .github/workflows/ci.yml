@@ -43,6 +43,19 @@ jobs:
       - name: Production web build
         run: bun run build
 
+  headless:
+    name: Headless Markdown preparation (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install isolated headless dependencies
+        run: npm install --prefix tools/headless --no-audit --no-fund --package-lock=false
+      - name: Headless sanitizer and public-pages tests
+        run: node --test tools/headless/test/*.test.mjs
+
   rust:
     name: Tauri Rust check (Windows)
     runs-on: windows-latest

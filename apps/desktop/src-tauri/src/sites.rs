@@ -1237,7 +1237,13 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
 #[tauri::command]
 pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage>) -> Result<SiteBuildResult, String> {
     let (dir, project_name) = project_folder(&app, &project_id)?;
-    let settings = read_settings(&dir, &project_name)?;
+    let exports_dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join(EXPORTS);
+    build_site_from_disk(&dir, &project_name, &exports_dir.join(&project_id), rendered)
+}
+
+/// The production exporter is shared between Desktop and the headless CLI.
+fn build_site_from_disk(dir: &Path, project_name: &str, target: &Path, rendered: Vec<RenderedPage>) -> Result<SiteBuildResult, String> {
+    let settings = read_settings(dir, project_name)?;
     validate_settings(&settings)?;
     let pages = read_pages(&dir)?;
     let theme = crate::source::site_css(&dir)?;
@@ -1252,11 +1258,11 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
         }
     }
     let warnings = site_export_link_warnings(&pages, &html_by_id);
-    let exports_dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join(EXPORTS);
-    fs::create_dir_all(&exports_dir).map_err(|e| e.to_string())?;
-    let target = exports_dir.join(&project_id);
-    let staged = exports_dir.join(format!(".{project_id}-building"));
-    let backup = exports_dir.join(format!(".{project_id}-previous"));
+    let exports_dir = target.parent().ok_or("Export target needs a parent directory")?;
+    fs::create_dir_all(exports_dir).map_err(|e| e.to_string())?;
+    let name = target.file_name().and_then(|s| s.to_str()).ok_or("Invalid export target")?;
+    let staged = exports_dir.join(format!(".{name}-building"));
+    let backup = exports_dir.join(format!(".{name}-previous"));
     if staged.exists() { fs::remove_dir_all(&staged).map_err(|e| e.to_string())?; }
     fs::create_dir(&staged).map_err(|e| e.to_string())?;
     let write_result = (|| -> Result<usize, String> {
@@ -1339,6 +1345,30 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
         local_images,
         warnings,
     })
+}
+
+/// Build from a canonical local source project without starting a Tauri window.
+/// Prepared JSON consists only of *sanitized public pages* from tools/headless.
+pub fn build_headless(project_dir: &Path, target: &Path, render_json: &Path) -> Result<SiteBuildResult, String> {
+    let project_dir = project_dir.canonicalize().map_err(|e| format!("Project not found: {e}"))?;
+    if !project_dir.is_dir() { return Err("Expected a Paglora project directory".into()); }
+    let target_parent = target.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    fs::create_dir_all(target_parent).map_err(|e| e.to_string())?;
+    let parent = target_parent.canonicalize().map_err(|e| e.to_string())?;
+    if parent.starts_with(&project_dir) { return Err("Export must not overwrite editable project sources".into()); }
+    let output_name = target.file_name().ok_or("Expected an export directory name")?;
+    let output = parent.join(output_name);
+    let config: serde_json::Value = serde_json::from_slice(&fs::read(project_dir.join("paglora.json")).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    let id = config["id"].as_str().ok_or("Missing project identifier")?;
+    if id != project_dir.file_name().and_then(|v| v.to_str()).ok_or("Invalid project folder")? || !valid_id(id) {
+        return Err("Project folder and manifest ID mismatch".into());
+    }
+    let name = config["name"].as_str().ok_or("Missing project name")?;
+    let json = fs::read(render_json).map_err(|e| e.to_string())?;
+    if json.len() > 80_000_000 { return Err("Rendered page payload too large".into()); }
+    let rendered: Vec<RenderedPage> = serde_json::from_slice(&json).map_err(|e| format!("Invalid prepared pages: {e}"))?;
+    build_site_from_disk(&project_dir, name, &output, rendered)
 }
 
 #[cfg(test)]
