@@ -58,6 +58,23 @@ Use the **Steps** block in Studio's Insert palette, or write standard Markdown w
 
 The marker only enhances blockquotes containing a real ordered list; other blockquotes remain unchanged. The source stays editable Markdown with no proprietary component schema.
 
+## Localization and translations
+
+Paglora now has a community translation source: **[m1nsook/paglora-lang](https://github.com/m1nsook/paglora-lang)**. You can fork it, translate reviewed UTF-8 JSON message values, and submit a pull request. English remains the fallback for untranslated strings, and CI checks placeholder syntax and catalog structure.
+
+- **Studio language:** choose **Settings → Studio language**. Initial offline language packs are English, Polish and Korean; only the migrated Studio screens are translated so far.
+- **Website language:** configure **Design site → Document language** separately for each project. Its built-in navigation, appearance/copy controls and documentation callout labels use the relevant reviewed pack when available. Other language choices use English interface text until translated.
+- **Document content:** Paglora never automatically translates your `docs/*.md` writing, page titles, navigation groups or custom labels. Authors can write those in their own language.
+
+For a new language, fork `paglora-lang`, copy `locales/en.json` to your locale code (for example, `locales/fr.json`), translate values and open a PR. The repository has issue templates for coordination and automated translation labels. After human review, update a local Paglora checkout from a local clone of the translations repository:
+
+```powershell
+node scripts/sync-translations.mjs ../paglora-lang
+bun run check
+```
+
+Translation snapshots are bundled locally with Studio and exported websites. No hosted translation API or account is required, and no untrusted translator code is executed.
+
 ## Get started
 
 ### Run the desktop Studio
