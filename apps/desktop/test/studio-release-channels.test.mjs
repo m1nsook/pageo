@@ -24,6 +24,9 @@ test("nightly creates no releases; stable always dispatches and drafts",()=>{
   assert.match(release,/releaseDraft: true/);
   assert.match(release,/check-desktop-release\.mjs/);
   assert.match(release,/check-updater-ready\.mjs/);
+  const updater=read("../../../scripts/check-updater-ready.mjs");
+  assert.match(updater,/TAURI_SIGNING_PRIVATE_KEY/);
+  assert.match(updater,/createUpdaterArtifacts/);
 });
 test("What's New shows actual curated release notes, including deprecated and removed",()=>{
   const info=read("../src/lib/release-notes.ts");
