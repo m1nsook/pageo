@@ -3,6 +3,18 @@ import type { ProjectSummary } from "@paglora/core";
 export type Page = { id: string; title: string; isPublic: boolean; layout: "docs" | "wide" | "landing"; navGroup: string };
 export type PageDocument = { page: Page; markdown: string };
 export const listPages = (projectId: string) => invoke<Page[]>("list_pages", { projectId });
+
+export type PageSearchHit = {
+  id: string;
+  title: string;
+  navGroup: string;
+  excerpt: string;
+  isPublic: boolean;
+};
+
+/** Local-only bounded content finder (includes private drafts; never exported). */
+export const searchProjectPages = (projectId: string, query: string) =>
+  invoke<PageSearchHit[]>("search_project_pages", { projectId, query });
 export const loadPage = (projectId: string, pageId: string) => invoke<PageDocument>("load_page", { projectId, pageId });
 export const createPage = (projectId: string, name: string) => invoke<PageDocument>("create_page", { projectId, name });
 export const renamePage = (projectId: string, pageId: string, name: string) => invoke<Page>("rename_page", { projectId, pageId, name });
