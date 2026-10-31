@@ -149,7 +149,7 @@ test("already-invalid Markdown document does not crash or lose any saved content
   assert.doesNotThrow(() => assert.equal(
     insertion.insertBlockIntoEditor(ctx.editor, "card", undefined, reason => failures.push(reason)), false,
   ));
-  assert.match(failures.join(" "), /invalid editor structure.*Source view/i);
+  assert.match(failures.join(" "), /visual editor could not represent this Markdown/i);
   assert.equal(ctx.changed, 0);
   assert.equal(ctx.state.doc.child(0).textContent, "Original content");
 });
