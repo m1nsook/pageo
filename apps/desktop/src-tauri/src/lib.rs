@@ -3,6 +3,11 @@ mod pages;
 mod sites;
 mod source;
 
+/// Build a website from a local project without launching Desktop.
+pub fn build_headless(project_dir: &std::path::Path, output: &std::path::Path, rendered: &std::path::Path) -> Result<String, String> {
+    sites::build_headless(project_dir, output, rendered).and_then(|result| serde_json::to_string(&result).map_err(|e| e.to_string()))
+}
+
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
