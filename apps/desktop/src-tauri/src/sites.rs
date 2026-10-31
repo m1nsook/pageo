@@ -792,7 +792,17 @@ fn render_site_page_with_description(
     let direction = if language == "ar" { "rtl" } else { "ltr" };
     let google_font = google_font_markup(&settings.google_font_family);
     // Hex color was checked by validate_settings for both preview and build.
-    let accent_style = format!("<style>:root{{--brand:{};--brand-light:color-mix(in srgb,var(--brand) 13%,var(--bg))}}</style>", settings.accent_color);
+    // Dark and system-dark palettes set --brand with higher specificity than :root.
+    // Match those selectors *after* styles.css so the configured accent wins in
+    // light, dark, system-dark, and when the runtime appearance toggle is used.
+    let brand_vars = format!(
+        "--brand:{};--brand-light:color-mix(in srgb,var(--brand) 13%,var(--bg))",
+        settings.accent_color
+    );
+    let accent_style = format!(
+        "<style>:root{{{brand_vars}}}:root[data-color-mode=\"dark\"]{{{brand_vars}}}\\
+@media(prefers-color-scheme:dark){{:root:not([data-color-mode=\"light\"]){{{brand_vars}}}}}</style>"
+    );
     let page_title = escape(&page_title);
     let canonical = if settings.site_url.is_empty() { String::new() } else {
         let url = escape(&format!("{}{}", settings.site_url, filename(&page.id)));
@@ -1053,6 +1063,28 @@ mod website_font_tests {
         }
         assert!(valid_site_url("https://docs.example.com/"));
         assert!(valid_site_url("https://m1nsook.github.io/paglora/"));
+    }
+
+    #[test]
+    fn configured_accent_is_not_overridden_by_dark_and_system_palettes() {
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Documentation".into(),
+        };
+        let mut settings = default_settings("Docs");
+        settings.accent_color = "#ee3366".into();
+        for mode in ["light", "dark", "system"] {
+            settings.theme_mode = mode.into();
+            let html = render_site_page(&settings, &[page.clone()], &page, "<p>Docs</p>", &[]);
+            let vars = "--brand:#ee3366;--brand-light:color-mix(in srgb,var(--brand) 13%,var(--bg))";
+            assert!(html.contains(&format!(":root{{{vars}}}")), "{mode}: light");
+            assert!(html.contains(&format!(":root[data-color-mode=\\"dark\\"]{{{vars}}}")), "{mode}: dark");
+            assert!(html.contains(&format!(
+                "@media(prefers-color-scheme:dark){{:root:not([data-color-mode=\\"light\\"]){{{vars}}}}}"
+            )), "{mode}: system dark");
+            assert!(html.find("<link rel=\\"stylesheet\\" href=\\"styles.css\\">").unwrap()
+                < html.find(&format!(":root[data-color-mode=\\"dark\\"]{{{vars}}}")).unwrap());
+        }
     }
 
     #[test]
