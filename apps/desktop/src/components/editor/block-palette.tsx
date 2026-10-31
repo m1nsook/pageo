@@ -98,7 +98,7 @@ export function BlockPalette({ editor, disabled, onInvalidDocument }: { editor: 
         }
       });
       const zoneRect = zone.getBoundingClientRect();
-      const yLine = target ? target.getBoundingClientRect().top
+      const yLine = (target as HTMLElement | null) ? (target as HTMLElement).getBoundingClientRect().top
         : last ? (last as HTMLElement).getBoundingClientRect().bottom : zoneRect.top + 16;
       setDropLine({ left: zoneRect.left, top: yLine, width: zoneRect.width });
     };
