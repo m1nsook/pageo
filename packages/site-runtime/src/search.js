@@ -298,6 +298,7 @@ import MiniSearch from "minisearch";
     const terms = [...new Set(tokenize(query.slice(0, 200)))].slice(0, 8);
     selected = 0;
     input.removeAttribute("aria-activedescendant");
+    results.removeAttribute("aria-label");
     results.replaceChildren();
     if (!loaded) {
       results.appendChild(element("p", "paglora-search-status", loadError
