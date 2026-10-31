@@ -5,6 +5,8 @@ import { useTranslation } from "@/i18n";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
+import { LocalImageNode } from "@/components/editor/local-image-node";
+import { AssetLibrary } from "@/components/editor/asset-library";
 import { ArrowLeft, BookOpen, Check, Columns2, LoaderCircle, Monitor, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PencilLine, Plus, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -114,7 +116,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   }, [document.project.id, current.page.id, onSaved]);
 
   const editor = useEditor({
-    extensions: [StarterKit, Markdown],
+    extensions: [StarterKit, LocalImageNode, Markdown],
     content: current.markdown,
     contentType: "markdown",
     editorProps: { attributes: { class: "editor-content focus:outline-none" } },
@@ -214,6 +216,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
             <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "split" ? "secondary" : "ghost"} aria-pressed={viewMode === "split"} onClick={() => void selectView("split")} className="gap-1.5 px-2.5"><Columns2 />{t("studio.editor.split")}</Button>
             <Button type="button" size="sm" disabled={leaving || switchingView} variant={viewMode === "site" ? "secondary" : "ghost"} aria-pressed={viewMode === "site"} onClick={() => void selectView("site")} className="gap-1.5 px-2.5"><Monitor />{t("studio.editor.canvas")}</Button>
           </div>
+          <AssetLibrary projectId={document.project.id} canInsert={viewMode !== "site" && !leaving && !switchingView && Boolean(editor)}
+            onInsertImage={(src, alt) => Boolean(editor?.chain().focus().insertContent({ type: "pagloraImage", attrs: { src, alt } }).run())} />
           <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"} onBeforePreview={persist} />
           <SiteDesigner projectId={document.project.id} onBeforePreview={persist} />
           <SitePreview projectId={document.project.id} onBeforePreview={persist} />

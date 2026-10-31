@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::{HashMap, HashSet}, fs, io::Write, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::{HashMap, HashSet}, fs, io::{Read, Write}, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
 use tauri::{AppHandle, Manager};
 
 include!("locale_catalogs.rs");
@@ -850,6 +850,57 @@ fn base64_image(bytes: &[u8]) -> String {
     out
 }
 
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SiteAsset { url: String, bytes: u64, mime: String }
+
+/// List passive, regular project images without following symlinks or loading
+/// full files into memory. The preview command revalidates selected contents.
+fn list_project_assets(project: &Path) -> Result<Vec<SiteAsset>, String> {
+    let dir = asset_directory(project)?;
+    if !dir.exists() { return Ok(Vec::new()); }
+    let mut assets = Vec::new();
+    for entry in fs::read_dir(&dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue; };
+        if !valid_asset_name(name) { continue; }
+        let meta = fs::symlink_metadata(entry.path()).map_err(|e| e.to_string())?;
+        if !meta.file_type().is_file() || meta.len() == 0 || meta.len() > MAX_ASSET_BYTES as u64 { continue; }
+        let mut file = fs::File::open(entry.path()).map_err(|e| e.to_string())?;
+        let mut header = [0u8; 12];
+        let count = file.read(&mut header).map_err(|e| e.to_string())?;
+        let Some((ext, mime)) = image_type(&header[..count]) else { continue; };
+        if !name.ends_with(&format!(".{ext}")) { continue; }
+        assets.push(SiteAsset { url: format!("assets/{name}"), bytes: meta.len(), mime: mime.into() });
+        if assets.len() > 500 { return Err("Too many local images (maximum 500)".into()); }
+    }
+    assets.sort_by(|a, b| a.url.cmp(&b.url));
+    Ok(assets)
+}
+
+#[tauri::command]
+pub fn list_site_assets(app: AppHandle, project_id: String) -> Result<Vec<SiteAsset>, String> {
+    let (project, _) = project_folder(&app, &project_id)?;
+    if fs::symlink_metadata(&project).map_err(|e| e.to_string())?.file_type().is_symlink() {
+        return Err("Project folder cannot be a symlink".into());
+    }
+    list_project_assets(&project)
+}
+
+#[tauri::command]
+pub fn preview_site_asset(app: AppHandle, project_id: String, url: String) -> Result<String, String> {
+    let name = url.strip_prefix("assets/").ok_or("Invalid local image URL")?;
+    if !valid_asset_name(name) { return Err("Invalid local image URL".into()); }
+    let (project, _) = project_folder(&app, &project_id)?;
+    if fs::symlink_metadata(&project).map_err(|e| e.to_string())?.file_type().is_symlink() {
+        return Err("Project folder cannot be a symlink".into());
+    }
+    let (bytes, mime) = read_asset(&project, name)?;
+    Ok(format!("data:{mime};base64,{}", base64_image(&bytes)))
+}
+
 #[tauri::command]
 pub fn import_site_asset(app: AppHandle, project_id: String, filename: String, bytes: Vec<u8>) -> Result<String, String> {
     if bytes.is_empty() || bytes.len() > MAX_ASSET_BYTES || filename.len() > 256 {
@@ -1663,6 +1714,26 @@ mod website_font_tests {
         assert!(html.contains(r#"media="(prefers-color-scheme: light)""#));
         assert!(html.contains(r#"media="(prefers-color-scheme: dark)""#));
         assert_eq!(html.matches(r#"<meta name="theme-color""#).count(), 2);
+    }
+
+
+    #[test]
+    fn image_library_only_lists_valid_regular_passive_images() {
+        let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let folder = std::env::temp_dir().join(format!("paglora-image-library-{stamp}"));
+        let dir = folder.join("assets");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("good.png"), b"\x89PNG\r\n\x1a\ncontent").unwrap();
+        fs::write(dir.join("fake.png"), b"<script>bad</script>").unwrap();
+        fs::write(dir.join("wrong.jpg"), b"\x89PNG\r\n\x1a\ncontent").unwrap();
+        fs::write(dir.join("evil.svg"), b"<svg></svg>").unwrap();
+        let items = list_project_assets(&folder).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].url, "assets/good.png");
+        assert_eq!(items[0].mime, "image/png");
+        assert_eq!(items[0].bytes, 15);
+        assert!(list_project_assets(&folder.join("missing")).unwrap().is_empty());
+        fs::remove_dir_all(folder).unwrap();
     }
 
     #[test]

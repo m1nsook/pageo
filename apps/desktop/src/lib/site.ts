@@ -48,6 +48,16 @@ export const loadSiteSettings = (projectId: string) =>
 export const saveSiteSettings = (projectId: string, settings: SiteSettings) =>
   invoke<void>("save_site_settings", { projectId, settings });
 
+export type SiteAsset = { url: string; bytes: number; mime: string };
+
+/** List only validated project-owned passive images, never arbitrary disk paths. */
+export const listSiteAssets = (projectId: string) =>
+  invoke<SiteAsset[]>("list_site_assets", { projectId });
+
+/** Offline data URI for the selected image, resolved through Rust storage. */
+export const previewSiteAsset = (projectId: string, url: string) =>
+  invoke<string>("preview_site_asset", { projectId, url });
+
 /** Store a local image inside the project and receive a safe assets/ URL. */
 export const importSiteAsset = (projectId: string, filename: string, bytes: number[]) =>
   invoke<string>("import_site_asset", { projectId, filename, bytes });
