@@ -261,7 +261,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
 
   return (
     <main className="flex h-full min-w-0 flex-1 flex-col bg-background">
-      <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-3 py-2 lg:px-5">
+      <header className="studio-editor-shell shrink-0 border-b border-border bg-card">
+        <div className="flex min-h-15 min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-2 lg:px-6">
         <div className="flex min-w-0 items-center gap-2">
           <StudioTooltip label={showPages ? t("studio.editor.hidePages") : t("studio.editor.showPages")}><Button variant="ghost" size="icon-sm" aria-label={showPages ? t("studio.editor.hidePages") : t("studio.editor.showPages")} aria-pressed={showPages} onClick={() => setShowPages(value => !value)}>{showPages ? <PanelLeftClose /> : <PanelLeftOpen />}</Button></StudioTooltip>
           <Separator orientation="vertical" className="mx-1 h-5"/>
@@ -269,12 +270,17 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           <span className="hidden size-8 items-center justify-center rounded-lg bg-primary/10 text-primary sm:flex"><BookOpen className="size-4"/></span>
           <div className="min-w-0"><div className="max-w-44 truncate text-sm font-semibold lg:max-w-64">{document.project.name}</div><InlinePageTitle title={current.page.title} pageId={current.page.id} disabled={leaving || switchingView} onRename={renamePageInline} /></div>
         </div>
-        <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-3">
+            <span className="hidden text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground md:block">Document workspace</span>
           <Badge variant={saveState === "error" ? "destructive" : "secondary"} className="gap-1.5 whitespace-nowrap">
             {saveState === "saving" ? <LoaderCircle className="size-3 animate-spin"/> : saveState === "saved" ? <Check className="size-3 text-emerald-600"/> : <span className="size-2 rounded-full bg-amber-400" />}
             {saveState === "saving" ? t("studio.editor.saving") : saveState === "saved" ? t("studio.editor.savedLocally") : saveState === "error" ? t("studio.editor.saveFailed") : t("studio.editor.unsaved")}
           </Badge>
-          <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block"/>
+          </div>
+        </div>
+        <div className="flex min-h-13 flex-wrap items-center justify-between gap-x-5 gap-y-2 border-t border-border bg-background/55 px-4 py-2 lg:px-6">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
           {viewMode === "edit" && <StudioTooltip label={showBlockTools ? t("studio.editor.hideTools") : t("studio.editor.showTools")}><Button variant="ghost" size="icon-sm" aria-label={showBlockTools ? t("studio.editor.hideTools") : t("studio.editor.showTools")} aria-pressed={showBlockTools} onClick={() => setShowBlockTools(value => !value)}>{showBlockTools ? <PanelRightClose /> : <PanelRightOpen />}</Button></StudioTooltip>}
           {viewMode === "site" && <StudioTooltip label={showInspector ? t("studio.editor.hideProperties") : t("studio.editor.showProperties")}><Button variant="ghost" size="icon-sm" aria-label={showInspector ? t("studio.editor.hideProperties") : t("studio.editor.showProperties")} aria-pressed={showInspector} onClick={() => setShowInspector(value => !value)}><SlidersHorizontal /></Button></StudioTooltip>}
           <div role="group" aria-label={t("studio.editor.editorView")} className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
@@ -289,6 +295,9 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
             }}>
             <RotateCcw className="size-3.5" /> Reset layout
           </Button>}
+
+          </div>
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
           <AssetLibrary projectId={document.project.id} canInsert={viewMode !== "site" && !leaving && !switchingView && Boolean(editor)}
             onInsertImage={(src, alt) => Boolean(editor?.chain().focus().insertContent({ type: "pagloraImage", attrs: { src, alt } }).run())} />
           <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"}
@@ -308,6 +317,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           <SiteDesigner projectId={document.project.id} onBeforePreview={persist} />
           <SitePreview projectId={document.project.id} onBeforePreview={persist} />
           <SiteBuilder projectId={document.project.id} onBeforeBuild={persist} />
+
+          </div>
         </div>
       </header>
       <StudioNavigationLayout mode={viewMode}
@@ -615,7 +626,7 @@ export default function App() {
 
   return (
     <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
-      {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
+      {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false} projectCount={projects.length}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
         {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} trashItems={trashItems} restoringTrashId={restoringTrashId} onRestoreProject={(trashId) => void restoreProject(trashId)} onUpdateVisual={customizeProject} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
       </SidebarInset>
