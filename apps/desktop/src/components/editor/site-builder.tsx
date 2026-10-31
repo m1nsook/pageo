@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AlertTriangle, CheckCircle2, Copy, Globe2, LoaderCircle, Upload } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { buildPublicSite, loadSiteSettings, saveSiteSettings, type SiteBuildResult, type SiteSettings } from "@/lib/site";
+import { buildPublicSite, loadSiteSettings, saveSiteSettings, type SiteBuildResult, type SiteSettings, type SiteBuildProgress } from "@/lib/site";
 
 export function SiteBuilder({ projectId, onBeforeBuild }: {
   projectId: string;
@@ -20,6 +22,8 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
   const [output, setOutput] = useState("");
   const [report, setReport] = useState<SiteBuildResult | null>(null);
   const [copyStatus, setCopyStatus] = useState("");
+  const [buildPhase, setBuildPhase] = useState<"saving" | SiteBuildProgress["stage"] | "idle">("idle");
+  const [pageProgress, setPageProgress] = useState({ completed: 0, total: 0 });
   const generation = useRef(0);
 
   useEffect(() => {
@@ -30,6 +34,7 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
     setOutput("");
     setReport(null);
     setCopyStatus("");
+    setBuildPhase("idle");
     setBusy(false);
     setLoading(true);
     setError("");
@@ -56,17 +61,24 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
     setOutput("");
     setReport(null);
     setCopyStatus("");
+    setBuildPhase("saving");
     try {
       // Save active editor content before reading the files for the site.
       await onBeforeBuild();
       await saveSiteSettings(projectId, settings);
-      const result = await buildPublicSite(projectId);
+      const result = await buildPublicSite(projectId, progress => {
+        if (generation.current === started) {
+          setBuildPhase(progress.stage);
+          setPageProgress({ completed: progress.completed, total: progress.total });
+        }
+      });
       if (generation.current === started) {
         setOutput(result.path);
         setReport(result);
+        setBuildPhase("complete");
       }
     } catch (cause) {
-      if (generation.current === started) setError(cause instanceof Error ? cause.message : String(cause));
+      if (generation.current === started) { setError(cause instanceof Error ? cause.message : String(cause)); setBuildPhase("idle"); }
     } finally {
       if (generation.current === started) setBusy(false);
     }
@@ -94,7 +106,10 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
           <DialogTitle className="flex items-center gap-2"><Globe2 className="size-4" /> Public website</DialogTitle>
           <DialogDescription>Create a static documentation website with real HTML pages, navigation, a header, and a footer. The generated folder can be uploaded to any static host.</DialogDescription>
         </DialogHeader>
-        {loading && <div className="flex items-center gap-2 py-7 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Loading website settings...</div>}
+        {loading && <div role="status" className="space-y-3 py-6" aria-label="Loading website settings">
+          <Skeleton className="h-5 w-52" /><Skeleton className="h-9 w-full" />
+          <Skeleton className="h-16 w-full" /><Skeleton className="h-9 w-4/5" />
+        </div>}
         {settings && !loading && (
           <form className="space-y-4" onSubmit={event => void saveAndBuild(event)}>
             <div className="grid gap-2">
@@ -113,6 +128,15 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
               Only pages marked <strong>Public</strong> in the Pages sidebar will be included. Overview is always the public home page. Private pages are not copied to the export.
             </div>
             <Separator />
+            {busy && <div role="status" aria-live="polite" className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+              <p className="flex items-center gap-2 text-sm font-medium"><LoaderCircle className="size-4 animate-spin" />
+                {buildPhase === "saving" ? "Saving your latest edits" : buildPhase === "loading" ? "Reading pages and website settings" : buildPhase === "rendering" ? `Rendering Markdown · ${pageProgress.completed} of ${pageProgress.total} public pages` : buildPhase === "exporting" ? "Generating and validating the static website" : "Finalizing build"}
+              </p>
+              {buildPhase === "rendering" && pageProgress.total > 0 ?
+                <Progress value={100 * pageProgress.completed / pageProgress.total} aria-label="Public Markdown pages rendered" /> :
+                <Progress value={undefined} aria-label="Native export in progress" />}
+              <p className="text-xs text-muted-foreground">Only completed Markdown pages have measured progress. The native export runs as one verified operation; no estimated percentage is shown.</p>
+            </div>}
             {error && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
             {output && <div className="space-y-2 rounded-lg border border-emerald-300/60 bg-emerald-50 p-3 text-sm text-emerald-900">
               <div className="flex items-center gap-2 font-medium"><CheckCircle2 className="size-4" /> Static website generated</div>

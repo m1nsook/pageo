@@ -431,15 +431,30 @@ export function renderPageContent(markdownHtml: string, language: string): { htm
   return { html: container.innerHTML, toc: toc.slice(0, 100), searchText };
 }
 
-export async function buildPublicSite(projectId: string): Promise<SiteBuildResult> {
+export type SiteBuildProgress =
+  | { stage: "loading"; completed: 0; total: 0 }
+  | { stage: "rendering"; completed: number; total: number }
+  | { stage: "exporting"; completed: number; total: number }
+  | { stage: "complete"; completed: number; total: number };
+
+/** Progress is emitted only after actual completed operations. The Rust
+ * exporter is one atomic stage; no fabricated percentages are displayed.
+ */
+export async function buildPublicSite(projectId: string, onProgress?: (progress: SiteBuildProgress) => void): Promise<SiteBuildResult> {
+  onProgress?.({ stage: "loading", completed: 0, total: 0 });
   const [pages, settings] = await Promise.all([listPages(projectId), loadSiteSettings(projectId)]);
   const publicPages = pages.filter(page => page.isPublic);
-  const rendered = await Promise.all(publicPages.map(async page => {
+  const rendered = [];
+  for (const page of publicPages) {
     const document = await loadPage(projectId, page.id);
     const html = await marked.parse(document.markdown);
-    return { id: page.id, ...renderPageContent(html, settings.language) };
-  }));
-  return invoke<SiteBuildResult>("build_site", { projectId, rendered });
+    rendered.push({ id: page.id, ...renderPageContent(html, settings.language) });
+    onProgress?.({ stage: "rendering", completed: rendered.length, total: publicPages.length });
+  }
+  onProgress?.({ stage: "exporting", completed: rendered.length, total: publicPages.length });
+  const result = await invoke<SiteBuildResult>("build_site", { projectId, rendered });
+  onProgress?.({ stage: "complete", completed: rendered.length, total: publicPages.length });
+  return result;
 }
 
 /** Render a public page with the same sanitized markup as static export.
