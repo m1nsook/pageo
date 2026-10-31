@@ -35,4 +35,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# NPM Tools
+*.cmd
 # Keep bun.lock and Cargo.lock tracked after local installation/build.
