@@ -1,47 +1,59 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/manrope";
+@import "@fontsource-variable/jetbrains-mono";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  font-family: "Geist Variable", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Paglora Studio is a creative desktop tool, not a docs website.
+     All tokens below style only Studio's React tree, never the site iframe. */
+  --font-studio: "Inter Variable", "Segoe UI Variable", "Malgun Gothic", sans-serif;
+  --font-display: "Manrope Variable", "Inter Variable", sans-serif;
+  --font-code: "JetBrains Mono Variable", "Cascadia Code", ui-monospace, monospace;
+  font-family: var(--font-studio);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --studio-blue: #2196f3;
+  --studio-surface-0: #e7e9ef;
+  --studio-surface-1: #f1f2f6;
+  --studio-surface-2: #fafbfc;
+  --studio-surface-3: #ffffff;
+  --background: var(--studio-surface-1);
+  --foreground: #1d2028;
+  --card: var(--studio-surface-2);
+  --card-foreground: #1d2028;
+  --popover: var(--studio-surface-3);
+  --popover-foreground: #1d2028;
+  --primary: #1174bd;
+  --primary-foreground: #ffffff;
+  --secondary: #e4e6ec;
+  --secondary-foreground: #292d36;
+  --muted: #e7e9ef;
+  --muted-foreground: #606676;
+  --accent: #deebf9;
+  --accent-foreground: #175b90;
+  --destructive: #c33345;
+  --border: #d5d8e0;
+  --input: #ccd1dc;
+  --ring: var(--studio-blue);
+  --chart-1: #2196f3;
+  --chart-2: #108d94;
+  --chart-3: #6955bd;
+  --chart-4: #b07620;
+  --chart-5: #c94773;
+  --radius: 0.3rem;
+  --sidebar: var(--studio-surface-0);
+  --sidebar-foreground: #343a46;
+  --sidebar-primary: #1174bd;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d5deeb;
+  --sidebar-accent-foreground: #153d65;
+  --sidebar-border: #d0d5dd;
+  --sidebar-ring: var(--studio-blue);
 }
 
 * { box-sizing: border-box; }
@@ -49,6 +61,39 @@ body { margin: 0; min-width: 560px; }
 button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
+/* Paglora scrollbars: compact native WebView scrolling without generic browser chrome.
+   Isolated to Studio; published documentation is rendered in its own iframe. */
+:root {
+  --studio-scroll-track: #e5e7ed;
+  --studio-scroll-thumb: #afb6c2;
+  --studio-scroll-hover: #7d899d;
+}
+.dark {
+  --studio-scroll-track: #18181d;
+  --studio-scroll-thumb: #484852;
+  --studio-scroll-hover: #6a6a78;
+}
+#root, [data-radix-popper-content-wrapper] {
+  scrollbar-width: thin;
+  scrollbar-color: var(--studio-scroll-thumb) var(--studio-scroll-track);
+}
+#root * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--studio-scroll-thumb) var(--studio-scroll-track);
+}
+#root ::-webkit-scrollbar { width: 9px; height: 9px; }
+#root ::-webkit-scrollbar-track { background: var(--studio-scroll-track); }
+#root ::-webkit-scrollbar-thumb { border: 2px solid var(--studio-scroll-track); border-radius: 7px; background: var(--studio-scroll-thumb); }
+#root ::-webkit-scrollbar-thumb:hover { background: var(--studio-scroll-hover); }
+
+/* Lucide stays crisp for editing controls; Phosphor handles filled navigation. */
+#root svg.lucide { stroke-width: 2.25; }
+/* Epic-style density: flat chrome, stronger text and a quiet selected rail. */
+[data-sidebar="menu-button"][data-active="true"] { box-shadow: inset 3px 0 0 var(--studio-blue); }
+[data-sidebar="group-label"] { letter-spacing: 0.055em; font-size: 10px; font-weight: 750; text-transform: uppercase; }
+[data-slot="sidebar-inset"] { background: var(--studio-surface-1); }
+.font-display { font-family: var(--font-display); letter-spacing: -0.035em; }
+.font-code { font-family: var(--font-code); }
 ::selection { background: var(--accent); color: var(--accent-foreground); }
 
 .editor-content { min-height: 50vh; outline: none; line-height: 1.85; font-size: 16px; color: var(--foreground); }
@@ -61,18 +106,19 @@ button:disabled { cursor: not-allowed; }
 .editor-content ol { list-style: decimal; padding-left: 1.6rem; }
 .editor-content blockquote { border-left: 3px solid var(--border); padding: 0.3rem 0 0.3rem 1.1rem; color: var(--muted-foreground); background: var(--muted); }
 .editor-content pre { padding: 1rem; background: oklch(0.18 0 0); color: oklch(0.96 0 0); border-radius: 12px; overflow-x: auto; }
-.editor-content code { font-family: "Cascadia Code", "JetBrains Mono", ui-monospace, monospace; background: var(--muted); color: var(--foreground); border-radius: 4px; padding: 0.1rem 0.3rem; }
+.editor-content code { font-family: var(--font-code); background: var(--muted); color: var(--foreground); border-radius: 4px; padding: 0.1rem 0.3rem; }
 .editor-content pre code { background: transparent; color: inherit; padding: 0; }
 .editor-content .paglora-editor-image { display: inline-flex; max-width: 100%; align-items: center; padding: .12rem .55rem; border: 1px solid var(--border); border-radius: .4rem; background: var(--muted); color: var(--foreground); font-size: .85em; overflow-wrap: anywhere; vertical-align: baseline; }
 .editor-content .paglora-editor-image::before { content: "▧"; margin-right: .4rem; color: var(--muted-foreground); }
 .editor-content .paglora-editor-image.ProseMirror-selectednode { outline: 2px solid var(--ring); }
-.editor-content a { color: #2196f3; text-decoration: underline; text-underline-offset: 2px; }
-.dark .editor-content a { color: #73c3ff; }
+.editor-content a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.dark .editor-content a { color: #66b9ff; }
 .editor-content .is-empty:first-child::before { color: var(--muted-foreground); float: left; height: 0; pointer-events: none; }
 
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-heading: var(--font-display);
+  --font-sans: var(--font-studio);
+  --font-mono: var(--font-code);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -114,37 +160,41 @@ button:disabled { cursor: not-allowed; }
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --studio-surface-0: #101014;
+  --studio-surface-1: #141418;
+  --studio-surface-2: #1d1d22;
+  --studio-surface-3: #292930;
+  --background: var(--studio-surface-1);
+  --foreground: #f1f1f4;
+  --card: var(--studio-surface-2);
+  --card-foreground: #f1f1f4;
+  --popover: var(--studio-surface-3);
+  --popover-foreground: #f7f7fa;
+  --primary: #2196f3;
+  --primary-foreground: #071a2b;
+  --secondary: #2c2c33;
+  --secondary-foreground: #ebebf0;
+  --muted: #29292f;
+  --muted-foreground: #a7a7b2;
+  --accent: #263747;
+  --accent-foreground: #d7edff;
+  --destructive: #ff7589;
+  --border: #34343c;
+  --input: #43434c;
+  --ring: #2196f3;
+  --chart-1: #2196f3;
+  --chart-2: #62cec1;
+  --chart-3: #b7a0ee;
+  --chart-4: #eeb564;
+  --chart-5: #ee80ad;
+  --sidebar: var(--studio-surface-0);
+  --sidebar-foreground: #dedee5;
+  --sidebar-primary: #2196f3;
+  --sidebar-primary-foreground: #071a2b;
+  --sidebar-accent: #292a31;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #2f2f36;
+  --sidebar-ring: #2196f3;
 }
 
 @layer base {
