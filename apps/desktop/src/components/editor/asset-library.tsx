@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, Image as ImageIcon, ImagePlus, LoaderCircle, ScanSearch, Upload, X } from "lucide-react";
+import { Check, Copy, Image as ImageIcon, ImagePlus, LoaderCircle, RotateCcw, ScanSearch, ShieldCheck, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { defaultImageAlt, imageMarkdown } from "@/lib/image-markdown";
 import { filterSiteAssets, IMAGE_GALLERY_PAGE_SIZE, INLINE_THUMBNAIL_LIMIT } from "@/lib/asset-gallery";
-import { importSiteAsset, listSiteAssets, loadSiteSettings, previewSiteAsset, type SiteAsset } from "@/lib/site";
+import { importSiteAsset, listSiteAssets, loadSiteSettings, previewSiteAsset, reviewUnusedSiteAssets, moveUnusedSiteAsset, listRecoverableSiteAssets, restoreSiteAsset, type SiteAsset, type UnusedAssetCandidate } from "@/lib/site";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { listThemeStyles, loadThemeStyle } from "@/lib/source";
 import { listPages, loadPage } from "@/lib/pages";
 
@@ -41,10 +42,11 @@ function AssetTile({ asset, projectId, selected, onChoose }: {
   </button>;
 }
 
-export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
+export function AssetLibrary({ projectId, canInsert, onInsertImage, onBeforeCleanup }: {
   projectId: string;
   canInsert: boolean;
   onInsertImage: (src: string, alt: string) => boolean;
+  onBeforeCleanup: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [assets, setAssets] = useState<SiteAsset[]>([]);
@@ -60,16 +62,25 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
   const [visibleLimit, setVisibleLimit] = useState(IMAGE_GALLERY_PAGE_SIZE);
   const [auditing, setAuditing] = useState(false);
   const [audit, setAudit] = useState<AssetReference[] | null>(null);
+  const [cleanupCandidates, setCleanupCandidates] = useState<UnusedAssetCandidate[] | null>(null);
+  const [recovered, setRecovered] = useState<SiteAsset[]>([]);
+  const [reviewingCleanup, setReviewingCleanup] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [pendingCleanup, setPendingCleanup] = useState<UnusedAssetCandidate | null>(null);
+  const [typedFilename, setTypedFilename] = useState("");
   const generation = useRef(0);
 
   useEffect(() => {
     const version = ++generation.current;
     setAssets([]); setSelected(""); setAlt(""); setPreview(""); setError(""); setCopied(false);
     setQuery(""); setVisibleLimit(IMAGE_GALLERY_PAGE_SIZE); setAudit(null);
+    setCleanupCandidates(null);setRecovered([]);setPendingCleanup(null);setTypedFilename("");
     if (!open) return;
     setLoading(true);
-    void listSiteAssets(projectId)
-      .then(items => { if (generation.current === version) setAssets(items); })
+    void Promise.all([listSiteAssets(projectId),listRecoverableSiteAssets(projectId)])
+      .then(([items, backups]) => {
+        if (generation.current === version) {setAssets(items);setRecovered(backups);}
+      })
       .catch(cause => { if (generation.current === version) setError(String(cause)); })
       .finally(() => { if (generation.current === version) setLoading(false); });
     return () => { generation.current++; };
@@ -105,7 +116,8 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
       if (generation.current !== version) return;
       const items = await listSiteAssets(projectId);
       if (generation.current !== version) return;
-      setAssets(items); setAudit(null); setQuery(""); setVisibleLimit(IMAGE_GALLERY_PAGE_SIZE); choose(url);
+      setAssets(items); setAudit(null); setCleanupCandidates(null);
+      setQuery(""); setVisibleLimit(IMAGE_GALLERY_PAGE_SIZE); choose(url);
     } catch (cause) {
       if (generation.current === version) setError(String(cause));
     } finally {
@@ -136,6 +148,54 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
     }
   }
 
+  async function reviewCleanup() {
+    if (reviewingCleanup || moving) return;
+    const version=generation.current;
+    setReviewingCleanup(true);setError("");setCleanupCandidates(null);
+    try {
+      // Flush TipTap autosave. Native code independently checks current disk
+      // sources again before the confirmed move, never trusts the JS report.
+      await onBeforeCleanup();
+      const review=await reviewUnusedSiteAssets(projectId);
+      if (generation.current===version) setCleanupCandidates(review);
+    } catch(cause) {
+      if(generation.current===version)setError("Could not verify unused images: "+String(cause));
+    } finally {
+      if(generation.current===version)setReviewingCleanup(false);
+    }
+  }
+  async function moveToRecovery() {
+    const item=pendingCleanup;
+    if (!item || moving || typedFilename!==item.url.slice(7)) return;
+    const version=generation.current;
+    setMoving(true);setError("");
+    try{
+      await onBeforeCleanup();
+      await moveUnusedSiteAsset(projectId,item.url,item.fingerprint,typedFilename);
+      const [active, backups]=await Promise.all([listSiteAssets(projectId),listRecoverableSiteAssets(projectId)]);
+      if(generation.current!==version)return;
+      setAssets(active);setRecovered(backups);setCleanupCandidates(null);setAudit(null);
+      if(selected===item.url){setSelected("");setPreview("");}
+      setPendingCleanup(null);setTypedFilename("");
+    }catch(cause){
+      if(generation.current===version){
+        setError("Image was not moved: "+String(cause));
+        setCleanupCandidates(null);
+      }
+    }finally{if(generation.current===version)setMoving(false);}
+  }
+  async function restoreRecovered(url:string) {
+    if(moving)return;
+    const version=generation.current;
+    setMoving(true);setError("");
+    try{
+      await restoreSiteAsset(projectId,url);
+      const [active,backups]=await Promise.all([listSiteAssets(projectId),listRecoverableSiteAssets(projectId)]);
+      if(generation.current!==version)return;
+      setAssets(active);setRecovered(backups);setCleanupCandidates(null);setAudit(null);
+    }catch(cause){if(generation.current===version)setError("Could not restore image: "+String(cause));}
+    finally{if(generation.current===version)setMoving(false);}
+  }
   async function copy() {
     if (!selected || !alt.trim()) return;
     try {
@@ -148,7 +208,7 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
   const visibleAssets = matchingAssets.slice(0, visibleLimit);
 
   return (
-    <Drawer direction="right" open={open} onOpenChange={value => { if (!uploading) setOpen(value); }}>
+    <Drawer direction="right" open={open} onOpenChange={value => { if (!uploading && !moving && !reviewingCleanup) setOpen(value); }}>
       <DrawerTrigger asChild>
         <Button type="button" variant="outline" size="sm" aria-label="Browse project media"><ImagePlus /> Images</Button>
       </DrawerTrigger>
@@ -158,7 +218,7 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
             <DrawerTitle>Project media</DrawerTitle>
             <Badge variant="secondary">{assets.length} images</Badge>
           </div>
-          <DrawerDescription>Browse and reuse images stored locally with this project. Only images referenced by public content or the logo are exported.</DrawerDescription>
+          <DrawerDescription>Browse and reuse project images. Images referenced by public pages, the logo, or published CSS are included in website builds.</DrawerDescription>
         </DrawerHeader>
         <DrawerClose asChild>
           <Button variant="ghost" size="icon-sm" className="absolute right-4 top-4 z-10" aria-label="Close media manager"><X className="size-4" /></Button>
@@ -176,6 +236,39 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
           {error && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
           {(loading || uploading) && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />{uploading ? "Importing image…" : "Loading images…"}</p>}
           {!loading && assets.length === 0 && <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">No local images yet. Import one to get started.</p>}
+          <section aria-label="Unused image cleanup" className="space-y-3 rounded-lg border border-border bg-muted/15 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div><p className="text-sm font-semibold">Recoverable image cleanup</p>
+                <p className="text-xs text-muted-foreground">Rechecks ALL saved public/private Markdown, theme CSS and project settings. Candidates are moved to recovery, not permanently deleted.</p></div>
+              <Button type="button" variant="outline" size="sm" disabled={moving || reviewingCleanup || uploading}
+                onClick={() => void reviewCleanup()}>
+                {reviewingCleanup ? <LoaderCircle className="size-4 animate-spin"/> : <ShieldCheck className="size-4"/>}
+                {reviewingCleanup ? "Checking saved sources…" : "Review unused images"}
+              </Button>
+            </div>
+            {cleanupCandidates && <div role="status" className="space-y-2 text-xs">
+              <p>{cleanupCandidates.length
+                ? `${cleanupCandidates.length} candidate image(s) with no references in supported saved project sources. Review each individually.`
+                : "No eligible unused images were found in the current saved project sources."}</p>
+              {cleanupCandidates.map(item=><div key={item.url} className="flex items-center gap-2 rounded border border-border bg-card p-2">
+                <span className="min-w-0 flex-1 truncate font-mono" title={item.url}>{item.url.slice(7)}</span>
+                <span className="text-muted-foreground">{Math.ceil(item.bytes/1024)} KiB</span>
+                <Button type="button" variant="outline" size="sm" disabled={moving}
+                  onClick={() => {setPendingCleanup(item);setTypedFilename("");}}>
+                  Move to recovery
+                </Button>
+              </div>)}
+            </div>}
+            {recovered.length>0 && <div className="space-y-2">
+              <p className="text-xs font-semibold">Recoverable images ({recovered.length})</p>
+              {recovered.map(asset=><div key={asset.url} className="flex items-center gap-2 rounded border border-border bg-card p-2 text-xs">
+                <span className="min-w-0 flex-1 truncate font-mono">{asset.url.slice(7)}</span>
+                <Button type="button" variant="outline" size="sm" disabled={moving}
+                  onClick={() => void restoreRecovered(asset.url)}><RotateCcw className="size-3.5"/> Restore</Button>
+              </div>)}
+              <p className="text-[11px] text-muted-foreground">Recovery images are preserved inside this project and in its portable .paglora backups. Restoring never overwrites an image with the same name.</p>
+            </div>}
+          </section>
           {assets.length > 0 && <div className="space-y-2">
             <Label htmlFor="paglora-image-search">Find an image</Label>
             <Input id="paglora-image-search" type="search" value={query} placeholder="Filter by filename"
@@ -228,6 +321,30 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
           </section>}
         </div>
       </DrawerContent>
+      <AlertDialog open={Boolean(pendingCleanup)} onOpenChange={value => {
+        if(!value && !moving){setPendingCleanup(null);setTypedFilename("");}
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move image to recovery?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Paglora will re-read saved sources and recheck the file fingerprint before moving it.
+              Nothing is permanently deleted. Type the exact filename to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Label htmlFor="paglora-confirm-image-name">Filename: {pendingCleanup?.url.slice(7)}</Label>
+          <Input id="paglora-confirm-image-name" spellCheck={false} autoComplete="off"
+            value={typedFilename} disabled={moving} onChange={event => setTypedFilename(event.target.value)} />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={moving}>Cancel</AlertDialogCancel>
+            <Button type="button" disabled={moving || !pendingCleanup || typedFilename!==pendingCleanup.url.slice(7)}
+              onClick={() => void moveToRecovery()}>
+              {moving ? <LoaderCircle className="size-3.5 animate-spin" /> : <ShieldCheck className="size-3.5"/>}
+              Move to recovery
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Drawer>
   );
 }
