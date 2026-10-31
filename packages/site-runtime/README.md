@@ -18,6 +18,12 @@ The exported `paglora-search.js` adds a Ctrl+K / Cmd+K search interface. It lazy
 
 Search now bundles **MiniSearch 7.2.0 (MIT)** into the local `paglora-search.js` asset. It ranks title matches, supports word prefixes, and falls back to fuzzy matching for longer Latin queries. A substring fallback preserves CJK queries without spaces. All search is offline; no CDN or search server is contacted. MiniSearch's full license is shipped in `licenses/MiniSearch-MIT.txt` with exported sites.
 
+## Code example language preferences
+
+Published `[!CODEGROUP]` examples are keyboard-accessible tabs when JavaScript is available. Choosing a labeled language (for example, **PowerShell**) selects that same language in other code groups on the current page, when offered. The preference is remembered under the exported site's own URL path, so separate documentation sites hosted on one domain do not affect one another. Other browser tabs on the same site also follow changes. Groups without the preferred language keep their own selection, and unrelated `[!TABS]` content blocks remain independent.
+
+The preference uses optional local browser storage. If storage is disabled, code groups still synchronize on the current page; with JavaScript disabled (including Studio's safe preview), every labeled code example remains visible and readable. No network request or project format change is involved.
+
 ## Local image assets
 
 In **Design site → Header**, import a PNG, JPEG, WebP or GIF image (up to 5 MiB) to use as the site logo. Paglora saves a uniquely named file inside the project's `assets/` directory and uses a relative `assets/...` URL. You can reuse that URL in Markdown images such as `![Diagram](assets/my-diagram.png)`. Exports copy **only images referenced by public page HTML or the public logo**; unreferenced/private project assets are not published. Studio's script-disabled preview inlines those referenced images as passive data URLs. SVG, remote HTTP, directory traversal and arbitrary file URLs are not supported. Missing or tampered assets fail the staged export instead of replacing a previous successful export.
