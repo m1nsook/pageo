@@ -25,7 +25,29 @@
     ? root.dataset.colorMode : "system";
   // Prefix by deployed site root so independent Paglora sites do not share
   // preferences when hosted under the same origin at different paths.
-  const storageKey = "paglora:theme:" + new URL(".", location.href).pathname;
+  const siteRoot = new URL(".", location.href).pathname;
+  const storageKey = "paglora:theme:" + siteRoot;
+  // Code examples can share a preferred language within this exported site.
+  // Content tabs remain independent: their labels may describe unrelated topics.
+  const codePreferenceKey = "paglora:code-language:" + siteRoot;
+  const codeGroups = [];
+  function codeLabel(value) {
+    if (typeof value !== "string") return null;
+    const normalized = value.trim().normalize("NFKC").toLocaleLowerCase();
+    return normalized && normalized.length <= 80 && !/[\u0000-\u001f\u007f]/u.test(normalized)
+      ? normalized : null;
+  }
+  let preferredCodeLabel = null;
+  try { preferredCodeLabel = codeLabel(localStorage.getItem(codePreferenceKey)); }
+  catch { /* preferences are optional when storage is blocked */ }
+  function updateCodePreference(value, persist = false) {
+    preferredCodeLabel = codeLabel(value);
+    if (persist && preferredCodeLabel) {
+      try { localStorage.setItem(codePreferenceKey, preferredCodeLabel); }
+      catch { /* selection still works without storage */ }
+    }
+    for (const group of codeGroups) group.activateLabel(preferredCodeLabel);
+  }
   function readPreference() {
     try {
       const stored = localStorage.getItem(storageKey);
@@ -52,8 +74,12 @@
   // Keep separately opened documentation tabs in sync without requiring reload.
   // Ignore storage changes from other Paglora sites hosted on this origin.
   addEventListener("storage", event => {
-    if (event.key !== storageKey) return;
-    setAppearance(modes.includes(event.newValue) ? event.newValue : configured);
+    if (event.key === storageKey) {
+      setAppearance(modes.includes(event.newValue) ? event.newValue : configured);
+    } else if (event.key === codePreferenceKey) {
+      // A separate tab may change or clear the preference. Never steal focus.
+      updateCodePreference(event.newValue);
+    }
   });
   toggle.addEventListener("click", () => {
     const next = modes[(modes.indexOf(root.dataset.colorMode) + 1) % modes.length];
@@ -159,6 +185,8 @@
     const container = group.querySelector(".paglora-code-group-panels");
     if (panels.length < 2 || !container) continue;
     const groupId = codeGroupIndex++;
+    const labels = panels.map(panel =>
+      codeLabel(panel.querySelector(".paglora-code-group-label")?.textContent));
     const tablist = document.createElement("div");
     tablist.className = "paglora-code-group-tabs";
     tablist.setAttribute("role", "tablist");
@@ -177,7 +205,7 @@
       panel.setAttribute("role", "tabpanel");
       panel.setAttribute("aria-labelledby", tabId);
       panel.tabIndex = 0;
-      tab.addEventListener("click", () => activate(index));
+      tab.addEventListener("click", () => activate(index, false, true));
       tab.addEventListener("keydown", event => {
         const direction = root.dir === "rtl" ? -1 : 1;
         let next = index;
@@ -187,12 +215,12 @@
         else if (event.key === "End") next = tabs.length - 1;
         else return;
         event.preventDefault();
-        activate(next, true);
+        activate(next, true, true);
       });
       tablist.appendChild(tab);
       return tab;
     });
-    function activate(selected, focus = false) {
+    function activate(selected, focus = false, remember = false) {
       tabs.forEach((tab, index) => {
         const active = index === selected;
         tab.setAttribute("aria-selected", String(active));
@@ -200,9 +228,17 @@
         panels[index].hidden = !active;
       });
       if (focus) tabs[selected].focus();
+      if (remember && labels[selected]) updateCodePreference(labels[selected], true);
+    }
+    function activateLabel(label) {
+      if (!label) { activate(0); return; }
+      const matching = labels.indexOf(label);
+      // Groups without this language retain their own current selection.
+      if (matching !== -1) activate(matching);
     }
     container.before(tablist);
-    activate(0);
+    codeGroups.push({ activateLabel });
+    activateLabel(preferredCodeLabel);
     group.classList.add("paglora-code-group-enhanced");
   }
 
