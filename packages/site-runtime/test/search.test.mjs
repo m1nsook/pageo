@@ -18,6 +18,7 @@ function fixture(pages, { responseOk = true, waitForIndex = false, failFirstFetc
     activeElement: null,
     body: node("body"),
     createElement(tag) { return node(tag); },
+    createTextNode(value) { const text = node("#text"); text.textContent = value; return text; },
     querySelector(query) { return query === ".top-bar" ? header : null; },
     addEventListener(name, fn) { docListeners[name] = fn; },
   };
@@ -25,7 +26,9 @@ function fixture(pages, { responseOk = true, waitForIndex = false, failFirstFetc
     const attrs = new Map();
     return {
       tag, attrs, children: [], events: {}, style: {},
-      hidden: false, value: "", textContent: "", className: "",
+      hidden: false, value: "", _text: "", className: "",
+      get textContent() { return this._text + this.children.map(child => child.textContent).join(""); },
+      set textContent(value) { this._text = String(value); this.children = []; },
       classList: {
         toggle() {},
         add() {}, remove() {},
@@ -36,7 +39,7 @@ function fixture(pages, { responseOk = true, waitForIndex = false, failFirstFetc
       addEventListener(name, fn) { this.events[name] = fn; },
       append(...items) { this.children.push(...items); },
       appendChild(item) { this.children.push(item); },
-      replaceChildren(...items) { this.children = [...items]; },
+      replaceChildren(...items) { this._text = ""; this.children = [...items]; },
       querySelectorAll(query) {
         const selectors = query.split(",").map(part => part.trim());
         return this.children.filter(item => selectors.includes("." + item.className));
@@ -384,4 +387,78 @@ test("search excerpts preserve matching text after locale case-fold expansion", 
   input.events.input();
   assert.equal(results.children[0].href, "turkish.html");
   assert.match(results.children[0].children[1].textContent, /NEEDLE appears here/);
+});
+
+test("search highlights exact title and excerpt terms with semantic marks", async () => {
+  const app = fixture([{ title: "Install Paglora", url: "install.html", text: "First install Paglora, then configure it." }]);
+  const { input, results } = await app.open();
+  input.value = "install paglora";
+  input.events.input();
+  const [title, summary] = results.children[0].children;
+  assert.equal(title.textContent, "Install Paglora");
+  assert.equal(title.children.filter(child => child.tag === "mark").length, 2);
+  assert.equal(summary.children.filter(child => child.tag === "mark").length, 2);
+  assert.equal(results.attrs.get("aria-label"), "1 matching documentation page");
+});
+
+test("search highlights punctuation-sensitive C++", async () => {
+  const app = fixture([
+    { title: "C++ Guide", url: "cpp.html", text: "Compile C++ locally" },
+    { title: "C# Guide", url: "csharp.html", text: "Compile C# locally" },
+  ]);
+  const { input, results } = await app.open();
+  input.value = "C++";
+  input.events.input();
+  assert.equal(results.children.length, 1);
+  assert.equal(results.children[0].children[0].children.find(child => child.tag === "mark").textContent, "C++");
+});
+
+test("search highlights Unicode ligatures and dotted I without losing display text", async () => {
+  const app = fixture([{ title: "ﬃ Guide", url: "ligature.html", text: "İstanbul documentation about a needle" }]);
+  const { input, results } = await app.open();
+  input.value = "ffi";
+  input.events.input();
+  const title = results.children[0].children[0];
+  assert.equal(title.textContent, "ﬃ Guide");
+  assert.equal(title.children[0].tag, "mark");
+  assert.equal(title.children[0].textContent, "ﬃ");
+  input.value = "İstanbul";
+  input.events.input();
+  const summary = results.children[0].children[1];
+  assert.equal(summary.children.find(child => child.tag === "mark")?.textContent, "İstanbul");
+});
+
+test("untrusted search text remains text instead of executable HTML", async () => {
+  const app = fixture([{ title: "<img onerror=alert(1)> docs", url: "safe.html", text: "<script>alert(1)</script> docs" }]);
+  const { input, results } = await app.open();
+  input.value = "docs";
+  input.events.input();
+  const [title, summary] = results.children[0].children;
+  assert.ok(title.textContent.includes("<img onerror=alert(1)>"));
+  assert.ok(summary.textContent.includes("<script>"));
+  assert.ok(title.children.every(child => ["#text", "mark"].includes(child.tag)));
+  assert.ok(summary.children.every(child => ["#text", "mark"].includes(child.tag)));
+});
+
+test("fuzzy results remain readable when no exact term can be marked", async () => {
+  const app = fixture([{ title: "Installation", url: "install.html", text: "Configure the project" }]);
+  const { input, results } = await app.open();
+  input.value = "instalation";
+  input.events.input();
+  assert.equal(results.children[0].href, "install.html");
+  assert.equal(results.children[0].children[0].textContent, "Installation");
+  assert.equal(results.children[0].children[0].children.length, 0);
+});
+
+test("CJK substrings are visibly highlighted and stale counts are cleared", async () => {
+  const app = fixture([{ title: "한국어사용법", url: "korean.html", text: "문서 검색 안내" }]);
+  const { input, results } = await app.open();
+  input.value = "사용";
+  input.events.input();
+  assert.equal(results.children[0].children[0].children.find(child => child.tag === "mark").textContent, "사용");
+  assert.equal(results.attrs.get("aria-label"), "1 matching documentation page");
+  input.value = "no-matches";
+  input.events.input();
+  assert.equal(results.attrs.has("aria-label"), false);
+  assert.equal(results.children[0].textContent, "No matching pages");
 });
