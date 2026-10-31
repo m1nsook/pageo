@@ -1,6 +1,8 @@
 import { BookOpenTextIcon, FolderOpenIcon, HouseIcon, GearSixIcon, ShieldCheckIcon } from "@phosphor-icons/react";
 import { ThemeSwitcher } from "@/components/studio/theme-switcher";
 import { useTranslation } from "@/i18n";
+import { openDocumentation } from "@/lib/external-links";
+import { toast } from "sonner";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -59,9 +61,9 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip={t("studio.nav.documentation")}>
-                  <a href="https://m1nsook.github.io/paglora-docs/" target="_blank" rel="noopener noreferrer">
+                  <button type="button" onClick={() => void openDocumentation().catch(error => toast.error("Could not open documentation", { description: String(error) }))}>
                     <BookOpenTextIcon weight="bold" /><span>{t("studio.nav.documentation")}</span>
-                  </a>
+                  </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

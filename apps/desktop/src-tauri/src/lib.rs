@@ -5,6 +5,7 @@ mod sites;
 mod source;
 mod backup;
 mod updates;
+mod external_links;
 
 /// Build a website from a local project without launching Desktop.
 pub fn build_headless(project_dir: &std::path::Path, output: &std::path::Path, rendered: &std::path::Path) -> Result<String, String> {
@@ -24,6 +25,7 @@ pub fn run() {
             storage::project_storage_directory, storage::migrate_project_storage,
             backup::export_project_backup, backup::import_project_backup,
             updates::check_studio_update, updates::install_studio_update,
+            external_links::open_documentation,
             pages::list_pages, pages::load_page, pages::search_project_pages, pages::create_page,
             pages::rename_page, pages::duplicate_page, pages::delete_page,
             pages::reorder_pages, pages::save_page, pages::set_page_visibility,
