@@ -61,6 +61,8 @@ body { margin: 0; min-width: 560px; }
 button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
+/* Lucide stays crisp for editing controls; Phosphor handles filled navigation. */
+#root svg.lucide { stroke-width: 2.25; }
 /* Epic-style density: flat chrome, stronger text and a quiet selected rail. */
 [data-sidebar="menu-button"][data-active="true"] { box-shadow: inset 3px 0 0 var(--studio-blue); }
 [data-sidebar="group-label"] { letter-spacing: 0.055em; font-size: 10px; font-weight: 750; text-transform: uppercase; }
