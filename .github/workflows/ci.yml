@@ -51,6 +51,10 @@ jobs:
         uses: actions/checkout@v7
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust dependencies and compiled artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
       - name: Set up Bun for embedded site runtime
         uses: oven-sh/setup-bun@v2
         with:
