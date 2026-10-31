@@ -9,6 +9,17 @@
   const header = document.querySelector(".top-bar");
   if (!root || !header) return;
 
+  // The export embeds reviewed translation strings as JSON, not executable code.
+  let translations = {};
+  try {
+    translations = JSON.parse(document.getElementById?.("paglora-i18n")?.textContent || "{}");
+  } catch { /* keep English defaults when the dictionary is unavailable */ }
+  const tr = (key, english, args = {}) => {
+    const value = typeof translations[key] === "string" ? translations[key] : english;
+    return value.replace(/\{([a-z][a-zA-Z0-9_]*)\}/g, (match, name) =>
+      Object.prototype.hasOwnProperty.call(args, name) ? String(args[name]) : match);
+  };
+
   const modes = ["light", "dark", "system"];
   const configured = modes.includes(root.dataset.colorMode)
     ? root.dataset.colorMode : "system";
@@ -30,10 +41,12 @@
   header.appendChild(toggle);
   function setAppearance(mode) {
     root.dataset.colorMode = mode;
-    toggle.textContent = mode === "dark" ? "☾ Dark" :
-      mode === "light" ? "☀ Light" : "◐ System";
-    toggle.setAttribute("aria-label", "Appearance: " + mode + ". Change theme");
-    toggle.title = "Appearance: " + mode + ". Change theme";
+    const label = mode === "dark" ? tr("site.appearance.dark", "Dark") :
+      mode === "light" ? tr("site.appearance.light", "Light") : tr("site.appearance.system", "System");
+    toggle.textContent = (mode === "dark" ? "☾ " : mode === "light" ? "☀ " : "◐ ") + label;
+    const description = tr("site.appearance.change", "Appearance: {mode}. Change theme", { mode: label });
+    toggle.setAttribute("aria-label", description);
+    toggle.title = description;
   }
   setAppearance(readPreference());
   // Keep separately opened documentation tabs in sync without requiring reload.
@@ -56,8 +69,8 @@
     const copy = document.createElement("button");
     copy.type = "button";
     copy.className = "paglora-copy-code";
-    copy.textContent = "Copy";
-    copy.setAttribute("aria-label", "Copy code block");
+    copy.textContent = tr("site.copy.copy", "Copy");
+    copy.setAttribute("aria-label", tr("site.copy.copyLabel", "Copy code block"));
     copy.setAttribute("aria-live", "polite");
     pre.appendChild(copy);
     pre.classList.add("paglora-has-copy");
@@ -67,8 +80,8 @@
       copy.setAttribute("aria-label", label);
       if (resetTimer !== undefined) clearTimeout(resetTimer);
       resetTimer = setTimeout(() => {
-        copy.textContent = "Copy";
-        copy.setAttribute("aria-label", "Copy code block");
+        copy.textContent = tr("site.copy.copy", "Copy");
+        copy.setAttribute("aria-label", tr("site.copy.copyLabel", "Copy code block"));
         resetTimer = undefined;
       }, 2000);
     }
@@ -76,7 +89,7 @@
     copy.addEventListener("click", async () => {
       if (copying) return;
       if (!navigator.clipboard?.writeText) {
-        showFeedback("Unavailable", "Clipboard unavailable");
+        showFeedback(tr("site.copy.unavailable", "Unavailable"), tr("site.copy.unavailableLabel", "Clipboard unavailable"));
         return;
       }
       // Cancel a previous success timer so it cannot erase the in-flight
@@ -87,14 +100,14 @@
       }
       copying = true;
       copy.disabled = true;
-      copy.textContent = "Copying…";
-      copy.setAttribute("aria-label", "Copying code to clipboard");
+      copy.textContent = tr("site.copy.copying", "Copying…");
+      copy.setAttribute("aria-label", tr("site.copy.copyingLabel", "Copying code to clipboard"));
       copy.setAttribute("aria-busy", "true");
       try {
         await navigator.clipboard.writeText(code.textContent ?? "");
-        showFeedback("Copied", "Code copied to clipboard");
+        showFeedback(tr("site.copy.copied", "Copied"), tr("site.copy.copiedLabel", "Code copied to clipboard"));
       } catch {
-        showFeedback("Unavailable", "Clipboard unavailable");
+        showFeedback(tr("site.copy.unavailable", "Unavailable"), tr("site.copy.unavailableLabel", "Clipboard unavailable"));
       } finally {
         copying = false;
         copy.disabled = false;
@@ -111,7 +124,9 @@
     link.className = "paglora-heading-link";
     link.href = "#" + encodeURIComponent(id);
     link.textContent = "#";
-    link.setAttribute("aria-label", "Link to " + (heading.textContent ?? "section").trim().slice(0, 160));
+    link.setAttribute("aria-label", tr("site.heading.linkTo", "Link to {heading}", {
+      heading: (heading.textContent ?? tr("site.heading.section", "section")).trim().slice(0, 160)
+    }));
     heading.appendChild(link);
   }
 
