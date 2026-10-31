@@ -40,11 +40,11 @@ function ProjectCard({ project, onOpen, onExportBackup }: { project: ProjectSumm
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-    <Card className="group gap-0 py-0 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-lg">
-      <button className="flex h-full min-h-48 flex-col rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
+    <Card className="group gap-0 py-0 transition-[background-color,border-color,box-shadow] duration-150 hover:bg-muted/50 hover:ring-primary/45">
+      <button className="flex h-full min-h-48 flex-col rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
         <CardHeader className="w-full pt-5">
           <div className="flex items-center justify-between">
-            <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><BookOpen className="size-5" /></span>
+            <span className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary"><BookOpen className="size-5" /></span>
             <ArrowRight className="size-4 text-muted-foreground transition-transform duration-150 group-hover:translate-x-1" />
           </div>
         </CardHeader>
@@ -89,20 +89,20 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl animate-in fade-in-0 px-5 py-8 duration-200 lg:px-10 lg:py-10">
           {view === "home" && (
-            <Card className="relative mb-9 overflow-hidden border-0 bg-gradient-to-br from-muted via-card to-card py-0 ring-1 ring-border">
+            <Card className="relative mb-9 overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/50 py-0 ring-1 ring-border">
               <CardContent className="relative min-h-56 px-7 py-8 sm:px-9">
                 <div className="relative z-10 max-w-xl">
                   <Badge variant="outline" className="mb-5 gap-1.5 bg-background/80"><Sparkles className="size-3.5" /> Your documentation studio</Badge>
-                  <h1 className="max-w-lg text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">Create documentation you'll be proud to share.</h1>
+                  <h1 className="font-display max-w-lg text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl">Create documentation you'll be proud to share.</h1>
                   <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">Write, organize, and design documentation locally. Your files always belong to you.</p>
                   <Button className="mt-6" onClick={openCreate}><Plus /> New project</Button>
                 </div>
-                <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-40 size-96 rounded-full border-[54px] border-primary/5" />
+                <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-primary/7 via-transparent to-transparent" />
               </CardContent>
             </Card>
           )}
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <div><h2 className="text-xl font-semibold tracking-tight">{heading}</h2><p className="mt-1 text-sm text-muted-foreground">Continue working or start something new.</p></div>
+            <div><h2 className="font-display text-xl font-extrabold tracking-tight">{heading}</h2><p className="mt-1 text-sm text-muted-foreground">Continue working or start something new.</p></div>
             <div className="flex items-center gap-2">
               <input ref={backupInput} type="file" accept=".paglora" className="hidden" aria-label={t("studio.backup.import")}
                 onChange={event => {
