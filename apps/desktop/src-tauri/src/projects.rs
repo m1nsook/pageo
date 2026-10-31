@@ -169,10 +169,126 @@ fn move_project_to_trash(projects: &Path, trash: &Path, id: &str) -> Result<Path
     Err("Could not allocate a unique trash location.".into())
 }
 
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrashedProject {
+    trash_id: String,
+    project: ProjectSummary,
+    removed_at: u64,
+}
+
+fn trash_folder_for(root: &Path) -> Result<PathBuf, String> {
+    // Keep new removals on the same volume as active projects, even when a
+    // custom project location is on a different drive from application data.
+    Ok(root.parent().ok_or("Project location has no parent.")?.join(".paglora-trash"))
+}
+
+fn check_trash_dir(trash: &Path) -> Result<bool, String> {
+    match fs::symlink_metadata(trash) {
+        Ok(meta) if meta.file_type().is_dir() => Ok(true),
+        Ok(_) => Err("Unsafe project trash directory.".into()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+fn parse_trashed_project(trash_id: &str, folder: &Path) -> Result<TrashedProject, String> {
+    let kind = fs::symlink_metadata(folder).map_err(|e| e.to_string())?.file_type();
+    if !kind.is_dir() { return Err("Unsafe trashed project directory.".into()); }
+    let manifest_path = folder.join(CONFIG_FILE);
+    if !fs::symlink_metadata(&manifest_path).map_err(|e| e.to_string())?.file_type().is_file() {
+        return Err("Unsafe trashed project manifest.".into());
+    }
+    let config = read_config(folder)?;
+    check_id(&config.id)?;
+    let suffix = trash_id.strip_prefix(&format!("{}-", config.id)).ok_or("Trash entry does not match project.")?;
+    let (stamp, attempt) = suffix.rsplit_once('-').ok_or("Invalid trash identifier.")?;
+    let nanos: u128 = stamp.parse().map_err(|_| "Invalid trash timestamp.")?;
+    let attempt: u8 = attempt.parse().map_err(|_| "Invalid trash attempt.")?;
+    if attempt >= 100 { return Err("Invalid trash attempt.".into()); }
+    Ok(TrashedProject { trash_id: trash_id.to_string(), project: config.into(), removed_at: (nanos / 1_000_000_000) as u64 })
+}
+
+fn list_trash_at(trash: &Path) -> Result<Vec<TrashedProject>, String> {
+    if !check_trash_dir(trash)? { return Ok(Vec::new()); }
+    let mut found = Vec::new();
+    for entry in fs::read_dir(trash).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let Some(name) = entry.file_name().to_str().map(str::to_owned) else { continue; };
+        if let Ok(item) = parse_trashed_project(&name, &entry.path()) { found.push(item); }
+    }
+    Ok(found)
+}
+
+fn ensure_regular_project_tree(path: &Path, depth: usize, files: &mut usize) -> Result<(), String> {
+    if depth > 16 { return Err("Project folder nesting is too deep.".into()); }
+    for entry in fs::read_dir(path).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let kind = fs::symlink_metadata(entry.path()).map_err(|e| e.to_string())?.file_type();
+        if kind.is_dir() { ensure_regular_project_tree(&entry.path(), depth + 1, files)?; }
+        else if kind.is_file() {
+            *files += 1;
+            if *files > 25_000 { return Err("Project contains too many files.".into()); }
+        } else { return Err("Projects containing symlinks or special files cannot be restored.".into()); }
+    }
+    Ok(())
+}
+
+fn restore_from(trash: &Path, root: &Path, trash_id: &str) -> Result<ProjectSummary, String> {
+    let entry = trash.join(trash_id);
+    let item = parse_trashed_project(trash_id, &entry)?;
+    let destination = root.join(&item.project.id);
+    // Reject collisions (including broken symlinks) and keep the trashed copy.
+    match fs::symlink_metadata(&destination) {
+        Ok(_) => return Err("A project with this ID already exists. The trashed copy is unchanged.".into()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.to_string()),
+    }
+    let mut files = 0;
+    ensure_regular_project_tree(&entry, 0, &mut files)?;
+    fs::rename(&entry, &destination).map_err(|error|
+        format!("Unable to restore project to active storage; original trash entry is intact: {error}")
+    )?;
+    Ok(item.project)
+}
+
+#[tauri::command]
+pub fn list_trashed_projects(app: AppHandle) -> Result<Vec<TrashedProject>, String> {
+    let active = root(&app)?;
+    let current_trash = trash_folder_for(&active)?;
+    let legacy = app.path().app_data_dir().map_err(|e| e.to_string())?.join("trash");
+    let mut items = list_trash_at(&current_trash)?;
+    if legacy != current_trash {
+        // Legacy entries predate custom locations; include them if accessible.
+        items.extend(list_trash_at(&legacy)?);
+    }
+    items.sort_by(|a,b| b.removed_at.cmp(&a.removed_at).then_with(|| a.trash_id.cmp(&b.trash_id)));
+    Ok(items)
+}
+
+#[tauri::command]
+pub fn restore_trashed_project(app: AppHandle, trash_id: String) -> Result<ProjectSummary, String> {
+    // A trash identifier is an opaque, validated *name*, never a client path.
+    if trash_id.len() > 180 || !trash_id.bytes().all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == b'-') {
+        return Err("Invalid trash identifier.".into());
+    }
+    let active = root(&app)?;
+    let current = trash_folder_for(&active)?;
+    let legacy = app.path().app_data_dir().map_err(|e| e.to_string())?.join("trash");
+    for folder in [&current, &legacy] {
+        if !check_trash_dir(folder)? { continue; }
+        if fs::symlink_metadata(folder.join(&trash_id)).is_ok() {
+            return restore_from(folder, &active, &trash_id);
+        }
+    }
+    Err("Trashed project not found.".into())
+}
+
 #[tauri::command]
 pub fn trash_project(app: AppHandle, id: String) -> Result<String, String> {
-    let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let destination = move_project_to_trash(&root(&app)?, &base.join("trash"), &id)?;
+    let projects = root(&app)?;
+    let destination = move_project_to_trash(&projects, &trash_folder_for(&projects)?, &id)?;
     Ok(destination.display().to_string())
 }
 
@@ -239,6 +355,46 @@ mod tests {
         fs::remove_dir_all(&temp).unwrap();
     }
 
+
+    #[test]
+    fn list_and_restore_trashed_project_preserves_files() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let temp = std::env::temp_dir().join(format!("paglora-restore-{}-{nonce}", std::process::id()));
+        let projects = temp.join("projects");
+        let trash = temp.join(".paglora-trash");
+        fs::create_dir_all(projects.join("sample")).unwrap();
+        let config = ProjectConfig { format_version: FORMAT_VERSION, id: "sample".into(), name: "Sample".into(), created_at: 1, updated_at: 5 };
+        write_config(&projects.join("sample"), &config).unwrap();
+        fs::write(projects.join("sample").join("note.md"), "restore all source files").unwrap();
+        let dest = move_project_to_trash(&projects, &trash, "sample").unwrap();
+        let removed = list_trash_at(&trash).unwrap();
+        assert_eq!(removed.len(), 1);
+        assert_eq!(removed[0].project.name, "Sample");
+        assert_eq!(removed[0].trash_id, dest.file_name().unwrap().to_str().unwrap());
+        let restored = restore_from(&trash, &projects, &removed[0].trash_id).unwrap();
+        assert_eq!(restored.id, "sample");
+        assert_eq!(fs::read_to_string(projects.join("sample/note.md")).unwrap(), "restore all source files");
+        assert!(list_trash_at(&trash).unwrap().is_empty());
+        fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[test]
+    fn restore_collision_never_overwrites_an_existing_project() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let temp = std::env::temp_dir().join(format!("paglora-restore-conflict-{}-{nonce}", std::process::id()));
+        let projects = temp.join("projects");
+        let trash = temp.join("trash");
+        fs::create_dir_all(projects.join("sample")).unwrap();
+        let config = ProjectConfig { format_version: FORMAT_VERSION, id: "sample".into(), name: "Sample".into(), created_at: 1, updated_at: 5 };
+        write_config(&projects.join("sample"), &config).unwrap();
+        let removed = move_project_to_trash(&projects, &trash, "sample").unwrap();
+        fs::create_dir_all(projects.join("sample")).unwrap();
+        fs::write(projects.join("sample/untouched.txt"), "original").unwrap();
+        assert!(restore_from(&trash, &projects, removed.file_name().unwrap().to_str().unwrap()).is_err());
+        assert!(removed.exists());
+        assert_eq!(fs::read_to_string(projects.join("sample/untouched.txt")).unwrap(), "original");
+        fs::remove_dir_all(temp).unwrap();
+    }
     #[test]
     fn project_manifest_uses_paglora_filename() {
         assert_eq!(CONFIG_FILE, "paglora.json");
