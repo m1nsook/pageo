@@ -566,7 +566,7 @@ fn site_export_link_warnings(
         // This receives only DOM-sanitized HTML built by renderPageContent.
         // Literal quotation marks in text are escaped, so they cannot create
         // misleading href attributes.
-        for part in content.html.split("href=\\\"").skip(1) {
+        for part in content.html.split("href=\"").skip(1) {
             let Some(href) = part.split('"').next() else { continue; };
             let pathname = href.split('#').next().unwrap_or(href);
             let pathname = pathname.strip_prefix("./").unwrap_or(pathname);
