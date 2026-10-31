@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { Page } from "@/lib/pages";
+import { useTranslation } from "@/i18n";
 
 export type PageAction = "create" | "rename" | "duplicate" | "delete" | "reorder" | "visibility" | "layout" | "group";
 
@@ -26,6 +27,7 @@ function PageTitleDialog({ open, setOpen, initial = "", mode, onSubmit }: {
   open: boolean; setOpen: (value: boolean) => void; initial?: string;
   mode: "create" | "rename"; onSubmit: (title: string) => void;
 }) {
+  const { t } = useTranslation();
   const [value, setValue] = useState(initial);
   // Keying by the opening state/page in the parent ensures each dialog starts with current title.
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -39,17 +41,17 @@ function PageTitleDialog({ open, setOpen, initial = "", mode, onSubmit }: {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Create a page" : "Rename page"}</DialogTitle>
-          <DialogDescription>{mode === "create" ? "Add a Markdown page to your documentation." : "The page identifier stays the same, so its links remain stable."}</DialogDescription>
+          <DialogTitle>{mode === "create" ? t("studio.pages.createTitle") : t("studio.pages.renameTitle")}</DialogTitle>
+          <DialogDescription>{mode === "create" ? t("studio.pages.createDescription") : t("studio.pages.renameDescription")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-5">
           <div className="grid gap-2">
-            <Label htmlFor="paglora-page-title">Page title</Label>
-            <Input id="paglora-page-title" autoFocus required maxLength={100} placeholder="Getting started" value={value} onChange={(e) => setValue(e.target.value)} />
+            <Label htmlFor="paglora-page-title">{t("studio.pages.pageTitle")}</Label>
+            <Input id="paglora-page-title" autoFocus required maxLength={100} placeholder={t("studio.pages.titlePlaceholder")} value={value} onChange={(e) => setValue(e.target.value)} />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={!value.trim()}>{mode === "create" ? "Create page" : "Save title"}</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>{t("studio.pages.cancel")}</Button>
+            <Button type="submit" disabled={!value.trim()}>{mode === "create" ? t("studio.pages.createPage") : t("studio.pages.saveTitle")}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -68,6 +70,7 @@ function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, can
   onStartDrag: (event: ReactPointerEvent<HTMLSpanElement>, id: string) => void;
   onMove: (id: string, direction: "up" | "down") => void;
 }) {
+  const { t } = useTranslation();
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   return (
@@ -85,9 +88,9 @@ function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, can
     >
       <span
         role="button" tabIndex={-1}
-        aria-label={`Drag to reorder ${page.title}`}
+        aria-label={t("studio.pages.dragToReorder", { title: page.title })}
         onPointerDown={(event) => onStartDrag(event, page.id)}
-        title={page.id === "index" ? "Overview stays first" : "Hold and drag to reorder"}
+        title={page.id === "index" ? t("studio.pages.overviewFirst") : t("studio.pages.holdToDrag")}
         className={cn(
           "flex size-7 shrink-0 items-center justify-center text-muted-foreground/50 touch-none select-none",
           page.id !== "index" && !disabled ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-40",
@@ -97,54 +100,54 @@ function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, can
       <button type="button" disabled={disabled} aria-current={selected ? "page" : undefined} onClick={onNavigate}
         className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
         <FileText className="size-4 shrink-0 text-muted-foreground" />
-        <span className="truncate">{page.title}</span>{page.isPublic ? null : <EyeOff className="size-3 shrink-0 text-muted-foreground" aria-label="Private page" />}
+        <span className="truncate">{page.title}</span>{page.isPublic ? null : <EyeOff className="size-3 shrink-0 text-muted-foreground" aria-label={t("studio.pages.privatePage")} />}
       </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-xs" aria-label={`Actions for ${page.title}`} disabled={disabled}
+          <Button variant="ghost" size="icon-xs" aria-label={t("studio.pages.actionsFor", { title: page.title })} disabled={disabled}
             className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100">
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="right" className="w-44">
-          <DropdownMenuItem onSelect={() => setRenameOpen(true)}><Pencil /> Rename</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onAction("duplicate", page.id)}><Copy /> Duplicate</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setRenameOpen(true)}><Pencil /> {t("studio.pages.rename")}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onAction("duplicate", page.id)}><Copy /> {t("studio.pages.duplicate")}</DropdownMenuItem>
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger>Page layout: {page.layout === "landing" ? "Landing" : page.layout === "wide" ? "Wide" : "Docs"}</DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger>{t("studio.pages.pageLayout", { layout: t(page.layout === "landing" ? "studio.pages.layoutLanding" : page.layout === "wide" ? "studio.pages.layoutWide" : "studio.pages.layoutDocs") })}</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onSelect={() => onAction("layout", page.id, "docs")}>Docs · sidebar + TOC</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onAction("layout", page.id, "wide")}>Wide · article-focused</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onAction("layout", page.id, "landing")}>Landing · full width</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onAction("layout", page.id, "docs")}>{t("studio.pages.layoutDocsDetail")}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onAction("layout", page.id, "wide")}>{t("studio.pages.layoutWideDetail")}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onAction("layout", page.id, "landing")}>{t("studio.pages.layoutLandingDetail")}</DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           {page.id !== "index" && <DropdownMenuItem onSelect={() => onAction("visibility", page.id, String(!page.isPublic))}>
-            {page.isPublic ? <EyeOff /> : <Eye />} {page.isPublic ? "Make private" : "Make public"}
+            {page.isPublic ? <EyeOff /> : <Eye />} {page.isPublic ? t("studio.pages.makePrivate") : t("studio.pages.makePublic")}
           </DropdownMenuItem>}
           <DropdownMenuSeparator />
-          <DropdownMenuItem disabled={!canMoveUp || disabled} onSelect={() => onMove(page.id, "up")}><ArrowUp /> Move up</DropdownMenuItem>
-          <DropdownMenuItem disabled={!canMoveDown || disabled} onSelect={() => onMove(page.id, "down")}><ArrowDown /> Move down</DropdownMenuItem>
+          <DropdownMenuItem disabled={!canMoveUp || disabled} onSelect={() => onMove(page.id, "up")}><ArrowUp /> {t("studio.pages.moveUp")}</DropdownMenuItem>
+          <DropdownMenuItem disabled={!canMoveDown || disabled} onSelect={() => onMove(page.id, "down")}><ArrowDown /> {t("studio.pages.moveDown")}</DropdownMenuItem>
           {page.id !== "index" && <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}><Trash2 /> Delete</DropdownMenuItem>
+            <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}><Trash2 /> {t("studio.pages.delete")}</DropdownMenuItem>
           </>}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="min-w-44">
-          <ContextMenuItem disabled={disabled} onSelect={onNavigate}><FileText /> Open page</ContextMenuItem>
+          <ContextMenuItem disabled={disabled} onSelect={onNavigate}><FileText /> {t("studio.pages.openPage")}</ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem disabled={disabled} onSelect={() => setRenameOpen(true)}><Pencil /> Rename</ContextMenuItem>
-          <ContextMenuItem disabled={disabled} onSelect={() => onAction("duplicate", page.id)}><Copy /> Duplicate</ContextMenuItem>
+          <ContextMenuItem disabled={disabled} onSelect={() => setRenameOpen(true)}><Pencil /> {t("studio.pages.rename")}</ContextMenuItem>
+          <ContextMenuItem disabled={disabled} onSelect={() => onAction("duplicate", page.id)}><Copy /> {t("studio.pages.duplicate")}</ContextMenuItem>
           {page.id !== "index" && <ContextMenuItem disabled={disabled} onSelect={() => onAction("visibility", page.id, String(!page.isPublic))}>
-            {page.isPublic ? <EyeOff /> : <Eye />} {page.isPublic ? "Make private" : "Make public"}
+            {page.isPublic ? <EyeOff /> : <Eye />} {page.isPublic ? t("studio.pages.makePrivate") : t("studio.pages.makePublic")}
           </ContextMenuItem>}
           <ContextMenuSeparator />
-          <ContextMenuItem disabled={!canMoveUp || disabled} onSelect={() => onMove(page.id, "up")}><ArrowUp /> Move up</ContextMenuItem>
-          <ContextMenuItem disabled={!canMoveDown || disabled} onSelect={() => onMove(page.id, "down")}><ArrowDown /> Move down</ContextMenuItem>
+          <ContextMenuItem disabled={!canMoveUp || disabled} onSelect={() => onMove(page.id, "up")}><ArrowUp /> {t("studio.pages.moveUp")}</ContextMenuItem>
+          <ContextMenuItem disabled={!canMoveDown || disabled} onSelect={() => onMove(page.id, "down")}><ArrowDown /> {t("studio.pages.moveDown")}</ContextMenuItem>
           {page.id !== "index" && <>
             <ContextMenuSeparator />
-            <ContextMenuItem disabled={disabled} variant="destructive" onSelect={() => setDeleteOpen(true)}><Trash2 /> Delete</ContextMenuItem>
+            <ContextMenuItem disabled={disabled} variant="destructive" onSelect={() => setDeleteOpen(true)}><Trash2 /> {t("studio.pages.delete")}</ContextMenuItem>
           </>}
         </ContextMenuContent>
       </ContextMenu>
@@ -152,12 +155,12 @@ function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, can
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{page.title}”?</AlertDialogTitle>
-            <AlertDialogDescription>The page will be removed from navigation. Its Markdown file will remain in the project's local .trash folder.</AlertDialogDescription>
+            <AlertDialogTitle>{t("studio.pages.deleteQuestion", { title: page.title })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("studio.pages.deleteDescription")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => onAction("delete", page.id)}>Delete page</AlertDialogAction>
+            <AlertDialogCancel>{t("studio.pages.cancel")}</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={() => onAction("delete", page.id)}>{t("studio.pages.deletePage")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -171,6 +174,7 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
   onNavigate: (id: string) => void;
   onAction: (action: PageAction, id?: string, target?: string) => void;
 }) {
+  const { t } = useTranslation();
   const [createOpen, setCreateOpen] = useState(false);
   const [dragged, setDragged] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -245,20 +249,20 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
     onAction("reorder", id, pages[adjacent].id);
   }
   return (
-    <aside aria-label="Page navigation" className="flex h-full w-[246px] shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
+    <aside aria-label={t("studio.pages.navigation")} className="flex h-full w-[246px] shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 shrink-0 items-center justify-between px-4">
-        <div className="flex items-center gap-2 text-xs font-semibold">Pages <Badge variant="secondary">{pages.filter(page => page.isPublic).length} public / {pages.length}</Badge></div>
+        <div className="flex items-center gap-2 text-xs font-semibold">{t("studio.pages.pages")} <Badge variant="secondary">{t("studio.pages.publicCount", { publicCount: pages.filter(page => page.isPublic).length, totalCount: pages.length })}</Badge></div>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" disabled={busy} aria-label="Create page" onClick={() => setCreateOpen(true)}><FilePlus2 /></Button>
+            <Button variant="ghost" size="icon-sm" disabled={busy} aria-label={t("studio.pages.createPage")} onClick={() => setCreateOpen(true)}><FilePlus2 /></Button>
           </TooltipTrigger>
-          <TooltipContent>Create page</TooltipContent>
+          <TooltipContent>{t("studio.pages.createPage")}</TooltipContent>
         </Tooltip>
       </div>
       <Separator />
       <ScrollArea className="min-h-0 flex-1">
         <nav
-          className="space-y-1 px-2 py-3" aria-label="Documentation pages"
+          className="space-y-1 px-2 py-3" aria-label={t("studio.pages.documentationPages")}
           onPointerMove={movePointer}
           onPointerUp={finishDrag}
           onPointerCancel={resetDrag}
@@ -271,7 +275,7 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
                   aria-expanded={!collapsedGroups.has(page.navGroup)}
                   onClick={() => toggleGroup(page.navGroup)}
                   className="flex w-full items-center gap-2 rounded-md px-2 pb-1 pt-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                  title={collapsedGroups.has(page.navGroup) ? `Expand ${page.navGroup}` : `Collapse ${page.navGroup}`}
+                  title={collapsedGroups.has(page.navGroup) ? t("studio.pages.expandGroup", { group: page.navGroup }) : t("studio.pages.collapseGroup", { group: page.navGroup })}
                 >
                   <ChevronDown aria-hidden className={`size-3 shrink-0 transition-transform ${collapsedGroups.has(page.navGroup) ? "-rotate-90" : ""}`} />
                   <span className="min-w-0 flex-1 truncate">{page.navGroup}</span>
@@ -291,7 +295,7 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
           ))}
         </nav>
       </ScrollArea>
-      <div className="border-t border-border p-3 text-[11px] text-muted-foreground">Hold the grip to drag a page, or use Move up / Move down in its menu.</div>
+      <div className="border-t border-border p-3 text-[11px] text-muted-foreground">{t("studio.pages.dragHint")}</div>
       <PageTitleDialog key={`create-${createOpen}`} open={createOpen} setOpen={setCreateOpen} mode="create" onSubmit={(title) => onAction("create", undefined, title)} />
     </aside>
   );
