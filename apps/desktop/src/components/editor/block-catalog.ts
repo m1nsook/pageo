@@ -1,12 +1,12 @@
 import type { JSONContent } from "@tiptap/core";
 import {
   AlignLeft, Heading1, Heading2, List, ListOrdered, MessageSquareQuote,
-  Code2, Minus, CreditCard, ListChecks, PanelsTopLeft, Layers, type LucideIcon,
+  Code2, Minus, CreditCard, ListChecks, PanelsTopLeft, Layers, ListCollapse, type LucideIcon,
 } from "lucide-react";
 
 export type BlockKind =
   | "paragraph" | "heading1" | "heading2" | "bulletList"
-  | "orderedList" | "blockquote" | "card" | "steps" | "tabs" | "codeGroup" | "codeBlock" | "horizontalRule";
+  | "orderedList" | "blockquote" | "card" | "steps" | "accordion" | "tabs" | "codeGroup" | "codeBlock" | "horizontalRule";
 
 export const BLOCKS: { kind: BlockKind; title: string; description: string; icon: LucideIcon }[] = [
   { kind: "paragraph", title: "Paragraph", description: "Normal text", icon: AlignLeft },
@@ -17,6 +17,7 @@ export const BLOCKS: { kind: BlockKind; title: string; description: string; icon
   { kind: "blockquote", title: "Quote", description: "Highlight a passage", icon: MessageSquareQuote },
   { kind: "card", title: "Card", description: "Titled documentation panel", icon: CreditCard },
   { kind: "steps", title: "Steps", description: "Numbered tutorial timeline", icon: ListChecks },
+  { kind: "accordion", title: "Accordion", description: "Expandable FAQ or answer", icon: ListCollapse },
   { kind: "tabs", title: "Tabs", description: "Switchable content panels", icon: Layers },
   { kind: "codeGroup", title: "Code group", description: "Tabbed language examples", icon: PanelsTopLeft },
   { kind: "codeBlock", title: "Code block", description: "Commands or examples", icon: Code2 },
@@ -55,6 +56,13 @@ export function createMarkdownBlock(kind: BlockKind): JSONContent {
           { type: "listItem", content: [paragraph("Install the dependencies")] },
           { type: "listItem", content: [paragraph("Run your first build")] },
         ] },
+      ],
+    };
+    case "accordion": return {
+      type: "blockquote",
+      content: [
+        paragraph("[!ACCORDION] How does this work?"),
+        paragraph("Write an answer with links, lists, or code. Readers can expand it."),
       ],
     };
     case "tabs": return {
