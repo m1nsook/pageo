@@ -800,8 +800,8 @@ fn render_site_page_with_description(
         settings.accent_color
     );
     let accent_style = format!(
-        "<style>:root{{{brand_vars}}}:root[data-color-mode=\"dark\"]{{{brand_vars}}}\\
-@media(prefers-color-scheme:dark){{:root:not([data-color-mode=\"light\"]){{{brand_vars}}}}}</style>"
+        r#"<style>:root{{{brand_vars}}}:root[data-color-mode="dark"]{{{brand_vars}}}
+@media(prefers-color-scheme:dark){{:root:not([data-color-mode="light"]){{{brand_vars}}}}}</style>"#
     );
     let page_title = escape(&page_title);
     let canonical = if settings.site_url.is_empty() { String::new() } else {
@@ -1078,12 +1078,12 @@ mod website_font_tests {
             let html = render_site_page(&settings, &[page.clone()], &page, "<p>Docs</p>", &[]);
             let vars = "--brand:#ee3366;--brand-light:color-mix(in srgb,var(--brand) 13%,var(--bg))";
             assert!(html.contains(&format!(":root{{{vars}}}")), "{mode}: light");
-            assert!(html.contains(&format!(":root[data-color-mode=\\"dark\\"]{{{vars}}}")), "{mode}: dark");
+            assert!(html.contains(&format!(r#":root[data-color-mode="dark"]{{{vars}}}"#)), "{mode}: dark");
             assert!(html.contains(&format!(
-                "@media(prefers-color-scheme:dark){{:root:not([data-color-mode=\\"light\\"]){{{vars}}}}}"
+                r#"@media(prefers-color-scheme:dark){{:root:not([data-color-mode="light"]){{{vars}}}}}"#
             )), "{mode}: system dark");
-            assert!(html.find("<link rel=\\"stylesheet\\" href=\\"styles.css\\">").unwrap()
-                < html.find(&format!(":root[data-color-mode=\\"dark\\"]{{{vars}}}")).unwrap());
+            assert!(html.find(r#"<link rel="stylesheet" href="styles.css">"#).unwrap()
+                < html.find(&format!(r#":root[data-color-mode="dark"]{{{vars}}}"#)).unwrap());
         }
     }
 
