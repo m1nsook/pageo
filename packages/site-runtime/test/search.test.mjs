@@ -365,8 +365,8 @@ test("CJK substring results are included even when MiniSearch finds token matche
 });
 
 
-test("search rejects indexes exceeding the exported public-page limit", async () => {
-  const pages = Array.from({ length: 501 }, (_, index) => ({
+test("search rejects unbounded malformed indexes before indexing", async () => {
+  const pages = Array.from({ length: 2001 }, (_, index) => ({
     title: `Page ${index}`, url: `page-${index}.html`, text: "public documentation",
   }));
   const app = fixture(pages);
