@@ -27,14 +27,17 @@ Paglora is a **free, open-source, local-first documentation studio** built with 
 
 ### Exported websites
 
-- **Static and portable:** responsive HTML, CSS, bundled default font assets, and small first-party JavaScript files; no Paglora backend or account required for visitors.
+- **Static and portable:** responsive HTML, CSS, bundled Geist font files, and two minified browser runtime scripts; no Paglora backend or account required for visitors.
 - **Documentation navigation:** grouped/collapsible sidebars, public-page-only links, and active table-of-contents headings.
-- **Local search:** Ctrl+K / Cmd+K opens a keyboard-accessible search dialog using `search-index.json`, generated **only from public pages**.
+- **Offline MiniSearch:** Ctrl+K / Cmd+K opens an accessible search dialog backed by a bundled MiniSearch index, with prefix matching, typo-tolerant fallback, and Korean/Japanese/Chinese substring support. `search-index.json` contains **only public pages**.
 - **Appearance:** Light / Dark / System switching with a remembered browser preference where storage is available.
-- **Content features:** callouts (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`), code-block Copy buttons, heading permalinks, and ordinary Markdown tables.
-- **Safe publication:** Markdown HTML is sanitized before export; pages marked private are excluded from the published site and its search index.
+- **Content features:** callouts (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`), code-block Copy buttons, Unicode heading permalinks, task lists, collapsible disclosures, and Markdown tables.
+- **Local images:** import PNG, JPEG, WebP, and GIF files into a project; only images referenced by public pages or the site logo are copied into the static export.
+- **Multilingual foundations:** choose the document language from 18 options (including Korean, Polish, Japanese, Chinese, and Arabic); Arabic exports use RTL layout. This does not automatically translate content.
+- **SEO for static hosts:** optional HTTPS site root produces per-page canonical URLs and a public-page-only `sitemap.xml`, with page-specific descriptions and social metadata.
+- **Safe publication:** Markdown HTML is sanitized before export; pages marked private are excluded from the published site, search index, and sitemap.
 
-**Current limitations:** search uses basic text matching rather than fuzzy ranking; exported JavaScript is not yet minified into a single bundle; Studio's inline preview deliberately disables site scripts. Multilingual site generation, local media asset packaging, arbitrary TSX/MDX components, automated hosting deployment, and fully freeform visual design are not implemented yet.
+**Current limitations:** Studio's inline preview deliberately disables site scripts, so browser interactions must be checked in the exported site. There is no automatic content translation, arbitrary TSX/MDX component execution, one-click hosting deployment, or fully freeform Figma-style canvas yet. The Windows Studio still needs hands-on UI verification.
 
 ## Get started
 
@@ -103,11 +106,18 @@ styles.css
 paglora.js
 paglora-search.js
 search-index.json
+sitemap.xml           (if an HTTPS site URL is configured)
 custom.css            (if configured)
-fonts/
+assets/               (if public pages or logo reference local images)
+fonts/                (Geist font and license)
+licenses/             (MiniSearch MIT license)
 ```
 
-The site can be read without JavaScript, but search, appearance switching, code copying, and active heading highlighting need the shipped runtime files. Serve the output over **HTTP(S)** rather than opening `file://` HTML directly: local file restrictions can prevent the search index from loading. The current Studio canvas is a **script-disabled preview**; test the interactive features in the exported site.
+The site can be read without JavaScript, but search, appearance switching, code copying, and active heading highlighting need the shipped runtime files. Serve the **entire export** over **HTTP(S)** rather than opening `file://` HTML directly: local file restrictions can prevent the search index from loading. For GitHub Pages project sites, configure the canonical HTTPS URL with its repository path (for example, `https://username.github.io/repository/`). The current Studio canvas is a **script-disabled preview**; test interactive features in the exported site.
+
+## Release readiness
+
+The npm package is still **`0.0.1-alpha.2`** on the alpha channel; the repository may contain newer unreleased CLI changes. Merging a PR or passing CI **does not publish** a new npm package. Before the next prerelease, confirm the required Ubuntu/Windows frontend and Windows Rust checks are green, test the packed CLI on both platforms, and manually verify Windows Studio behavior and a generated website. An authenticated maintainer must choose the next version and publish it to npm; this repository does not auto-publish or store npm credentials.
 
 ## Local project format
 
