@@ -119,7 +119,7 @@ fn validate_project_folders(source: &Path) -> Result<(), String> {
         }
         let metadata = fs::read_to_string(entry.path().join("paglora.json")).map_err(|e| format!("{name}: {e}"))?;
         let config: serde_json::Value = serde_json::from_str(&metadata).map_err(|e| format!("{name}: {e}"))?;
-        if config["id"].as_str() != Some(&name) || config["formatVersion"] != 1 {
+        if config["id"].as_str() != Some(name.as_str()) || config["formatVersion"] != 1 {
             return Err(format!("Invalid project manifest in {name}"));
         }
     }
