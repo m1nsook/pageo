@@ -17,9 +17,28 @@ const SITE_RUNTIME_ASSETS: &[SiteRuntimeAsset] = &[
     SiteRuntimeAsset { filename: "paglora.js", source: include_str!("../../../../packages/site-runtime/dist/index.js") },
     SiteRuntimeAsset { filename: "paglora-search.js", source: include_str!("../../../../packages/site-runtime/dist/search.js") },
 ];
+// Reproducible source-content address, independent of Windows/Linux paths or
+// release timestamps. URLs change automatically when bundle bytes change.
+fn chunk_hash(bytes: &[u8]) -> String {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for byte in bytes {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("{hash:016x}")
+}
+fn runtime_chunk_name(asset: &SiteRuntimeAsset) -> String {
+    format!("_paglora/chunks/{}.js", chunk_hash(asset.source.as_bytes()))
+}
+fn stylesheet_chunk_name() -> String {
+    // The name is based on the actual exported CSS, including its relative
+    // font URL. Preview continues to embed SITE_CSS directly.
+    let css = SITE_CSS.replace("fonts/geist-latin.woff2", "../../../fonts/geist-latin.woff2");
+    format!("_paglora/chunks/css/{}.css", chunk_hash(css.as_bytes()))
+}
 fn site_runtime_script_tags() -> String {
     SITE_RUNTIME_ASSETS.iter()
-        .map(|asset| format!("<script defer src=\"{}\"></script>\n", asset.filename))
+        .map(|asset| format!("<script defer src=\"{}\"></script>\n", runtime_chunk_name(asset)))
         .collect()
 }
 const SITE_CSS: &str = r#"
@@ -1594,6 +1613,7 @@ fn render_site_page_with_description(
     let content_width = settings.content_width;
     let layout = &page.layout;
     let runtime_scripts = site_runtime_script_tags();
+    let stylesheet_chunk = stylesheet_chunk_name();
     format!(r##"<!doctype html>
 <html lang="{language}" dir="{direction}" data-color-mode="{theme_mode}" data-site-layout="{site_layout}" data-site-palette="{site_palette}" data-card-layout="{card_layout}">
 <head>
@@ -1612,7 +1632,7 @@ fn render_site_page_with_description(
 <meta name="twitter:description" content="{description}">
 {theme_color}
 <title>{page_title}</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="{stylesheet_chunk}">
 {google_font}
 {accent_style}
 </head>
@@ -1674,14 +1694,14 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
         "data:font/woff2;base64,{}", include_str!("../assets/geist-latin.b64")
     ));
     let doc = doc.replace(
-        "<link rel=\"stylesheet\" href=\"styles.css\">",
+        &format!("<link rel=\"stylesheet\" href=\"{}\">", stylesheet_chunk_name()),
         &format!("<style>{site_with_font}</style>"),
     );
     // Studio preview is intentionally script-disabled; remove the exported
     // runtime reference. Site interactions are tested in the built website.
     let mut doc = doc;
     for asset in SITE_RUNTIME_ASSETS {
-        let tag = format!("<script defer src=\"{}\"></script>", asset.filename);
+        let tag = format!("<script defer src=\"{}\"></script>", runtime_chunk_name(asset));
         doc = doc.replace(&tag, "");
     }
     // Inline only referenced local images in the script-disabled srcDoc
@@ -1754,8 +1774,16 @@ fn build_site_from_disk_progress(dir:&Path,project_name:&str,target:&Path,render
     if staged.exists() { fs::remove_dir_all(&staged).map_err(|e| e.to_string())?; }
     fs::create_dir(&staged).map_err(|e| e.to_string())?;
     let write_result = (|| -> Result<usize, String> {
+        // /_paglora/chunks uses stable content hashes. Generated files can
+        // be cached indefinitely; legacy root aliases remain for existing
+        // third-party integrations during the transition.
+        let chunks = staged.join("_paglora/chunks");
+        fs::create_dir_all(chunks.join("css")).map_err(|e| e.to_string())?;
+        let exported_css = SITE_CSS.replace("fonts/geist-latin.woff2", "../../../fonts/geist-latin.woff2");
+        fs::write(staged.join(stylesheet_chunk_name()), exported_css).map_err(|e| e.to_string())?;
         fs::write(staged.join("styles.css"), SITE_CSS).map_err(|e| e.to_string())?;
         for asset in SITE_RUNTIME_ASSETS {
+            fs::write(staged.join(runtime_chunk_name(asset)), asset.source).map_err(|e| e.to_string())?;
             fs::write(staged.join(asset.filename), asset.source).map_err(|e| e.to_string())?;
         }
         // Preserve MiniSearch MIT attribution in every exported website.
@@ -2264,6 +2292,30 @@ mod website_font_tests {
         assert_eq!(site_text_direction("ko"), "ltr");
         assert_eq!(social_locale("sv-SE"), "sv_SE");
         assert_eq!(social_locale("en"), "en_US");
+    }
+
+    #[test]
+    fn published_runtime_and_css_use_deterministic_content_hashed_chunks() {
+        let stylesheet = stylesheet_chunk_name();
+        assert!(stylesheet.starts_with("_paglora/chunks/css/"));
+        assert!(stylesheet.ends_with(".css"));
+        assert_eq!(stylesheet, stylesheet_chunk_name());
+        let mut changed = SITE_RUNTIME_ASSETS[0].source.as_bytes().to_vec();
+        let before = chunk_hash(&changed);
+        changed.push(1);
+        assert_ne!(chunk_hash(&changed), before);
+        for asset in SITE_RUNTIME_ASSETS {
+            let path = runtime_chunk_name(asset);
+            assert!(path.starts_with("_paglora/chunks/") && path.ends_with(".js"));
+            assert!(site_runtime_script_tags().contains(&path));
+        }
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Docs".into(),
+        };
+        let output = render_site_page(&default_settings("Docs"), &[page.clone()], &page, "<p>Hi</p>", &[]);
+        assert!(output.contains(&format!("href=\"{stylesheet}\"")));
+        assert!(!output.contains("<script defer src=\"paglora.js\""));
     }
 
     #[test]
