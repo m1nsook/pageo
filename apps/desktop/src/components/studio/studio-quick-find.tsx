@@ -4,10 +4,11 @@ import { Kbd } from "@/components/ui/kbd";
 
 export type FindEntry = { id: string; title: string; description?: string; kind: "page" | "project" };
 
-export function StudioQuickFind({ open, onOpenChange, entries, onSelect }: {
+export function StudioQuickFind({ open, onOpenChange, entries, onSelect, shortcut }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entries: FindEntry[];
+  shortcut: string;
   onSelect: (id: string) => void;
 }) {
   const title = entries.some(entry => entry.kind === "page") ? "Find documentation page" : "Find project";
@@ -34,7 +35,7 @@ export function StudioQuickFind({ open, onOpenChange, entries, onSelect }: {
           </CommandGroup>
         </CommandList>
         <div className="flex items-center justify-between border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1"><Search className="size-3.5" /> Local title search</span>
+          <span className="flex items-center gap-1"><Search className="size-3.5" /> Local title search <Kbd>{shortcut}</Kbd></span>
           <span className="flex items-center gap-1"><Kbd>↑</Kbd><Kbd>↓</Kbd> Navigate <Kbd>Esc</Kbd> Close</span>
         </div>
       </Command>
