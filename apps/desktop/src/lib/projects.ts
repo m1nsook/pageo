@@ -81,6 +81,12 @@ export async function reconnectProjectStorage(destination: string, confirmation:
   return invoke<string>("reconnect_project_storage", { destination, confirmation });
 }
 
+/** Native OS folder selection, cancellation leaves all data unchanged. */
+export async function pickStorageFolder(): Promise<string | null> {
+  requireDesktop();
+  return invoke<string | null>("pick_storage_folder");
+}
+
 /** Copy and verify all projects into a new, nonexistent directory; originals are retained. */
 export async function migrateProjectStorage(destination: string): Promise<string> {
   requireDesktop();
