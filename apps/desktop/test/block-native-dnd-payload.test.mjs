@@ -1,55 +1,43 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import {readFileSync} from "node:fs";
 import test from "node:test";
 import ts from "typescript";
 const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 const catalog=read("src/components/editor/block-catalog.ts");
 const kinds=[...catalog.matchAll(/\{ kind: "([a-zA-Z0-9]+)", title:/g)].map(x=>x[1]);
-assert.ok(kinds.length>15);
-const source=read("src/lib/block-drag.ts")
-  .replace('import { BLOCKS, type BlockKind } from "@/components/editor/block-catalog";',
-    'const BLOCKS = globalThis.__dragTestBlocks;');
+assert.ok(kinds.length>=18);
+const source=read("src/lib/block-drag.ts").replace(
+ 'import { BLOCKS, type BlockKind } from "@/components/editor/block-catalog";',
+ 'const BLOCKS = globalThis.__dragTestBlocks;');
 globalThis.__dragTestBlocks=kinds.map(kind=>({kind}));
 const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
-const d=await import("data:text/javascript;base64,"+Buffer.from(compiled).toString("base64"));
-function data(){
- const items=new Map();
- return {types:[],effectAllowed:"all",setData(type,value){items.set(type,value);this.types=[...items.keys()];},
- getData(type){return items.get(type)??"";}};
-}
-test("native palette/gallery drop accepts only the active known block",()=>{
- const a=data();
- assert.equal(d.beginBlockDrag(a,"note"),true);
- assert.equal(a.effectAllowed,"copy");
- assert.equal(d.canAcceptBlockDrag(a),true);
- assert.equal(d.readBlockDrop(a),"note");
- d.finishBlockDrag();
- assert.equal(d.canAcceptBlockDrag(a),false);
- assert.equal(d.readBlockDrop(a),null);
+const drag=await import("data:text/javascript;base64,"+Buffer.from(compiled).toString("base64"));
+test("pointer movement only inserts after a real gesture and correct pointer release",()=>{
+ assert.equal(drag.beginPointerBlock("note",12,100,100),true);
+ assert.equal(drag.updatePointerBlock(21,250,100),null);
+ assert.equal(drag.updatePointerBlock(12,103,100).moved,false);
+ assert.equal(drag.finishPointerBlock(12,103,100).moved,false);
+ assert.equal(drag.beginPointerBlock("card",4,10,10),true);
+ assert.equal(drag.updatePointerBlock(4,30,30).moved,true);
+ const completed=drag.finishPointerBlock(4,40,40);
+ assert.equal(completed.kind,"card");
+ assert.equal(completed.moved,true);
+ assert.equal(drag.activePointerBlock(),null);
 });
-test("external links, files, arbitrary text and another block cannot forge a drop",()=>{
- const external=data();external.setData("text/plain","note");
- assert.equal(d.canAcceptBlockDrag(external),false);
- assert.equal(d.readBlockDrop(external),null);
- const active=data();d.beginBlockDrag(active,"warning");
- const forged=data();forged.setData("text/plain","paglora:block:card");
- assert.equal(d.readBlockDrop(forged),null);
- const fallback=data();fallback.setData("text/plain","paglora:block:warning");
- assert.equal(d.canAcceptBlockDrag(fallback),true);
- assert.equal(d.readBlockDrop(fallback),"warning");
- d.finishBlockDrag();
+test("only one Paglora-owned gesture, no unknown blocks or forged second pointer",()=>{
+ assert.equal(drag.beginPointerBlock("unknown",1,0,0),false);
+ assert.equal(drag.beginPointerBlock("warning",1,5,5),true);
+ assert.equal(drag.beginPointerBlock("card",2,5,5),false);
+ assert.equal(drag.finishPointerBlock(2,20,20),null);
+ assert.equal(drag.activePointerBlock().kind,"warning");
+ drag.cancelPointerBlock(1);
+ assert.equal(drag.activePointerBlock(),null);
 });
-test("unknown block names are rejected before an OS drag begins",()=>{
- const a=data();
- assert.equal(d.beginBlockDrag(a,"made-up"),false);
- assert.equal(d.canAcceptBlockDrag(a),false);
-});
-test("dragstart, drop and dragend route to native editor and clean all state",()=>{
- const palette=read("src/components/editor/block-palette.tsx"),gallery=read("src/components/editor/block-component-gallery.tsx");
- assert.match(palette,/onDragStart=\{event => startNative\(event, kind\)\}/);
- assert.match(palette,/document\.addEventListener\("dragend", endNative, true\)/);
- assert.match(palette,/document\.addEventListener\("dragover", over, true\)/);
- assert.match(palette,/document\.addEventListener\("drop", drop, true\)/);
- assert.match(palette,/finishBlockDrag\(\)/);
- assert.match(gallery,/onDragEnd=\{finishBlockDrag\}/);
+test("pointer capture and explicit editor-only drop area replace WebView2 native drag",()=>{
+ const ui=read("src/components/editor/block-palette.tsx");
+ assert.match(ui,/\.setPointerCapture\(event\.pointerId\)/);
+ assert.match(ui,/event\.clientX, event\.clientY/);
+ assert.match(ui,/if \(editorDropZone\(event\.clientX, event\.clientY\) &&/);
+ assert.match(ui,/clearDropHighlight\(\)/);
+ assert.match(ui,/window\.addEventListener\("pointercancel", cancel, true\)/);
 });
