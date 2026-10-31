@@ -35,3 +35,9 @@ In **Design site → Header**, optionally set the **Published site URL** to the 
 ## Search result highlights
 
 Published Ctrl/Cmd+K search highlights exact query terms in result titles and excerpts with semantic mark elements and text nodes, never executable HTML. Technical terms such as C++, CJK substrings, Unicode ligatures and case-folded matches map back to readable display text. Fuzzy matches remain readable when no exact substring is available. The site accent colors the highlights, with a forced-colors fallback. Search stays offline and public-page-only.
+
+## Printing and saving public documentation as PDF
+
+On any published page, use the browser's **Print** command (Ctrl+P / Cmd+P) and choose a printer or **Save as PDF**. Paglora's print stylesheet removes the navigation, table of contents, footer, page pager, search controls and other interactive chrome. It uses a high-contrast white paper layout regardless of the reader's selected dark theme, keeps code and tables readable, and respects the browser's normal page breaks. This works offline and requires no print service or account.
+
+When JavaScript is enabled, the first-party runtime temporarily opens FAQ/disclosure answers and reveals **all** code-group and content-tab panels for printing, then restores their original open/selected state after printing. Without JavaScript, the print stylesheet still formats the visible static article and all script-free tab examples; closed native disclosures may remain collapsed. The same styles apply in exported HTML and the script-disabled Studio preview. Only the current page is printed; printing does not include private project pages or change saved Markdown.

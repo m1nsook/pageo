@@ -300,6 +300,31 @@
     group.classList.add("paglora-tabs-enhanced");
   }
 
+
+  // Print and Save as PDF must include every example and FAQ answer, even
+  // when interactive tabs/accordions are collapsed on screen. Keep an exact
+  // snapshot and restore it after the browser's print dialog closes.
+  // No network, storage or project data changes are involved.
+  let printSnapshot = null;
+  addEventListener("beforeprint", () => {
+    if (printSnapshot) return; // browsers may dispatch beforeprint repeatedly
+    const disclosures = Array.from(document.querySelectorAll?.(".docs details") ?? []);
+    const panels = Array.from(document.querySelectorAll?.(
+      ".docs .paglora-code-group-item, .docs .paglora-tabs-item") ?? []);
+    printSnapshot = {
+      disclosures: disclosures.map(node => [node, node.open]),
+      panels: panels.map(node => [node, node.hidden]),
+    };
+    for (const node of disclosures) node.open = true;
+    for (const node of panels) node.hidden = false;
+  });
+  addEventListener("afterprint", () => {
+    if (!printSnapshot) return;
+    for (const [node, open] of printSnapshot.disclosures) node.open = open;
+    for (const [node, hidden] of printSnapshot.panels) node.hidden = hidden;
+    printSnapshot = null;
+  });
+
   // Expose sharable heading anchors without changing project Markdown.
   for (const heading of document.querySelectorAll?.(".docs h2[id], .docs h3[id], .docs h4[id]") ?? []) {
     const id = heading.getAttribute("id");
