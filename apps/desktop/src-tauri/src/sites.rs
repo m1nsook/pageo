@@ -957,6 +957,9 @@ fn page_meta_description(site_description: &str, search_text: Option<&str>) -> S
     if excerpt.is_empty() { site_description.to_string() } else { excerpt }
 }
 
+// Convenience wrapper used by the Rust renderer regression tests only.
+// Production rendering calls render_site_page_with_description directly.
+#[cfg(test)]
 fn render_site_page(
     settings: &SiteSettings,
     pages: &[crate::pages::Page],
