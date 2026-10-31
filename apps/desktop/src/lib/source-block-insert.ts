@@ -9,19 +9,32 @@ export type VisibleSourceBlock = { text: string };
  * UTF-16 code units, matching both JS strings and marked token.raw lengths.
  */
 function sourceBlocks(source: string): { offset: number; signature: string }[] {
-  const tokens = marked.lexer(source, { gfm: true });
+  // Marked token.raw always uses LF even for Windows CRLF source. Tokenize
+  // the same LF-normalized view and keep an incremental offset mapping back to
+  // the ORIGINAL string so we never corrupt the actual Markdown bytes.
+  const normalized = source.replace(/\r\n?/g, "\n");
+  const tokens = marked.lexer(normalized, { gfm: true });
   const blocks: { offset: number; signature: string }[] = [];
   let cursor = 0;
+  let normalizedCursor = 0;
+  let rawCursor = 0;
+  const originalOffset = (position: number): number => {
+    while (normalizedCursor < position) {
+      rawCursor += source[rawCursor] === "\r" && source[rawCursor + 1] === "\n" ? 2 : 1;
+      normalizedCursor++;
+    }
+    return rawCursor;
+  };
   for (const token of tokens) {
     if (typeof token.raw !== "string") throw new Error("Markdown tokenizer omitted source offsets.");
-    const offset = source.indexOf(token.raw, cursor);
+    const offset = normalized.indexOf(token.raw, cursor);
     if (offset < 0) throw new Error("Cannot recover the original Markdown block boundaries.");
     cursor = offset + token.raw.length;
     if (token.type === "space") continue;
     const firstItem = "items" in token && Array.isArray(token.items)
       ? token.items.map(item => item.text).join(" ") : "";
     const text = "text" in token && typeof token.text === "string" ? token.text : firstItem;
-    blocks.push({ offset, signature: signature(text || token.raw) });
+    blocks.push({ offset: originalOffset(offset), signature: signature(text || token.raw) });
   }
   return blocks;
 }
