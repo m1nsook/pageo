@@ -10,7 +10,8 @@ test("same editor becomes editable synchronously on Canvas to Edit and after mou
  assert.match(app,/editor\.view\.dom\.isConnected/);
  assert.match(app,/<FormatToolbar editor=\{editor\}/);
  assert.match(app,/<EditorContent editor=\{editor\}/);
- assert.match(app,/<BlockPalette editor=\{editor\}/);
+ assert.match(app,/<BlockPalette disabled=\{leaving \|\| switchingView \|\| componentMode !== "compose"\}/);
+ assert.match(app,/const editing = viewMode !== "site" && componentMode === "write"/);
 });
 test("toolbar subscribes to the real editor, checks commands and announces effects",()=>{
  const t=read("src/components/editor/format-toolbar.tsx");

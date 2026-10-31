@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { BLOCKS, type BlockKind } from "@/components/editor/block-catalog";
 import { BLOCK_MARKDOWN_EXAMPLES } from "@/lib/block-examples";
 import { nextGalleryKind } from "@/lib/gallery-navigation";
-import { beginPointerBlock } from "@/lib/block-drag";
+
 import { renderPageContent } from "@/lib/site";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -46,9 +46,10 @@ function frameHtml(body: string) {
 <style>${FRAME_STYLE}</style></head><body>${body}</body></html>`;
 }
 
-export function BlockComponentGallery({ disabled, onInsert }: {
+export function BlockComponentGallery({ disabled, onInsert, onBeginDrag }: {
   disabled: boolean;
-  onInsert: (kind: BlockKind) => void;
+  onInsert: (kind: BlockKind) => boolean;
+  onBeginDrag: (event: React.PointerEvent<HTMLElement>, kind: BlockKind) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<BlockKind>("card");
@@ -57,18 +58,12 @@ export function BlockComponentGallery({ disabled, onInsert }: {
   const [rendered, setRendered] = useState("");
   const example = BLOCK_MARKDOWN_EXAMPLES[selected];
   const choose = (kind: BlockKind) => { setSelected(kind); setMode("preview"); };
-  const insertSelected = () => { if (!disabled) { onInsert(selected); setOpen(false); } };
-  const startPointer = (event: React.PointerEvent<HTMLElement>, kind: BlockKind) => {
-    if (disabled || event.button !== 0 || !event.isPrimary) return;
-    if (beginPointerBlock(kind, event.pointerId, event.clientX, event.clientY)) {
-      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* WebView fallback */ }
-    }
-  };
+  const insertSelected = () => { if (!disabled && onInsert(selected)) setOpen(false); };
   useEffect(() => {
     if (!open) return;
     const closeAfterDrop = () => setOpen(false);
-    document.addEventListener("paglora:gallery-block-dropped", closeAfterDrop);
-    return () => document.removeEventListener("paglora:gallery-block-dropped", closeAfterDrop);
+    document.addEventListener("paglora:component-library-dropped", closeAfterDrop);
+    return () => document.removeEventListener("paglora:component-library-dropped", closeAfterDrop);
   }, [open]);
   const blocks = useMemo(() => BLOCKS.filter(item =>
     (item.title + " " + item.description).toLowerCase().includes(filter.toLowerCase().trim())), [filter]);
@@ -109,7 +104,7 @@ export function BlockComponentGallery({ disabled, onInsert }: {
               <div className="space-y-1 p-2 pt-0">
                 {blocks.map(({ kind, title, icon: Icon }) => (
                   <Button type="button" key={kind} data-gallery-kind={kind} draggable={false}
-                    onPointerDown={event => startPointer(event, kind)}
+                    onPointerDown={event => onBeginDrag(event, kind)}
                     onDragStart={event => event.preventDefault()}
                     style={{ touchAction: "none" }}
                     aria-description="Drag onto the editor, or select and click Insert"
@@ -135,7 +130,7 @@ export function BlockComponentGallery({ disabled, onInsert }: {
               <div className="min-w-0 flex-1"><p className="truncate font-semibold">{item.title}</p><p className="text-xs leading-relaxed text-muted-foreground">{item.description}</p></div>
               <div className="flex items-center gap-2">
                 <button type="button" disabled={disabled} draggable={false}
-                  onPointerDown={event => startPointer(event, selected)}
+                  onPointerDown={event => onBeginDrag(event, selected)}
                   onDragStart={event => event.preventDefault()}
                   style={{ touchAction: "none" }}
                   aria-label={`Drag ${item.title} example into the editor`}

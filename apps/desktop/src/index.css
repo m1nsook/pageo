@@ -330,3 +330,41 @@ button:disabled { cursor: not-allowed; }
      for centering, unrelated to transition keyframes. */
   transition-property: none !important;
 }
+
+
+/* Source-backed Studio composer. Never reuse the public site's globals here.
+   Existing badges/cards/callouts keep their published Markdown and look like
+   documentation components inside the editor, in either Studio theme. */
+.paglora-component-preview { font-size: 15px; line-height: 1.65; color: var(--foreground); overflow-wrap: anywhere; }
+.paglora-component-preview :is(h1,h2,h3,h4) { line-height: 1.25; font-weight: 700; letter-spacing: -.025em; margin: .45em 0 .7em; }
+.paglora-component-preview h1 { font-size: 2rem; }
+.paglora-component-preview h2 { font-size: 1.55rem; }
+.paglora-component-preview h3 { font-size: 1.2rem; }
+.paglora-component-preview p { margin: .55em 0; }
+.paglora-component-preview :is(ul,ol) { padding-left: 1.6rem; margin: .5em 0; }
+.paglora-component-preview ul { list-style: disc; }
+.paglora-component-preview ol { list-style: decimal; }
+.paglora-component-preview blockquote { border-left: 3px solid var(--primary); padding: .4em 1em; background: var(--muted); border-radius: 5px; }
+.paglora-component-preview pre { overflow-x: auto; padding: 12px; color: var(--foreground); background: var(--muted); border-radius: 8px; white-space: pre; }
+.paglora-component-preview code { font-family: var(--font-mono), ui-monospace, monospace; }
+.paglora-component-preview a { color: var(--primary); text-decoration: underline; }
+.paglora-component-preview hr { border: 0; border-top: 1px solid var(--border); margin: 1.3em 0; }
+.paglora-component-preview :is(.paglora-card,.paglora-callout,.paglora-accordion,.paglora-tabs,.paglora-code-group) {
+  border: 1px solid var(--border); border-radius: 8px; padding: 14px; background: var(--card); color: var(--card-foreground);
+}
+.paglora-component-preview :is(.paglora-card-title,.paglora-callout-title,.paglora-steps-title,.paglora-badges-title,.paglora-tabs-title,.paglora-code-group-title) {
+  font-weight: 700; margin-bottom: 8px; color: var(--foreground);
+}
+.paglora-component-preview .paglora-steps { border-left: 3px solid var(--primary); padding: 8px 14px; }
+.paglora-component-preview .paglora-badges-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.paglora-component-preview .paglora-badge {
+  display: inline-flex; align-items: center; border: 1px solid var(--border);
+  border-radius: 9999px; padding: 2px 10px; background: var(--muted); font-size: 12px; font-weight: 600;
+}
+.paglora-component-preview .paglora-badge-success { color: #16a36a; border-color: #16a36a66; }
+.paglora-component-preview .paglora-badge-warning { color: #bd8718; border-color: #bd871866; }
+.paglora-component-preview .paglora-badge-danger { color: #ce4359; border-color: #ce435966; }
+.paglora-component-preview .paglora-badge-info { color: var(--primary); border-color: var(--primary); }
+.paglora-component-preview :is(.paglora-tabs-item,.paglora-code-group-item) { padding: 8px 0; border-top: 1px solid var(--border); }
+.paglora-component-preview :is(.paglora-tabs-label,.paglora-code-group-label) { font-size: 12px; font-weight: 650; color: var(--primary); }
+.paglora-component-preview details { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
