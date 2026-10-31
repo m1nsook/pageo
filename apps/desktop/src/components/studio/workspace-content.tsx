@@ -1,9 +1,10 @@
 import { useMemo, useRef, useState } from "react";
-import type { ProjectSummary } from "@paglora/core";
-import { Archive, ChevronRight, Clock3, Copy, ExternalLink, FolderOpen, LoaderCircle, Plus, Search, ShieldCheck, Trash2 } from "lucide-react";
-import { ArrowRightIcon, BookOpenIcon, SparkleIcon } from "@phosphor-icons/react";
+import type { ProjectSummary, ProjectVisual } from "@paglora/core";
+import { Archive, ChevronRight, Clock3, Copy, ExternalLink, FolderOpen, LoaderCircle, Plus, Search, Settings2, ShieldCheck, Trash2 } from "lucide-react";
+import { BookOpenIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { ProjectTrashPanel } from "@/components/studio/project-trash-panel";
+import { DEFAULT_PROJECT_VISUAL, PROJECT_ACCENTS, ProjectAppearanceDialog, ProjectIcon } from "@/components/studio/project-appearance";
 import type { TrashedProject } from "@/lib/projects";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -43,29 +44,31 @@ function WorkspaceHeader({ section }: { section: string }) {
   );
 }
 
-function ProjectCard({ project, onOpen, onExportBackup, onTrash }: { project: ProjectSummary; onOpen: () => void; onExportBackup: () => void; onTrash: () => void }) {
+function ProjectCard({ project, onOpen, onExportBackup, onTrash, onVisualSave }: { project: ProjectSummary; onOpen: () => void; onExportBackup: () => void; onTrash: () => void; onVisualSave: (visual: ProjectVisual) => Promise<void> }) {
   const { t } = useTranslation();
   const [confirmTrash, setConfirmTrash] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   return (
     <>
     <ContextMenu>
       <ContextMenuTrigger asChild>
-    <Card className="group gap-0 py-0 transition-[background-color,border-color,box-shadow] duration-150 hover:bg-muted/50 hover:ring-primary/45">
+    <Card className="group relative gap-0 py-0 transition-[background-color,border-color,box-shadow] duration-150 hover:bg-muted/50 hover:ring-primary/45">
       <button className="flex h-full min-h-48 flex-col rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
         <CardHeader className="w-full pt-5">
           <div className="flex items-center justify-between">
-            <span className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary"><BookOpenIcon weight="bold" className="size-5" /></span>
-            <ArrowRightIcon weight="bold" className="size-4 text-muted-foreground transition-transform duration-150 group-hover:translate-x-1" />
+            <ProjectIcon visual={project.visual} />
+            <span aria-hidden="true" className="size-5" />
           </div>
         </CardHeader>
         <CardContent className="w-full flex-1 py-3">
           <CardTitle className="truncate" title={project.name}>{project.name}</CardTitle>
-          <CardDescription className="mt-1">Documentation project</CardDescription>
+          <CardDescription className="mt-1 truncate">{project.visual?.category || "Documentation project"}</CardDescription>
         </CardContent>
         <CardFooter className="w-full gap-2 border-t border-border/70 py-3 text-xs text-muted-foreground">
           <Clock3 className="size-3.5" /> Updated {displayDate(project.updatedAt)}
         </CardFooter>
       </button>
+      <Button type="button" variant="ghost" size="icon-sm" className="absolute right-3 top-4 z-10" aria-label={`Customize ${project.name}`} onClick={() => setAppearanceOpen(true)}><Settings2 className="size-4" /></Button>
     </Card>
       </ContextMenuTrigger>
       <ContextMenuContent className="min-w-48">
@@ -79,10 +82,12 @@ function ProjectCard({ project, onOpen, onExportBackup, onTrash }: { project: Pr
             });
           }
         }}><Copy /> Copy project name</ContextMenuItem>
+        <ContextMenuItem onSelect={() => setAppearanceOpen(true)}><Settings2 /> Customize project…</ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onSelect={() => setConfirmTrash(true)}><Trash2 /> Remove project…</ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
+    <ProjectAppearanceDialog project={project} open={appearanceOpen} onOpenChange={setAppearanceOpen} onSave={onVisualSave} />
     <AlertDialog open={confirmTrash} onOpenChange={setConfirmTrash}>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -102,14 +107,30 @@ function ProjectCard({ project, onOpen, onExportBackup, onTrash }: { project: Pr
   );
 }
 
-export function Dashboard({ projects, trashItems, restoringTrashId, onRestoreProject, openCreate, openProject, onExportBackup, onImportBackup, onTrashProject, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
-  projects: ProjectSummary[]; trashItems: TrashedProject[]; restoringTrashId: string | null; onRestoreProject: (trashId: string) => void; openCreate: () => void; openProject: (id: string) => void;
+export function Dashboard({ projects, trashItems, restoringTrashId, onRestoreProject, onUpdateVisual, openCreate, openProject, onExportBackup, onImportBackup, onTrashProject, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
+  projects: ProjectSummary[]; trashItems: TrashedProject[]; restoringTrashId: string | null; onRestoreProject: (trashId: string) => void; onUpdateVisual: (id: string, visual: ProjectVisual) => Promise<void>; openCreate: () => void; openProject: (id: string) => void;
   onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; onTrashProject: (id: string) => void; backupNotice: string; backupPath: string;
   view: WorkspaceView; loading: boolean; search: string; setSearch: (value: string) => void; desktop: boolean; error: string;
 }) {
   const { t } = useTranslation();
   const backupInput = useRef<HTMLInputElement>(null);
-  const visible = useMemo(() => projects.filter(p => p.name.toLowerCase().includes(search.trim().toLowerCase())), [projects, search]);
+  const visible = useMemo(() => projects.filter(p =>
+    (p.name + " " + (p.visual?.category || "")).toLowerCase().includes(search.trim().toLowerCase())), [projects, search]);
+  const groups = useMemo(() => {
+    const byName = new Map<string, ProjectSummary[]>();
+    for (const project of visible) {
+      const category = project.visual?.category?.trim() || "Uncategorized";
+      const key = [...byName.keys()].find(value => value.toLocaleLowerCase() === category.toLocaleLowerCase()) ?? category;
+      const group = byName.get(key) ?? [];
+      group.push(project);
+      byName.set(key, group);
+    }
+    return [...byName.entries()].sort(([a], [b]) => {
+      if (a === "Uncategorized") return 1;
+      if (b === "Uncategorized") return -1;
+      return a.localeCompare(b);
+    });
+  }, [visible]);
   const heading = view === "home" ? "Your projects" : "All projects";
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden">
@@ -158,7 +179,25 @@ export function Dashboard({ projects, trashItems, restoringTrashId, onRestorePro
               {[0, 1, 2].map(n => <Card key={n} className="min-h-48"><CardHeader><Skeleton className="size-10" /></CardHeader><CardContent className="space-y-2"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-3 w-1/2" /></CardContent></Card>)}
             </div>
           ) : visible.length > 0 ? (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(p => <ProjectCard key={p.id} project={p} onOpen={() => openProject(p.id)} onExportBackup={() => onExportBackup(p.id)} onTrash={() => onTrashProject(p.id)} />)}</div>
+            <div className="mt-6 space-y-7">
+              {groups.map(([groupName, items]) => {
+                const accent = PROJECT_ACCENTS[items[0]?.visual?.accent ?? DEFAULT_PROJECT_VISUAL.accent] ?? PROJECT_ACCENTS.blue;
+                return (
+                  <section key={groupName} aria-label={groupName}>
+                    <div className="mb-3 flex items-center gap-2">
+                      <span aria-hidden="true" className={`size-2.5 rounded-full ${accent.dot}`} />
+                      <h3 className="text-sm font-semibold">{groupName}</h3>
+                      <Badge variant="secondary">{items.length}</Badge>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                      {items.map(p => <ProjectCard key={p.id} project={p} onOpen={() => openProject(p.id)}
+                        onExportBackup={() => onExportBackup(p.id)} onTrash={() => onTrashProject(p.id)}
+                        onVisualSave={visual => onUpdateVisual(p.id, visual)} />)}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
           ) : (
             <Empty className="mt-6 min-h-64 border border-dashed border-border bg-card">
               <EmptyHeader>
