@@ -15,7 +15,7 @@ test("Steps insertion persists as ordinary blockquote and ordered list Markdown"
 });
 
 test("Steps enhancement is shared by sanitized Studio preview and static export", () => {
-  assert.match(site, /container\.innerHTML = renderSafeMarkdown\(markdownHtml\);\s*enhanceCallouts\(container\)/);
+  assert.match(site, /container\.innerHTML = renderSafeMarkdown\(markdownHtml\);\s*enhanceCallouts\(container, language\)/);
   assert.match(site, /WARNING\|CAUTION\|CARD\|STEPS/);
   const branch = site.match(/if \(type === "STEPS"\) \{[\s\S]*?continue;\s*\}/)?.[0] ?? "";
   assert.match(branch, /tagName === "OL"/);
