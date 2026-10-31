@@ -2,6 +2,11 @@
 
 Paglora is in early development. Desktop milestone numbers are separate from the public npm CLI package.
 
+## Unreleased — desktop source (after 0.2.0)
+
+### Documentation authoring
+- Added a source-owned `[!STEPS]` Markdown component with an ordered-list timeline, accessible static HTML, RTL-aware styling, and Studio block insertion. It requires no browser script and preserves existing project files.
+
 ## 0.2.0 — desktop development milestone (October 31, 2026)
 
 ### Website publishing and verification

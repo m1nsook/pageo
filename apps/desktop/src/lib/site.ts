@@ -157,7 +157,7 @@ function enhanceCallouts(container: HTMLElement) {
     const marker = first.firstChild;
     if (!marker || marker.nodeType !== Node.TEXT_NODE) continue;
     const text = marker.textContent ?? "";
-    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD)\](?:\s|$)/i.exec(text);
+    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS)\](?:\s|$)/i.exec(text);
     if (!match) continue;
     const type = match[1].toUpperCase();
     if (type === "CARD") {
@@ -172,6 +172,27 @@ function enhanceCallouts(container: HTMLElement) {
       first.remove();
       while (quote.firstChild) card.appendChild(quote.firstChild);
       quote.replaceWith(card);
+      continue;
+    }
+    if (type === "STEPS") {
+      // Keep the ordered list as semantic HTML, so the timeline is readable
+      // with JavaScript disabled and in assistive technologies.
+      const list = Array.from(quote.children).find((child) => child.tagName === "OL");
+      if (!list || !Array.from(list.children).some((child) => child.tagName === "LI")) continue;
+      const titleText = text.slice(match[0].length).trim().slice(0, 160);
+      const steps = document.createElement("section");
+      steps.className = "paglora-steps";
+      steps.setAttribute("aria-label", titleText || "Steps");
+      if (titleText) {
+        const heading = document.createElement("div");
+        heading.className = "paglora-steps-title";
+        heading.textContent = titleText;
+        steps.appendChild(heading);
+      }
+      first.remove();
+      list.classList.add("paglora-steps-list");
+      while (quote.firstChild) steps.appendChild(quote.firstChild);
+      quote.replaceWith(steps);
       continue;
     }
     const callout = document.createElement("aside");
