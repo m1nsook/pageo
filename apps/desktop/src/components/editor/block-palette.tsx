@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createMarkdownBlock, BLOCKS, type BlockKind } from "@/components/editor/block-catalog";
 import { BlockOutline } from "@/components/editor/block-outline";
+import { BlockComponentGallery } from "@/components/editor/block-component-gallery";
 import { cn } from "@/lib/utils";
 
 type Drag = { kind: BlockKind; x: number; y: number; active: boolean };
@@ -82,7 +83,7 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
     <aside aria-label="Document tools" className="flex h-full w-[270px] shrink-0 flex-col border-l border-border bg-card">
       <div className="flex h-14 shrink-0 items-center justify-between px-4">
         <span className="flex items-center gap-2 text-xs font-semibold"><Blocks className="size-4" /> Visual editor</span>
-        <Badge variant="secondary">Markdown</Badge>
+        <BlockComponentGallery disabled={disabled || !editor} onInsert={kind => insert(kind)} />
       </div>
       <Separator />
       <Tabs defaultValue="insert" className="min-h-0 flex-1 gap-0">
