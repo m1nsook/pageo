@@ -14,7 +14,7 @@ function prepare(markdown) {
   const output = join(temp, "rendered.json");
   mkdirSync(join(project, "docs"), { recursive: true });
   writeFileSync(join(project, "paglora.json"), JSON.stringify({
-    formatVersion: 1, id: "badges", name: "Badge Docs", createdAt: 1, updatedAt: 1,
+    formatVersion: 1, id: "project", name: "Badge Docs", createdAt: 1, updatedAt: 1,
   }));
   writeFileSync(join(project, "pages.json"), JSON.stringify({
     formatVersion: 1, pages: [
