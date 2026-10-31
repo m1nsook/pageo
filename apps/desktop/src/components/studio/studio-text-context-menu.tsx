@@ -35,6 +35,8 @@ export function StudioTextContextMenu() {
       const end = target.selectionEnd;
       if (start === null || end === null) return;
       event.preventDefault();
+      // Do not open a parent Radix project/context menu for a text field.
+      event.stopPropagation();
       selected.current = { target, selection: { start, end } };
       setHasSelection(end > start);
       setEditable(canModify(target));
