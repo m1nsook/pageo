@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { MonacoCodeEditor } from "@/components/editor/monaco-code-editor";
 import { loadThemeCss, saveThemeCss, listThemeStyles, loadThemeStyle, saveThemeStyle, createThemeStyle, reorderThemeStyles } from "@/lib/source";
 import { Input } from "@/components/ui/input";
-import { loadPage, savePage, type Page } from "@/lib/pages";
+import { listPages, loadPage, savePage, type Page } from "@/lib/pages";
+import { StructuredMetadataEditor } from "@/components/editor/structured-metadata-editor";
 import { loadSiteSettings, previewPublicPage } from "@/lib/site";
 
 type SourceFile = `theme/${string}.css` | "pages.json" | "site.json" | `docs/${string}.md`;
@@ -21,13 +22,14 @@ function errorMessage(cause: unknown): string {
  * This is NOT an arbitrary filesystem explorer or an executable code editor.
  */
 export function ThemeSourceEditor({
-  projectId, currentPageId, pages, onBeforePreview, onPageSourceSaved,
+  projectId, currentPageId, pages, onBeforePreview, onPageSourceSaved, onPageMetadataSaved,
 }: {
   projectId: string;
   currentPageId: string;
   pages: Page[];
   onBeforePreview: () => Promise<void>;
   onPageSourceSaved: (pageId: string, content: string) => void;
+  onPageMetadataSaved: (page: Page) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<SourceFile>("theme/custom.css");
@@ -57,6 +59,8 @@ export function ThemeSourceEditor({
   beforePreviewRef.current = onBeforePreview;
   const pageSavedRef = useRef(onPageSourceSaved);
   pageSavedRef.current = onPageSourceSaved;
+  const pageMetadataSavedRef = useRef(onPageMetadataSaved);
+  pageMetadataSavedRef.current = onPageMetadataSaved;
   const dirty = value !== savedValue;
   const readOnly = file === "pages.json" || file === "site.json";
   const pageId = file.startsWith("docs/") ? file.slice(5, -3) : "";
@@ -105,11 +109,11 @@ export function ThemeSourceEditor({
       let content: string;
       if (next === "theme/custom.css") content = await loadThemeCss(projectId);
       else if (next.startsWith("theme/") && next.endsWith(".css")) content = await loadThemeStyle(projectId,next.slice(6));
-      else if (next === "pages.json") content = JSON.stringify({ formatVersion: 1, pages }, null, 2) + "\n";
+      else if (next === "pages.json") content = JSON.stringify({ formatVersion: 1, pages: await listPages(projectId) }, null, 2) + "\n";
       else if (next === "site.json") content = JSON.stringify(await loadSiteSettings(projectId), null, 2) + "\n";
       else {
         const id = next.slice(5, -3);
-        if (!pages.some(page => page.id === id)) throw new Error("Page is no longer listed in this project.");
+        if (!(await listPages(projectId)).some(page => page.id === id)) throw new Error("Page is no longer listed in this project.");
         content = (await loadPage(projectId, id)).markdown;
       }
       if (operation.current !== version) return;
@@ -120,7 +124,7 @@ export function ThemeSourceEditor({
     } finally {
       if (operation.current === version) setLoading(false);
     }
-  }, [projectId, pages]);
+  }, [projectId]);
 
   useEffect(() => {
     if (!open) return;
@@ -185,6 +189,20 @@ export function ThemeSourceEditor({
     finally { setSaving(false); }
   }, [saving, loading, readOnly, dirty, file, pages, pageId, projectId, value, refresh]);
 
+
+  async function reloadMetadata() {
+    const version=++operation.current;
+    await loadSelected(file,version);
+    await refresh();
+    setMessage("Structured metadata saved with native schema validation.");
+  }
+  async function saveStructuredPage(updated: Page) {
+    pageMetadataSavedRef.current(updated);
+    await reloadMetadata();
+  }
+  async function saveStructuredSite() {
+    await reloadMetadata();
+  }
 
   async function addStyle() {
     const input=newStyle.trim();
@@ -303,8 +321,11 @@ export function ThemeSourceEditor({
                     onSave={() => void save()} />
                 </div>
             }
+            {readOnly && !loading && <StructuredMetadataEditor key={`${projectId}-${file}`}
+              file={file} projectId={projectId} pages={pages} onBeforeSave={onBeforePreview}
+              onPageSaved={saveStructuredPage} onSiteSaved={saveStructuredSite} />}
             <div className="shrink-0 border-t border-border p-3 text-xs text-muted-foreground">
-              {readOnly ? "Generated metadata view · Use Paglora settings to change structured fields" : "Local project source · Ctrl+S to save · No external filesystem access"}
+              {readOnly ? "JSON remains read-only · Use the validated form below to edit selected metadata" : "Local project source · Ctrl+S to save · No external filesystem access"}
             </div>
           </div>
           <div className="flex min-h-40 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-muted/30">

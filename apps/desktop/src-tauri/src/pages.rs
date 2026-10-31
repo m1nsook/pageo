@@ -364,6 +364,31 @@ pub fn reorder_pages(app: AppHandle, project_id: String, ids: Vec<String>) -> Re
     touch(&dir)?;
     Ok(reordered)
 }
+/// A single validated page-metadata transaction. Do not expose direct JSON
+/// editing: page IDs and layout/privacy invariants stay owned by Rust.
+fn update_page_metadata_at(dir: &Path, page_id: &str, new_title: &str, layout: &str, group: &str, is_public: bool) -> Result<Page,String> {
+    let new_title=title(new_title)?;
+    if !valid_layout(layout){return Err("Unsupported page layout".into());}
+    if !valid_navigation_group(group){return Err("Navigation group must be 1–60 characters".into());}
+    if page_id==HOME && !is_public{return Err("Overview must remain public".into());}
+    let mut manifest=read_pages(dir)?;
+    let page=manifest.pages.iter_mut().find(|item|item.id==page_id).ok_or("Page not found")?;
+    page.title=new_title;
+    page.layout=layout.to_owned();
+    page.nav_group=group.to_owned();
+    page.is_public=is_public;
+    let updated=page.clone();
+    save_pages(dir,&manifest)?;
+    Ok(updated)
+}
+#[tauri::command]
+pub fn update_page_metadata(app: AppHandle,project_id:String,page_id:String,title:String,layout:String,nav_group:String,is_public:bool)->Result<Page,String>{
+    let dir=folder(&app,&project_id)?;
+    let page=update_page_metadata_at(&dir,&page_id,&title,&layout,&nav_group,is_public)?;
+    touch(&dir)?;
+    Ok(page)
+}
+
 #[tauri::command]
 pub fn set_page_visibility(app: AppHandle, project_id: String, page_id: String, is_public: bool) -> Result<Page, String> {
     let dir = folder(&app, &project_id)?;
@@ -468,6 +493,32 @@ mod tests {
         let page: Page = serde_json::from_str(r#"{"id":"index","title":"Overview","isPublic":true,"layout":"docs"}"#).unwrap();
         assert_eq!(page.layout, "docs");
         assert!(serde_json::from_str::<Page>(r#"{"id":"index","title":"Overview"}"#).is_err());
+    }
+
+    #[test]
+    fn structured_metadata_updates_are_atomic_and_keep_page_privacy_guards(){
+        let nonce=SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let dir=std::env::temp_dir().join(format!("paglora-structured-page-{}-{nonce}",std::process::id()));
+        fs::create_dir_all(dir.join("docs")).unwrap();
+        initialize_pages(&dir).unwrap();
+        let mut manifest=read_pages(&dir).unwrap();
+        manifest.pages.push(Page{id:"guide".into(),title:"Guide".into(),is_public:false,layout:"docs".into(),nav_group:"Docs".into()});
+        save_pages(&dir,&manifest).unwrap();
+        assert!(update_page_metadata_at(&dir,"index","Overview","docs","Public",false).is_err());
+        assert!(update_page_metadata_at(&dir,"guide","Changed","../../bad","Docs",true).is_err());
+        assert!(update_page_metadata_at(&dir,"guide","Changed","wide"," Bad",true).is_err());
+        assert_eq!(read_pages(&dir).unwrap().pages[1].title,"Guide");
+        assert!(!read_pages(&dir).unwrap().pages[1].is_public);
+        let updated=update_page_metadata_at(&dir,"guide","Updated Guide","wide","Reference",true).unwrap();
+        assert_eq!(updated.id,"guide");
+        assert!(updated.is_public);
+        assert_eq!(updated.layout,"wide");
+        assert_eq!(updated.nav_group,"Reference");
+        assert_eq!(read_pages(&dir).unwrap().pages[1].title,"Updated Guide");
+        let home=update_page_metadata_at(&dir,"index","Welcome","landing","Start",true).unwrap();
+        assert!(home.is_public);
+        assert_eq!(read_pages(&dir).unwrap().pages[0].id,"index");
+        fs::remove_dir_all(dir).unwrap();
     }
     #[test]
     fn navigation_group_defaults_and_validation() {

@@ -86,7 +86,7 @@ function CreateProjectDialog({ open, onOpenChange, onCreate, disabled }: {
   );
 }
 
-function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange, onModify, findOpen, onFindOpenChange, findShortcut }: { document: ProjectDocument; current: PageDocument; pages: Page[]; onBack: () => void; onSaved: (project: ProjectSummary) => void; onChange: (id: string) => Promise<void>; onModify: (action: PageAction, id?: string, target?: string) => Promise<void>; findOpen: boolean; onFindOpenChange: (open: boolean) => void; findShortcut: string }) {
+function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange, onModify, onPageMetadataSaved, findOpen, onFindOpenChange, findShortcut }: { document: ProjectDocument; current: PageDocument; pages: Page[]; onBack: () => void; onSaved: (project: ProjectSummary) => void; onChange: (id: string) => Promise<void>; onModify: (action: PageAction, id?: string, target?: string) => Promise<void>; onPageMetadataSaved: (page: Page) => void; findOpen: boolean; onFindOpenChange: (open: boolean) => void; findShortcut: string }) {
   const { t } = useTranslation();
   const latest = useRef(current.markdown);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -294,7 +294,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
             onBeforeCleanup={persist}
             onInsertImage={(src, alt) => Boolean(editor?.chain().focus().insertContent({ type: "pagloraImage", attrs: { src, alt } }).run())} />
           <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"}
-            pages={pages} onBeforePreview={persist} onPageSourceSaved={(pageId, markdown) => {
+            pages={pages} onBeforePreview={persist} onPageMetadataSaved={onPageMetadataSaved} onPageSourceSaved={(pageId, markdown) => {
               if (pageId === current.page.id && editor) {
                 // An explicit Monaco save is authoritative. Suppress Tiptap's
                 // onUpdate so its old debounced autosave cannot overwrite it.
@@ -396,7 +396,12 @@ function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; o
   };
   return <>{failure && <div role="alert" className="fixed bottom-4 right-4 z-50 rounded-lg bg-red-50 p-3 text-red-600">{failure}</div>}
     <SinglePageEditor key={current.page.id} document={document} current={current} pages={pages}
-      onBack={props.onBack} onSaved={props.onSaved} onChange={change} onModify={modify} findOpen={props.findOpen} onFindOpenChange={props.onFindOpenChange} findShortcut={props.findShortcut}/></>;
+      onBack={props.onBack} onSaved={props.onSaved} onChange={change} onModify={modify}
+      onPageMetadataSaved={updated => {
+        setPages(previous => previous.map(page => page.id === updated.id ? updated : page));
+        setCurrent(previous => previous.page.id === updated.id ? { ...previous, page: updated } : previous);
+      }}
+      findOpen={props.findOpen} onFindOpenChange={props.onFindOpenChange} findShortcut={props.findShortcut}/></>;
 }
 
 export default function App() {

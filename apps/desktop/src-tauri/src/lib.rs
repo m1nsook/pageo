@@ -35,6 +35,7 @@ pub fn run() {
             pages::rename_page, pages::duplicate_page, pages::delete_page,
             pages::reorder_pages, pages::save_page, pages::set_page_visibility,
             pages::set_page_layout, pages::set_page_navigation_group,
+            pages::update_page_metadata,
             sites::load_site_settings, sites::save_site_settings, sites::build_site,
             sites::preview_site_page, sites::import_site_asset,
             sites::list_site_assets, sites::preview_site_asset,

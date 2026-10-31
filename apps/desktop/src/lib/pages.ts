@@ -30,3 +30,11 @@ export const setPageVisibility = (projectId: string, pageId: string, isPublic: b
 export const setPageLayout = (projectId: string, pageId: string, layout: Page["layout"]) => invoke<Page>("set_page_layout", { projectId, pageId, layout });
 
 export const setPageNavigationGroup = (projectId: string, pageId: string, group: string) => invoke<Page>("set_page_navigation_group", { projectId, pageId, group });
+
+/** Atomic native metadata update: existing ID preserved; Rust validates title,
+ * public-home restriction, navigation group and page layout together. */
+export const updatePageMetadata = (projectId: string, page: Page) =>
+  invoke<Page>("update_page_metadata", {
+    projectId, pageId: page.id, title: page.title,
+    isPublic: page.isPublic, layout: page.layout, navGroup: page.navGroup,
+  });

@@ -6,7 +6,7 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), "utf8"
 test("Monaco source tree uses only pages from project manifest", () => {
   const workspace = read("src/components/editor/theme-source-editor.tsx");
   assert.match(workspace, /pages\.map\(page => \(\{ path: safeFile\(page\.id\)/);
-  assert.match(workspace, /pages\.some\(page => page\.id === id\)/);
+  assert.match(workspace, /listPages\(projectId\)/);
   assert.match(workspace, /loadPage\(projectId, id\)/);
   assert.match(workspace, /loadThemeCss\(projectId\)/);
   assert.match(workspace, /listThemeStyles\(projectId\)/);
