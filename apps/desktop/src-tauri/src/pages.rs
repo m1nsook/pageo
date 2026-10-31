@@ -111,6 +111,64 @@ fn touch(folder: &Path) -> Result<serde_json::Value, String> {
     Ok(config)
 }
 
+/// Local-only finder. Unlike published search indexes, this may include private
+/// pages because its results never leave the desktop's Tauri command boundary.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PageSearchHit {
+    id: String,
+    title: String,
+    nav_group: String,
+    excerpt: String,
+    is_public: bool,
+}
+
+fn search_pages_at(dir: &Path, raw_query: &str) -> Result<Vec<PageSearchHit>, String> {
+    let query = raw_query.trim();
+    if query.chars().count() < 2 || query.chars().count() > 80 || query.chars().any(char::is_control) {
+        return Err("Search requires 2–80 printable characters.".into());
+    }
+    let needle = query.to_lowercase();
+    let manifest = read_pages(dir)?;
+    let mut ranked = Vec::new();
+    let mut scanned_bytes: u64 = 0;
+    for page in manifest.pages {
+        let title_hit = page.title.to_lowercase().contains(&needle);
+        let group_hit = page.nav_group.to_lowercase().contains(&needle);
+        let path = document(dir, &page.id)?;
+        let mut match_line: Option<String> = None;
+        // Only regular project-owned Markdown, never symlinks, and never
+        // arbitrary files referenced in a user-authored Markdown document.
+        if let Ok(meta) = fs::symlink_metadata(&path) {
+            if meta.file_type().is_file() && meta.len() <= 5_000_000 && scanned_bytes.saturating_add(meta.len()) <= 20_000_000 {
+                scanned_bytes += meta.len();
+                if let Ok(markdown) = fs::read_to_string(&path) {
+                    match_line = markdown.lines()
+                        .find(|line| line.to_lowercase().contains(&needle))
+                        .map(|line| {
+                            let clean = line.trim().trim_start_matches(|c: char| "#>`*- ".contains(c));
+                            clean.chars().take(180).collect::<String>()
+                        });
+                }
+            }
+        }
+        if !title_hit && !group_hit && match_line.is_none() { continue; }
+        let excerpt = match_line.unwrap_or_else(|| format!("{} · docs/{}.md", page.nav_group, page.id));
+        let rank = if title_hit { 0 } else if group_hit { 1 } else { 2 };
+        ranked.push((rank, PageSearchHit {
+            id: page.id, title: page.title, nav_group: page.nav_group,
+            excerpt, is_public: page.is_public,
+        }));
+    }
+    ranked.sort_by(|a,b| a.0.cmp(&b.0).then_with(|| a.1.title.cmp(&b.1.title)));
+    Ok(ranked.into_iter().take(40).map(|(_, hit)| hit).collect())
+}
+
+#[tauri::command]
+pub fn search_project_pages(app: AppHandle, project_id: String, query: String) -> Result<Vec<PageSearchHit>, String> {
+    search_pages_at(&folder(&app, &project_id)?, &query)
+}
+
 #[tauri::command]
 pub fn list_pages(app: AppHandle, project_id: String) -> Result<Vec<Page>, String> {
     Ok(read_pages(&folder(&app, &project_id)?)?.pages)
@@ -260,6 +318,28 @@ pub fn set_page_navigation_group(app: AppHandle, project_id: String, page_id: St
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn full_text_search_matches_private_local_markdown_without_exposing_filesystem_paths() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let temp = std::env::temp_dir().join(format!("paglora-local-search-{}-{nonce}", std::process::id()));
+        fs::create_dir_all(temp.join("docs")).unwrap();
+        initialize_pages(&temp).unwrap();
+        fs::write(temp.join("docs/index.md"), "# Public overview").unwrap();
+        let mut manifest = read_pages(&temp).unwrap();
+        manifest.pages.push(Page { id: "secret".into(), title: "Private notes".into(),
+            is_public: false, layout: "docs".into(), nav_group: "Internal".into() });
+        save_pages(&temp, &manifest).unwrap();
+        fs::write(temp.join("docs/secret.md"), "Confidential notes about comet velocity.").unwrap();
+        let results = search_pages_at(&temp, "comet").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "secret");
+        assert!(!results[0].is_public);
+        assert!(results[0].excerpt.contains("comet"));
+        assert!(search_pages_at(&temp, "c").is_err());
+        assert!(search_pages_at(&temp, &"x".repeat(81)).is_err());
+        fs::remove_dir_all(temp).unwrap();
+    }
+
     #[test]
     fn page_manifest_requires_layout_and_visibility() {
         let page: Page = serde_json::from_str(r#"{"id":"index","title":"Overview","isPublic":true,"layout":"docs"}"#).unwrap();
