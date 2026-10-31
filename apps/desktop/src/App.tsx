@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import type { ProjectDocument, ProjectSummary } from "@paglora/core";
+import type { ProjectDocument, ProjectSummary, ProjectVisual } from "@paglora/core";
 import { validateProjectName } from "@paglora/core";
 import { useTranslation } from "@/i18n";
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -38,7 +38,7 @@ import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { StudioUpdateDialog, useStudioUpdater } from "@/components/studio/studio-updater";
 import { StudioReleaseDialog, LAST_STUDIO_VERSION_KEY } from "@/components/studio/studio-release-dialog";
 import { STUDIO_VERSION } from "@/lib/release-notes";
-import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, listTrashedProjects, loadProject, migrateProjectStorage, projectsDirectory, restoreTrashedProject, trashProject, type TrashedProject } from "@/lib/projects";
+import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, listTrashedProjects, loadProject, migrateProjectStorage, projectsDirectory, restoreTrashedProject, trashProject, updateProjectVisual, type TrashedProject } from "@/lib/projects";
 import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, setPageLayout, setPageNavigationGroup, type Page, type PageDocument } from "@/lib/pages";
 
 function friendlyError(error: unknown) { return error instanceof Error ? error.message : String(error); }
@@ -546,6 +546,18 @@ export default function App() {
       setRestoringTrashId(null);
     }
   }
+  async function customizeProject(id: string, visual: ProjectVisual) {
+    try {
+      const updated = await updateProjectVisual(id, visual);
+      setProjects(previous => previous.map(project => project.id === id ? updated : project));
+      toast.success("Project appearance saved", { description: "Your category, accent and icon are included in project backups." });
+    } catch (cause) {
+      const message = friendlyError(cause);
+      toast.error("Couldn't update project appearance", { description: message });
+      throw cause;
+    }
+  }
+
   async function moveStorage(destination: string) {
     if (storageMigrating || active) return;
     setStorageMigrating(true);
@@ -575,7 +587,7 @@ export default function App() {
     <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} trashItems={trashItems} restoringTrashId={restoringTrashId} onRestoreProject={(trashId) => void restoreProject(trashId)} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} trashItems={trashItems} restoringTrashId={restoringTrashId} onRestoreProject={(trashId) => void restoreProject(trashId)} onUpdateVisual={customizeProject} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
       </SidebarInset>
       {!active && <StudioQuickFind open={findOpen} onOpenChange={setFindOpen} shortcut={shortcutLabel(shortcuts.find)}
         entries={projects.map(project => ({ id: project.id, title: project.name, description: "Local documentation project", kind: "project" as const }))}
