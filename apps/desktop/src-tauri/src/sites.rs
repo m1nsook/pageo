@@ -499,7 +499,7 @@ fn valid_id(id: &str) -> bool {
 
 fn project_folder(app: &AppHandle, project_id: &str) -> Result<(PathBuf, String), String> {
     if !valid_id(project_id) { return Err("Invalid project identifier".into()); }
-    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("projects").join(project_id);
+    let dir = crate::storage::projects_root(app)?.join(project_id);
     let data: serde_json::Value = serde_json::from_str(
         &fs::read_to_string(dir.join("paglora.json")).map_err(|e| e.to_string())?
     ).map_err(|e| e.to_string())?;
