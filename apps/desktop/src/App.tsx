@@ -26,11 +26,14 @@ import { preservePagloraMarkers } from "@/lib/markdown-markers";
 import { PageInspector } from "@/components/editor/page-inspector";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { StudioQuickFind } from "@/components/studio/studio-quick-find";
+import { StudioSurfaceMenu } from "@/components/studio/studio-surface-menu";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { StudioUpdateDialog, useStudioUpdater } from "@/components/studio/studio-updater";
 import { StudioReleaseDialog, LAST_STUDIO_VERSION_KEY } from "@/components/studio/studio-release-dialog";
 import { STUDIO_VERSION } from "@/lib/release-notes";
-import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, loadProject, projectsDirectory } from "@/lib/projects";
+import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, loadProject, projectsDirectory, trashProject } from "@/lib/projects";
 import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, setPageLayout, setPageNavigationGroup, type Page, type PageDocument } from "@/lib/pages";
 
 function friendlyError(error: unknown) { return error instanceof Error ? error.message : String(error); }
@@ -413,6 +416,7 @@ export default function App() {
     const doc = await createProject(name);
     setProjects((prev) => [doc.project, ...prev]);
     setActive(doc);
+    toast.success("Project created", { description: name.trim() });
   }
   async function open(id: string) {
     try { setError(""); setActive(await loadProject(id)); }
@@ -424,6 +428,7 @@ export default function App() {
       const path = await exportProjectBackup(id);
       setBackupPath(path);
       setBackupNotice(t("studio.backup.saved", { path }));
+      toast.success("Project backup saved", { description: "A portable backup is ready in your local backups folder." });
     } catch (cause) { setError(friendlyError(cause)); }
   }
   async function importBackup(file: File) {
@@ -436,7 +441,25 @@ export default function App() {
       const id = await importProjectBackup(archive);
       await refresh();
       setBackupNotice(t("studio.backup.imported", { id }));
+      toast.success("Project imported", { description: "The project is now available in your workspace." });
     } catch (cause) { setError(friendlyError(cause)); }
+  }
+  async function removeProject(id: string) {
+    try {
+      setError("");
+      const moved = await trashProject(id);
+      setProjects(previous => previous.filter(project => project.id !== id));
+      toast.success("Project moved to trash", {
+        description: "Files are preserved in Paglora's local trash folder.",
+        action: { label: "Copy path", onClick: () => {
+          if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(moved);
+        } },
+      });
+    } catch (cause) {
+      const message = friendlyError(cause);
+      setError(message);
+      toast.error("Could not remove project", { description: message });
+    }
   }
   const onSaved = useCallback((updated: ProjectSummary) => {
     setProjects((previous) => previous.map((p) => p.id === updated.id ? updated : p));
@@ -447,11 +470,16 @@ export default function App() {
     <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} backupNotice={backupNotice} backupPath={backupPath}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
       </SidebarInset>
       {!active && <StudioQuickFind open={findOpen} onOpenChange={setFindOpen}
         entries={projects.map(project => ({ id: project.id, title: project.name, description: "Local documentation project", kind: "project" as const }))}
         onSelect={id => { void open(id); }} />}
+      <StudioSurfaceMenu editing={Boolean(active)}
+        onFind={() => setFindOpen(true)}
+        onHome={() => navigate("home")}
+        onSettings={() => navigate("settings")} />
+      <Toaster position="top-center" richColors closeButton visibleToasts={3} duration={5000} />
       <CreateProjectDialog open={creating} onOpenChange={setCreating} onCreate={create} disabled={!desktop}/>
       <StudioUpdateDialog updater={updater}/>
       <StudioReleaseDialog open={releaseNotesOpen} onClose={closeReleaseNotes}/>
