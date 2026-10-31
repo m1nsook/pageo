@@ -1,7 +1,6 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { Editor } from "@tiptap/core";
 import { Blocks, GripVertical, Info } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
