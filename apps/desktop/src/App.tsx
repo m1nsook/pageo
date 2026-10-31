@@ -168,9 +168,12 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     const frame = requestAnimationFrame(() => {
       if (editor.isDestroyed) return;
       editor.setEditable(true);
-      // Do not steal focus if a dialog/text field became active meanwhile.
-      if (editor.view.dom.isConnected && !editor.view.dom.contains(document.activeElement) &&
-          (!document.activeElement || document.activeElement === document.body)) {
+      // Selecting Edit should put the typing caret into the real Tiptap
+      // document, not leave focus on the view-switching button. Never steal
+      // focus from a dialog or another active text input.
+      const active = document.activeElement;
+      if (editor.view.dom.isConnected && !(active instanceof Element &&
+          active.closest('[data-slot="dialog-content"], [data-paglora-source-editor], input, textarea'))) {
         editor.commands.focus();
       }
     });
