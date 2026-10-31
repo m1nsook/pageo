@@ -5,10 +5,10 @@ import { test } from "node:test";
 const root = new URL("../", import.meta.url);
 const read = path => readFileSync(new URL(path, root), "utf8");
 
-test("Ctrl+F opens the Studio finder and respects Monaco", () => {
+test("Studio finder uses configurable shortcut dispatch and respects Monaco", () => {
   const app = read("src/App.tsx");
-  assert.match(app, /key\.toLowerCase\(\) !== "f"/);
-  assert.match(app, /closest\("\[data-paglora-source-editor\]"\)/);
+  assert.match(app, /commandForEvent\(event, shortcuts\)/);
+  assert.match(app, /\[data-paglora-source-editor\]/);
   assert.match(app, /<StudioQuickFind open=\{findOpen\}/);
   const finder = read("src/components/studio/studio-quick-find.tsx");
   assert.match(finder, /<CommandDialog/);
