@@ -37,7 +37,7 @@ The version is synchronized across the workspace, Windows Tauri app, and Rust pa
 - **Documentation navigation:** grouped/collapsible sidebars, public-page-only links, and active table-of-contents headings.
 - **Offline MiniSearch:** Ctrl+K / Cmd+K opens an accessible search dialog backed by a bundled MiniSearch index, with prefix matching, typo-tolerant fallback, and Korean/Japanese/Chinese substring support. `search-index.json` contains **only public pages**.
 - **Appearance:** Light / Dark / System switching with a remembered browser preference where storage is available.
-- **Content features:** callouts (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`), responsive cards, guided steps, keyboard-accessible code groups, code-block Copy buttons, Unicode heading permalinks, task lists, collapsible disclosures, and Markdown tables.
+- **Content features:** callouts (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`), responsive cards, guided steps, accessible content tabs, keyboard-accessible code groups, code-block Copy buttons, Unicode heading permalinks, task lists, collapsible disclosures, and Markdown tables.
 - **Local images:** import PNG, JPEG, WebP, and GIF files into a project; only images referenced by public pages or the site logo are copied into the static export.
 - **Multilingual foundations:** choose among 18 built-in document languages plus any newly synchronized and reviewed community language packs. Right-to-left direction can come from package metadata (Arabic remains RTL by default). This does not automatically translate content.
 - **SEO for static hosts:** optional HTTPS site root produces per-page canonical URLs and a public-page-only `sitemap.xml`, with page-specific descriptions and social metadata.
@@ -58,6 +58,24 @@ Use the **Steps** block in Studio's Insert palette, or write standard Markdown w
 
 The marker only enhances blockquotes containing a real ordered list; other blockquotes remain unchanged. The source stays editable Markdown with no proprietary component schema.
 
+
+### Content tabs in Markdown
+
+Use **Tabs** from Studio's Insert palette, or nest `[!TAB]` blockquotes inside a `[!TABS]` blockquote. Each tab accepts normal Markdown, including links, lists and fenced code:
+
+```md
+> [!TABS] Choose a platform
+>
+> > [!TAB] Windows
+> >
+> > Download the Windows installer.
+>
+> > [!TAB] macOS
+> >
+> > Install using your preferred package manager.
+```
+
+Studio preview (where scripts are disabled) and visitors without JavaScript see **all labeled panels** in order. Exported sites add accessible tabs with arrow keys, Home/End, RTL support and visible focus. Only groups containing 2–8 nonempty nested panels are enhanced; malformed groups stay ordinary Markdown. All content remains in project-owned Markdown.
 
 ### Code groups in Markdown
 

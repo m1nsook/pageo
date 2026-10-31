@@ -5,6 +5,7 @@ Paglora is in early development. Desktop milestone numbers are separate from the
 ## Unreleased — desktop source (after 0.2.0)
 
 ### Documentation authoring
+- Added nested Markdown `[!TABS]` / `[!TAB]` content panels with Studio insertion, safe preview/export parity, script-free readable fallback, and keyboard-accessible published tabs (including RTL navigation).
 - Added Markdown `[!CODEGROUP]` fenced-code examples with Studio insertion, safe language labels, script-free stacked fallback, and progressively enhanced accessible tabs in published sites. No new project schema.
 - Added a source-owned `[!STEPS]` Markdown component with an ordered-list timeline, accessible static HTML, RTL-aware styling, and Studio block insertion. It requires no browser script and preserves existing project files.
 

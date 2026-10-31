@@ -172,6 +172,61 @@
     group.classList.add("paglora-code-group-enhanced");
   }
 
+  // General content tabs share the script-free, stacked-panel fallback of
+  // code groups. Never hide a panel until all controls are ready.
+  let contentTabsIndex = 0;
+  for (const group of document.querySelectorAll?.(".docs .paglora-tabs") ?? []) {
+    const panels = Array.from(group.querySelectorAll(".paglora-tabs-item"));
+    const container = group.querySelector(".paglora-tabs-panels");
+    if (panels.length < 2 || !container) continue;
+    const groupId = contentTabsIndex++;
+    const tablist = document.createElement("div");
+    tablist.className = "paglora-tabs-tablist";
+    tablist.setAttribute("role", "tablist");
+    tablist.setAttribute("aria-label", group.getAttribute("aria-label") || "Content tabs");
+    const tabs = panels.map((panel, index) => {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.className = "paglora-tabs-tab";
+      tab.textContent = panel.querySelector(".paglora-tabs-label")?.textContent || "Tab " + (index + 1);
+      const tabId = "paglora-content-tab-" + groupId + "-" + index;
+      const panelId = "paglora-content-panel-" + groupId + "-" + index;
+      tab.id = tabId;
+      panel.id = panelId;
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-controls", panelId);
+      panel.setAttribute("role", "tabpanel");
+      panel.setAttribute("aria-labelledby", tabId);
+      panel.tabIndex = 0;
+      tab.addEventListener("click", () => activate(index));
+      tab.addEventListener("keydown", event => {
+        const direction = root.dir === "rtl" ? -1 : 1;
+        let next = index;
+        if (event.key === "ArrowRight") next = (index + direction + tabs.length) % tabs.length;
+        else if (event.key === "ArrowLeft") next = (index - direction + tabs.length) % tabs.length;
+        else if (event.key === "Home") next = 0;
+        else if (event.key === "End") next = tabs.length - 1;
+        else return;
+        event.preventDefault();
+        activate(next, true);
+      });
+      tablist.appendChild(tab);
+      return tab;
+    });
+    function activate(selected, focus = false) {
+      tabs.forEach((tab, index) => {
+        const active = index === selected;
+        tab.setAttribute("aria-selected", String(active));
+        tab.tabIndex = active ? 0 : -1;
+        panels[index].hidden = !active;
+      });
+      if (focus) tabs[selected].focus();
+    }
+    container.before(tablist);
+    activate(0);
+    group.classList.add("paglora-tabs-enhanced");
+  }
+
   // Expose sharable heading anchors without changing project Markdown.
   for (const heading of document.querySelectorAll?.(".docs h2[id], .docs h3[id], .docs h4[id]") ?? []) {
     const id = heading.getAttribute("id");

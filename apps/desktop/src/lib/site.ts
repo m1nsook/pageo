@@ -170,7 +170,7 @@ function enhanceCallouts(container: HTMLElement, language: string) {
     const marker = first.firstChild;
     if (!marker || marker.nodeType !== Node.TEXT_NODE) continue;
     const text = marker.textContent ?? "";
-    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|CODEGROUP)\](?:\s|$)/i.exec(text);
+    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|TABS|CODEGROUP)\](?:\s|$)/i.exec(text);
     if (!match) continue;
     const type = match[1].toUpperCase();
     if (type === "CARD") {
@@ -209,6 +209,50 @@ function enhanceCallouts(container: HTMLElement, language: string) {
       list.classList.add("paglora-steps-list");
       while (quote.firstChild) steps.appendChild(quote.firstChild);
       quote.replaceWith(steps);
+      continue;
+    }
+
+
+    if (type === "TABS") {
+      // Nested Markdown blockquotes make each tab an editable, source-owned
+      // container. Reject malformed structures rather than guessing which
+      // content belongs to a panel or interpreting unsanitized attributes.
+      const sources = Array.from(quote.children).slice(1);
+      if (sources.length < 2 || sources.length > 8) continue;
+      const names = sources.map((source) => {
+        if (source.tagName !== "BLOCKQUOTE" || source.children.length < 2) return null;
+        const marker = source.firstElementChild;
+        if (marker?.tagName !== "P" || marker.childNodes.length !== 1 ||
+            marker.firstChild?.nodeType !== Node.TEXT_NODE) return null;
+        const tab = /^\s*\[!TAB\]\s+([^\r\n]{1,60})\s*$/i.exec(marker.textContent ?? "");
+        return tab?.[1].trim() || null;
+      });
+      if (names.some((name) => !name)) continue;
+      const titleText = text.slice(match[0].length).trim().slice(0, 160);
+      const group = document.createElement("section");
+      group.className = "paglora-tabs";
+      group.setAttribute("aria-label", titleText || "Content tabs");
+      if (titleText) {
+        const heading = document.createElement("div");
+        heading.className = "paglora-tabs-title";
+        heading.textContent = titleText;
+        group.appendChild(heading);
+      }
+      const panels = document.createElement("div");
+      panels.className = "paglora-tabs-panels";
+      sources.forEach((source, index) => {
+        source.firstElementChild?.remove();
+        const panel = document.createElement("div");
+        panel.className = "paglora-tabs-item";
+        const caption = document.createElement("div");
+        caption.className = "paglora-tabs-label";
+        caption.textContent = names[index]!;
+        panel.appendChild(caption);
+        while (source.firstChild) panel.appendChild(source.firstChild);
+        panels.appendChild(panel);
+      });
+      group.appendChild(panels);
+      quote.replaceWith(group);
       continue;
     }
 
