@@ -2335,6 +2335,44 @@ mod website_font_tests {
     }
 
     #[test]
+    fn real_disk_export_includes_chunks_pages_favicon_and_no_private_content() {
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("paglora-export-chunks-{unique}"));
+        let project = root.join("project");
+        fs::create_dir_all(project.join("assets")).unwrap();
+        fs::write(project.join("pages.json"),
+            r#"{"formatVersion":1,"pages":[{"id":"index","title":"Overview","isPublic":true,"layout":"docs","navGroup":"Docs"},{"id":"draft","title":"Secret","isPublic":false,"layout":"docs","navGroup":"Internal"}]}"#).unwrap();
+        fs::write(project.join("assets/favicon.png"), b"\x89PNG\r\n\x1a\nlocal-icon").unwrap();
+        let mut settings = default_settings("Docs");
+        settings.favicon_url = "assets/favicon.png".into();
+        write_settings(&project, &settings).unwrap();
+        let rendered = vec![RenderedPage {
+            id: "index".into(), html: "<p>Public docs</p>".into(),
+            toc: vec![], search_text: "Public docs".into(),
+        }];
+        let output = root.join("public");
+        let result = build_site_from_disk(&project, "Docs", &output, rendered).unwrap();
+        assert_eq!(result.public_pages, 1);
+        assert_eq!(result.private_pages, 1);
+        let html = fs::read_to_string(output.join("index.html")).unwrap();
+        assert!(html.contains(&stylesheet_chunk_name()));
+        assert!(html.contains(&runtime_chunk_name(&SITE_RUNTIME_ASSETS[0])));
+        assert!(html.contains(r#"href="assets/favicon.png""#));
+        assert!(output.join("assets/favicon.png").is_file());
+        assert!(output.join(stylesheet_chunk_name()).is_file());
+        for asset in SITE_RUNTIME_ASSETS {
+            assert!(output.join(runtime_chunk_name(asset)).is_file());
+        }
+        let mirror = fs::read_to_string(output.join("pages/index.html")).unwrap();
+        assert!(mirror.contains(r#"<base href="../index.html">"#));
+        assert!(mirror.contains(r#"name="robots" content="noindex,follow""#));
+        assert!(output.join("search-index.json").is_file());
+        assert!(!output.join("draft.html").exists());
+        assert!(!output.join("pages/draft.html").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn published_runtime_and_css_use_deterministic_content_hashed_chunks() {
         let stylesheet = stylesheet_chunk_name();
         assert!(stylesheet.starts_with("_paglora/chunks/css/"));
