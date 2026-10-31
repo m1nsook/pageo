@@ -134,7 +134,7 @@ export function BlockPalette({
     (block.title + " " + block.description).toLowerCase().includes(query.toLowerCase()));
 
   return (
-    <aside aria-label="Documentation components" className="flex h-full min-h-0 min-w-0 flex-col border-l border-border bg-card">
+    <aside aria-label="Documentation components" className="flex h-full w-full min-w-0 flex-col border-l border-border bg-card">
       <div className="flex h-14 shrink-0 items-center justify-between gap-3 px-4">
         <span className="flex items-center gap-2 text-xs font-semibold"><Blocks className="size-4" /> Components</span>
         <BlockComponentGallery disabled={disabled} onInsert={kind => insert(kind, callbacks.current.selectedBoundary)}
