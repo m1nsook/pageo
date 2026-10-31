@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { defaultImageAlt, imageMarkdown } from "@/lib/image-markdown";
 import { filterSiteAssets, IMAGE_GALLERY_PAGE_SIZE, INLINE_THUMBNAIL_LIMIT } from "@/lib/asset-gallery";
 import { importSiteAsset, listSiteAssets, loadSiteSettings, previewSiteAsset, type SiteAsset } from "@/lib/site";
+import { listThemeStyles, loadThemeStyle } from "@/lib/source";
 import { listPages, loadPage } from "@/lib/pages";
-import { loadThemeCss } from "@/lib/source";
+
 import { auditImageReferences, type AssetReference } from "@/lib/media-reference-audit";
 
 /** Only small images get inline gallery thumbnails; large images are loaded only
@@ -122,12 +123,12 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
       const pages = await listPages(projectId);
       // Fail closed: incomplete page reads must never be treated as proof of
       // an unused image. Includes private Markdown too, without exporting it.
-      const [docs, css, settings] = await Promise.all([
+      const [docs, styles, settings] = await Promise.all([
         Promise.all(pages.map(async page => ({ title: page.title, markdown: (await loadPage(projectId, page.id)).markdown }))),
-        loadThemeCss(projectId),
+        listThemeStyles(projectId).then(files => Promise.all(files.map(name => loadThemeStyle(projectId,name)))),
         loadSiteSettings(projectId),
       ]);
-      if (generation.current === version) setAudit(auditImageReferences(assets, docs, css, settings.logoUrl));
+      if (generation.current === version) setAudit(auditImageReferences(assets, docs, styles.join("\n"), settings.logoUrl));
     } catch (cause) {
       if (generation.current === version) setError("Unable to complete image reference audit: " + String(cause));
     } finally {

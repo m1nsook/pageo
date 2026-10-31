@@ -822,6 +822,79 @@ fn referenced_local_assets(html: &str) -> HashSet<String> {
     names
 }
 
+
+/// Only CSS url(...) values that point to passive local project images count
+/// as public asset dependencies. Ignore comments, ordinary quoted strings,
+/// CSS escapes, external URLs and malformed CSS. Spans are byte offsets to
+/// the URL value, excluding surrounding quotes.
+fn css_image_refs(css:&str)->Vec<(usize,usize,String)>{
+    let bytes=css.as_bytes();
+    let mut out=Vec::new();
+    let mut i=0;
+    while i<bytes.len(){
+        if bytes[i..].starts_with(b"/*"){
+            i+=2;
+            while i+1<bytes.len() && !bytes[i..].starts_with(b"*/"){i+=1;}
+            i=(i+2).min(bytes.len());
+            continue;
+        }
+        if bytes[i]==b'\'' || bytes[i]==b'"'{
+            let quote=bytes[i];
+            i+=1;
+            while i<bytes.len(){
+                if bytes[i]==b'\\'{i=(i+2).min(bytes.len());continue;}
+                if bytes[i]==quote{i+=1;break;}
+                i+=1;
+            }
+            continue;
+        }
+        if i+4<=bytes.len() && bytes[i..i+4].eq_ignore_ascii_case(b"url("){
+            let mut j=i+4;
+            while j<bytes.len() && bytes[j].is_ascii_whitespace(){j+=1;}
+            let quote=if j<bytes.len() && (bytes[j]==b'"'||bytes[j]==b'\''){let q=bytes[j];j+=1;Some(q)}else{None};
+            let start=j;
+            while j<bytes.len(){
+                if bytes[j]==b'\\'{j=(j+2).min(bytes.len());continue;}
+                if quote==Some(bytes[j]) || (quote.is_none() && bytes[j]==b')'){break;}
+                j+=1;
+            }
+            let mut end=j;
+            if quote.is_none(){while end>start && bytes[end-1].is_ascii_whitespace(){end-=1;}}
+            if let Some(q)=quote {
+                if j>=bytes.len() || bytes[j]!=q {i=j;continue;}
+                j+=1;
+                while j<bytes.len() && bytes[j].is_ascii_whitespace(){j+=1;}
+            }
+            if j<bytes.len() && bytes[j]==b')' {
+                if let Some(name)=css.get(start..end).and_then(|v|v.strip_prefix("assets/")) {
+                    if valid_asset_name(name) {out.push((start,end,name.to_owned()));}
+                }
+                i=j+1;
+                continue;
+            }
+        }
+        i+=1;
+    }
+    out
+}
+/// Preview srcDoc has no valid filesystem base URL. Substitute only verified,
+/// passive local assets with self-contained image data URLs.
+fn inline_css_images(project:&Path, css:&str)->Result<(String,usize),String>{
+    let mut result=String::with_capacity(css.len());
+    let mut last=0;
+    let mut total=0usize;
+    for (start,end,name) in css_image_refs(css){
+        let (bytes,mime)=read_asset(project,&name)?;
+        total=total.saturating_add(bytes.len());
+        if total>MAX_PREVIEW_ASSET_BYTES{return Err("Preview CSS images exceed the 15 MiB limit".into());}
+        result.push_str(&css[last..start]);
+        result.push_str(&format!("data:{mime};base64,{}",base64_image(&bytes)));
+        last=end;
+    }
+    result.push_str(&css[last..]);
+    Ok((result,total))
+}
+
 /// Find broken links in sanitized public-page markup. Never treat links to
 /// remote origins or same-page fragments as local page references.
 fn site_export_link_warnings(
@@ -1309,10 +1382,11 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
     let doc = render_site_page_with_description(&settings, &pages, page, &rendered.html, &rendered.toc, Some(&rendered.search_text));
     // CSS is user-authored project source. Embed in this script-disabled iframe
     // without letting a literal closing style tag break out of the CSS element.
-    let override_css = theme.map(|css| {
-        let escaped = css.replace('<', "\\3c ");
-        format!("<style>{escaped}</style>")
-    }).unwrap_or_default();
+    let (override_css, css_bytes) = if let Some(css) = theme {
+        let (embedded, bytes)=inline_css_images(&dir,&css)?;
+        let escaped = embedded.replace('<', "\\3c ");
+        (format!("<style>{escaped}</style>"),bytes)
+    } else {(String::new(),0)};
     let site_with_font = SITE_CSS.replace("fonts/geist-latin.woff2", &format!(
         "data:font/woff2;base64,{}", include_str!("../assets/geist-latin.b64")
     ));
@@ -1332,7 +1406,7 @@ pub fn preview_site_page(app: AppHandle, project_id: String, rendered: RenderedP
     let mut doc = doc.replace("</head>", &format!("{override_css}</head>"));
     let mut names = referenced_local_assets(&doc);
     if let Some(name) = settings.logo_url.strip_prefix("assets/") { names.insert(name.to_string()); }
-    let mut total_bytes = 0usize;
+    let mut total_bytes = css_bytes;
     for name in names {
         let (bytes, mime) = read_asset(&dir, &name)?;
         total_bytes += bytes.len();
@@ -1406,6 +1480,9 @@ fn build_site_from_disk(dir: &Path, project_name: &str, target: &Path, rendered:
         for page in &public_pages {
             let rendered_page = html_by_id.get(page.id.as_str()).ok_or("Missing public page")?;
             image_names.extend(referenced_local_assets(&rendered_page.html));
+        }
+        if let Some(css)=&theme {
+            image_names.extend(css_image_refs(css).into_iter().map(|(_,_,name)|name));
         }
         if !image_names.is_empty() {
             fs::create_dir(staged.join("assets")).map_err(|e| e.to_string())?;
@@ -2008,5 +2085,32 @@ mod website_font_tests {
         assert!(valid_google_font_family(""));
         assert!(valid_google_font_family("Plus Jakarta Sans"));
         assert!(valid_google_font_family("M PLUS 1"));
+    }
+}
+
+#[cfg(test)]
+mod css_asset_tests {
+    use super::*;
+    #[test]
+    fn only_actual_local_css_url_tokens_are_public_dependencies(){
+        let css=r#"/* url(assets/hidden.png) */
+            .hero{background:url("assets/hero.png")}
+            .next{background:url('assets/next.webp')}
+            .icon{background:URL( assets/icon.gif )}
+            .remote{background:url(https://cdn.example.com/a.png)}
+            .other{content:"url(assets/literal.png)"}
+            .data{background:url(data:image/png;base64,AAAA)}
+            .bad{background:url(../assets/traversal.png)}"#;
+        let found:HashSet<_>=css_image_refs(css).into_iter().map(|(_,_,name)|name).collect();
+        assert_eq!(found,["hero.png","next.webp","icon.gif"].iter().map(|s|s.to_string()).collect());
+    }
+    #[test]
+    fn css_reference_span_replacement_does_not_touch_unrelated_text(){
+        let css="/* url(assets/ignored.png) */ .hero{background:url(assets/cover.png)}";
+        let refs=css_image_refs(css);
+        assert_eq!(refs.len(),1);
+        let (start,end,name)=&refs[0];
+        assert_eq!(name,"cover.png");
+        assert_eq!(&css[*start..*end],"assets/cover.png");
     }
 }
