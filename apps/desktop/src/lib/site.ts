@@ -28,6 +28,7 @@ export type SiteSettings = {
   showFooter: boolean;
   contentWidth: number;
   logoUrl: string;
+  faviconUrl: string;
   headerLinks: SiteLink[];
   footerLinks: SiteLink[];
   themeMode: "system" | "light" | "dark";
