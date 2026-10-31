@@ -38,8 +38,8 @@ test("Studio-only browser context menu and notifications", () => {
 test("Studio settings have compact appearance, keybinds, storage and docs", () => {
   const src = read("src/components/studio/workspace-content.tsx");
   assert.match(src, /<ThemeSwitcher showLabel \/>/);
-  assert.match(src, /Keyboard shortcuts/);
-  assert.match(src, /Copy path/);
+  assert.match(src, /studio\.shortcuts\.title/);
+  assert.match(src, /studio\.storage\.copyPath/);
   assert.match(src, /<ExternalLink className="size-3\.5" \/> Documentation/);
   assert.match(read("src/components/studio/theme-switcher.tsx"), /aria-pressed=\{theme === value\}/);
 });
