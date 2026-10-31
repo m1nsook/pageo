@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fs, io::Write, path::{Path, PathBuf}, sync::{Mutex, OnceLock}, time::{SystemTime, UNIX_EPOCH}};
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 const MANIFEST: &str = "pages.json";
 const HOME: &str = "index";
