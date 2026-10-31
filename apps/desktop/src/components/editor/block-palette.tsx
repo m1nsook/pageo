@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { Editor } from "@tiptap/core";
 import { Blocks, GripVertical, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,42 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
     if (point) editor.chain().focus().insertContentAt(topLevelDropPos(editor, point.y), node).run();
     else editor.chain().focus().insertContent(node).run();
   }
+
+  // Native HTML5 drag/drop is used by the *non-modal Gallery* so its source
+  // can leave the Gallery portal. The sidebar Palette keeps pointer dragging.
+  useEffect(() => {
+    if (!editor || disabled) return;
+    const isValid = (event: DragEvent) => event.dataTransfer?.types.includes("application/x-paglora-block") &&
+      event.target instanceof Element && Boolean(event.target.closest("[data-editor-drop-zone]"));
+    const over = (event: DragEvent) => {
+      if (!isValid(event)) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect="copy";
+      setOverEditor(true);
+    };
+    const leave = (event: DragEvent) => {
+      if (!(event.relatedTarget instanceof Element) ||
+        !event.relatedTarget.closest("[data-editor-drop-zone]")) setOverEditor(false);
+    };
+    const drop = (event: DragEvent) => {
+      if (!isValid(event)) return;
+      const kind = event.dataTransfer?.getData("application/x-paglora-block");
+      if (!BLOCKS.some(block => block.kind === kind)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOverEditor(false);
+      insert(kind as BlockKind, { y: event.clientY });
+      document.dispatchEvent(new Event("paglora:gallery-block-dropped"));
+    };
+    document.addEventListener("dragover",over,true);
+    document.addEventListener("dragleave",leave,true);
+    document.addEventListener("drop",drop,true);
+    return () => {
+      document.removeEventListener("dragover",over,true);
+      document.removeEventListener("dragleave",leave,true);
+      document.removeEventListener("drop",drop,true);
+    };
+  }, [editor,disabled]);
 
   function start(event: ReactPointerEvent<HTMLButtonElement>, kind: BlockKind) {
     if (disabled || !editor || event.button !== 0) return;
