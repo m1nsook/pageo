@@ -37,7 +37,7 @@ test("pointer capture and explicit editor-only drop area replace WebView2 native
  const ui=read("src/components/editor/block-palette.tsx");
  assert.match(ui,/\.setPointerCapture\(event\.pointerId\)/);
  assert.match(ui,/event\.clientX, event\.clientY/);
- assert.match(ui,/if \(editorDropZone\(event\.clientX, event\.clientY\) &&/);
+ assert.match(ui,/if \(editorDropZone\(x, y\) &&/);
  assert.match(ui,/clearDropHighlight\(\)/);
  assert.match(ui,/window\.addEventListener\("pointercancel", cancel, true\)/);
 });
