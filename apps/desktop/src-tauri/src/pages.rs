@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, fs, io::Write, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::HashSet, fs, io::Write, path::{Path, PathBuf}, sync::{Mutex, OnceLock}, time::{SystemTime, UNIX_EPOCH}};
 use tauri::{AppHandle, Manager};
 
 const MANIFEST: &str = "pages.json";
@@ -72,7 +72,9 @@ pub(crate) fn initialize_pages(folder: &Path) -> Result<(), String> {
 }
 fn save_pages(folder: &Path, manifest: &Manifest) -> Result<(), String> {
     let json = serde_json::to_string_pretty(manifest).map_err(|e| e.to_string())?;
-    fs::write(folder.join(MANIFEST), format!("{json}\n")).map_err(|e| e.to_string())
+    fs::write(folder.join(MANIFEST), format!("{json}\n")).map_err(|e| e.to_string())?;
+    invalidate_search(folder);
+    Ok(())
 }
 fn title(value: &str) -> Result<String, String> {
     let value = value.trim();
@@ -111,8 +113,8 @@ fn touch(folder: &Path) -> Result<serde_json::Value, String> {
     Ok(config)
 }
 
-/// Local-only finder. Unlike published search indexes, this may include private
-/// pages because its results never leave the desktop's Tauri command boundary.
+/// Local-only search index. Private Markdown never leaves the native command's
+/// result excerpts, is never written to disk and is never included in public exports.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PageSearchHit {
@@ -121,47 +123,135 @@ pub struct PageSearchHit {
     nav_group: String,
     excerpt: String,
     is_public: bool,
+    score: u32,
+    match_kind: String,
 }
 
-fn search_pages_at(dir: &Path, raw_query: &str) -> Result<Vec<PageSearchHit>, String> {
-    let query = raw_query.trim();
-    if query.chars().count() < 2 || query.chars().count() > 80 || query.chars().any(char::is_control) {
-        return Err("Search requires 2–80 printable characters.".into());
+#[derive(Clone, PartialEq, Eq)]
+struct FileStamp { id: String, bytes: u64, changed: u128 }
+struct IndexedPage { page: Page, title_words: Vec<String>, group_words: Vec<String>,
+    body_words: Vec<String>, lines: Vec<String> }
+struct SearchSnapshot { root: PathBuf, stamp: Vec<FileStamp>, pages: Vec<IndexedPage> }
+static SEARCH_CACHE: OnceLock<Mutex<Vec<SearchSnapshot>>> = OnceLock::new();
+fn cache() -> &'static Mutex<Vec<SearchSnapshot>> {
+    SEARCH_CACHE.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+fn timestamp(meta: &fs::Metadata) -> u128 {
+    meta.modified().ok().and_then(|m| m.duration_since(UNIX_EPOCH).ok()).map_or(0, |time| time.as_nanos())
+}
+fn terms(text: &str) -> Vec<String> {
+    let normalized = text.to_lowercase();
+    normalized.split(|c: char| !c.is_alphanumeric())
+        .filter(|part| part.chars().count() >= 2)
+        .take(250_000)
+        .map(str::to_owned).collect()
+}
+fn is_typo(target: &str, word: &str) -> bool {
+    let a: Vec<_> = target.chars().collect();
+    let b: Vec<_> = word.chars().collect();
+    if a.len() < 4 || a.len() > 28 || b.len() > 29 || a.len().abs_diff(b.len()) > 1 { return false; }
+    let mut i = 0;
+    let mut j = 0;
+    let mut mistakes = 0;
+    while i < a.len() && j < b.len() {
+        if a[i] == b[j] { i += 1; j += 1; continue; }
+        mistakes += 1;
+        if mistakes > 1 { return false; }
+        if a.len() > b.len() { i += 1; }
+        else if b.len() > a.len() { j += 1; }
+        else if i + 1 < a.len() && j + 1 < b.len() && a[i] == b[j+1] && a[i+1] == b[j] {
+            // A transposition is one common typing error.
+            i += 2; j += 2;
+        } else { i += 1; j += 1; }
     }
-    let needle = query.to_lowercase();
-    let manifest = read_pages(dir)?;
-    let mut ranked = Vec::new();
-    let mut scanned_bytes: u64 = 0;
-    for page in manifest.pages {
-        let title_hit = page.title.to_lowercase().contains(&needle);
-        let group_hit = page.nav_group.to_lowercase().contains(&needle);
-        let path = document(dir, &page.id)?;
-        let mut match_line: Option<String> = None;
-        // Only regular project-owned Markdown, never symlinks, and never
-        // arbitrary files referenced in a user-authored Markdown document.
-        if let Ok(meta) = fs::symlink_metadata(&path) {
-            if meta.file_type().is_file() && meta.len() <= 5_000_000 && scanned_bytes.saturating_add(meta.len()) <= 20_000_000 {
-                scanned_bytes += meta.len();
-                if let Ok(markdown) = fs::read_to_string(&path) {
-                    match_line = markdown.lines()
-                        .find(|line| line.to_lowercase().contains(&needle))
-                        .map(|line| {
-                            let clean = line.trim().trim_start_matches(|c: char| "#>`*- ".contains(c));
-                            clean.chars().take(180).collect::<String>()
-                        });
+    mistakes + (a.len()-i).max(b.len()-j) <= 1
+}
+fn word_match(needle: &str, candidates: &[String]) -> u32 {
+    if candidates.iter().any(|w| w == needle) { 100 }
+    else if candidates.iter().any(|w| w.starts_with(needle)) { 70 }
+    else if candidates.iter().any(|w| is_typo(needle,w)) { 40 }
+    else { 0 }
+}
+fn source_stamps(root: &Path, manifest: &Manifest) -> Result<Vec<FileStamp>, String> {
+    let mut list = Vec::with_capacity(manifest.pages.len()+1);
+    let meta = fs::symlink_metadata(root.join(MANIFEST)).map_err(|e| e.to_string())?;
+    if !meta.is_file() { return Err("Unsafe page manifest".into()); }
+    list.push(FileStamp { id: MANIFEST.into(), bytes: meta.len(), changed: timestamp(&meta) });
+    for page in &manifest.pages {
+        let path = document(root,&page.id)?;
+        // Missing, over-limit and special/symlink files never become indexed content.
+        let meta = fs::symlink_metadata(path).ok().filter(|m| m.is_file());
+        let (bytes,changed) = meta.map(|m| (m.len(), timestamp(&m))).unwrap_or((0,0));
+        list.push(FileStamp { id: page.id.clone(), bytes, changed });
+    }
+    Ok(list)
+}
+fn build_index(root: &Path, manifest: Manifest, stamp: Vec<FileStamp>) -> SearchSnapshot {
+    let mut used_bytes = 0u64;
+    let pages = manifest.pages.into_iter().map(|page| {
+        let mut body_words=Vec::new();
+        let mut lines=Vec::new();
+        let path=root.join("docs").join(format!("{}.md",page.id));
+        if let Some(meta)=stamp.iter().find(|m| m.id==page.id) {
+            if meta.bytes>0 && meta.bytes<=5_000_000 && used_bytes.saturating_add(meta.bytes)<=20_000_000 {
+                if let Ok(markdown)=fs::read_to_string(path) {
+                    used_bytes+=meta.bytes;
+                    body_words=terms(&markdown);
+                    lines=markdown.lines().filter(|l|!l.trim().is_empty())
+                        .take(1800).map(|l| l.trim().trim_start_matches(|c: char| "#>`*- ".contains(c)).chars().take(180).collect()).collect();
                 }
             }
         }
-        if !title_hit && !group_hit && match_line.is_none() { continue; }
-        let excerpt = match_line.unwrap_or_else(|| format!("{} · docs/{}.md", page.nav_group, page.id));
-        let rank = if title_hit { 0 } else if group_hit { 1 } else { 2 };
-        ranked.push((rank, PageSearchHit {
-            id: page.id, title: page.title, nav_group: page.nav_group,
-            excerpt, is_public: page.is_public,
-        }));
+        IndexedPage { title_words: terms(&page.title), group_words: terms(&page.nav_group), page, body_words, lines }
+    }).collect();
+    SearchSnapshot { root:root.to_path_buf(), stamp, pages }
+}
+fn invalidate_search(root: &Path) {
+    if let Some(cache)=SEARCH_CACHE.get() {
+        if let Ok(mut guard)=cache.lock() { guard.retain(|x|x.root != root); }
     }
-    ranked.sort_by(|a,b| a.0.cmp(&b.0).then_with(|| a.1.title.cmp(&b.1.title)));
-    Ok(ranked.into_iter().take(40).map(|(_, hit)| hit).collect())
+}
+fn search_pages_at(dir: &Path, raw_query: &str) -> Result<Vec<PageSearchHit>, String> {
+    let query=raw_query.trim();
+    if query.chars().count()<2 || query.chars().count()>80 || query.chars().any(char::is_control) {
+        return Err("Search requires 2–80 printable characters.".into());
+    }
+    let needles=terms(query);
+    if needles.is_empty() || needles.len()>8 { return Err("Enter 1–8 searchable words.".into()); }
+    let manifest=read_pages(dir)?;
+    let stamp=source_stamps(dir,&manifest)?;
+    let mut guard=cache().lock().map_err(|_|"Local search cache unavailable")?;
+    let pos=guard.iter().position(|entry|entry.root==dir && entry.stamp==stamp);
+    if pos.is_none() {
+        guard.retain(|entry|entry.root!=dir);
+        guard.push(build_index(dir,manifest,stamp));
+        if guard.len()>4 { guard.remove(0); }
+    }
+    let index=guard.iter().find(|entry|entry.root==dir).ok_or("Local search index not found")?;
+    let mut hits=Vec::new();
+    for item in &index.pages {
+        let mut score=0;
+        let mut kind="content";
+        for needle in &needles {
+            let t=word_match(needle,&item.title_words);
+            let g=word_match(needle,&item.group_words);
+            let b=word_match(needle,&item.body_words);
+            let strongest=if t>0 { kind="title"; t*6 } else if g>0 { if kind!="title" {kind="group"};g*3 } else {b};
+            if strongest==0 {score=0;break;}
+            score+=strongest;
+        }
+        if score==0 {continue;}
+        let excerpt=item.lines.iter().find(|line| needles.iter().any(|n|
+            terms(line).iter().any(|w|word_match(n,std::slice::from_ref(w))>0)))
+            .cloned().unwrap_or_else(||format!("{} · docs/{}.md",item.page.nav_group,item.page.id));
+        hits.push(PageSearchHit {
+            id:item.page.id.clone(), title:item.page.title.clone(), nav_group:item.page.nav_group.clone(),
+            excerpt, is_public:item.page.is_public, score, match_kind:kind.into()
+        });
+    }
+    hits.sort_by(|a,b| b.score.cmp(&a.score).then_with(|| a.title.cmp(&b.title)));
+    Ok(hits.into_iter().take(40).collect())
 }
 
 #[tauri::command]
@@ -340,6 +430,39 @@ mod tests {
         fs::remove_dir_all(temp).unwrap();
     }
 
+
+    #[test]
+    fn fuzzy_index_ranks_title_over_body_and_invalidates_after_save() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let temp=std::env::temp_dir().join(format!("paglora-search-index-{}-{nonce}",std::process::id()));
+        fs::create_dir_all(temp.join("docs")).unwrap();
+        initialize_pages(&temp).unwrap();
+        let mut manifest=read_pages(&temp).unwrap();
+        manifest.pages.push(Page{id:"alpha".into(),title:"Keyboard Shortcuts".into(),is_public:true,layout:"docs".into(),nav_group:"Guide".into()});
+        manifest.pages.push(Page{id:"private".into(),title:"Internal details".into(),is_public:false,layout:"docs".into(),nav_group:"Draft".into()});
+        save_pages(&temp,&manifest).unwrap();
+        fs::write(temp.join("docs/index.md"),"Overview page").unwrap();
+        fs::write(temp.join("docs/alpha.md"),"Keyboard mappings and keybindings").unwrap();
+        fs::write(temp.join("docs/private.md"),"Confidential keyboard shortcut details").unwrap();
+        assert_eq!(search_pages_at(&temp,"keybord").unwrap()[0].id,"alpha");
+        assert_eq!(search_pages_at(&temp,"keyboard").unwrap()[0].id,"alpha");
+        let private=search_pages_at(&temp,"confidential").unwrap();
+        assert_eq!(private[0].id,"private");
+        assert!(!private[0].is_public);
+        fs::write(temp.join("docs/private.md"),"Now contains a violet zebra").unwrap();
+        invalidate_search(&temp);
+        assert!(search_pages_at(&temp,"confidential").unwrap().is_empty());
+        assert_eq!(search_pages_at(&temp,"violet").unwrap()[0].id,"private");
+        fs::remove_dir_all(temp).unwrap();
+    }
+    #[test]
+    fn typo_tolerance_is_bounded_and_does_not_match_unrelated_words() {
+        assert!(is_typo("keybord","keyboard"));
+        assert!(is_typo("keybaord","keyboard"));
+        assert!(!is_typo("pages","search"));
+        assert!(!is_typo("ab","ac"));
+    }
+
     #[test]
     fn page_manifest_requires_layout_and_visibility() {
         let page: Page = serde_json::from_str(r#"{"id":"index","title":"Overview","isPublic":true,"layout":"docs"}"#).unwrap();
@@ -408,5 +531,6 @@ pub fn save_page(app: AppHandle, project_id: String, page_id: String, markdown: 
     let dir = folder(&app, &project_id)?;
     if !read_pages(&dir)?.pages.iter().any(|p| p.id == page_id) { return Err("Page not found".into()); }
     fs::write(document(&dir, &page_id)?, markdown).map_err(|e| e.to_string())?;
+    invalidate_search(&dir);
     touch(&dir)
 }
