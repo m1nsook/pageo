@@ -120,6 +120,11 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 
 .docs .paglora-task-checkbox{margin:0 .55em 0 -1.5em;vertical-align:middle;accent-color:var(--brand);opacity:1;pointer-events:none}
 .docs blockquote{margin:24px 0;border-left:3px solid var(--brand);padding:13px 20px;color:var(--muted);background:var(--subtle);border-radius:0 10px 10px 0}
+/* Markdown cards share the safe source-to-preview-to-export pipeline. */
+.docs .paglora-card{margin:24px 0;padding:20px 22px;border:1px solid var(--line);border-radius:13px;background:var(--subtle);box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.docs .paglora-card-title{margin:0 0 10px;color:var(--fg);font-size:16px;font-weight:750;line-height:1.4}
+.docs .paglora-card>:last-child{margin-bottom:0}
+.docs .paglora-card a:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 .docs blockquote p:last-child{margin-bottom:0}
 
 /* Markdown callouts — sanitized in the shared preview/build pipeline. */

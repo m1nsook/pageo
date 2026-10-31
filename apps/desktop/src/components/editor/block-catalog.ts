@@ -1,12 +1,12 @@
 import type { JSONContent } from "@tiptap/core";
 import {
   AlignLeft, Heading1, Heading2, List, ListOrdered, MessageSquareQuote,
-  Code2, Minus, type LucideIcon,
+  Code2, Minus, CreditCard, type LucideIcon,
 } from "lucide-react";
 
 export type BlockKind =
   | "paragraph" | "heading1" | "heading2" | "bulletList"
-  | "orderedList" | "blockquote" | "codeBlock" | "horizontalRule";
+  | "orderedList" | "blockquote" | "card" | "codeBlock" | "horizontalRule";
 
 export const BLOCKS: { kind: BlockKind; title: string; description: string; icon: LucideIcon }[] = [
   { kind: "paragraph", title: "Paragraph", description: "Normal text", icon: AlignLeft },
@@ -15,6 +15,7 @@ export const BLOCKS: { kind: BlockKind; title: string; description: string; icon
   { kind: "bulletList", title: "Bulleted list", description: "Unordered items", icon: List },
   { kind: "orderedList", title: "Numbered list", description: "Steps and instructions", icon: ListOrdered },
   { kind: "blockquote", title: "Quote", description: "Highlight a passage", icon: MessageSquareQuote },
+  { kind: "card", title: "Card", description: "Titled documentation panel", icon: CreditCard },
   { kind: "codeBlock", title: "Code block", description: "Commands or examples", icon: Code2 },
   { kind: "horizontalRule", title: "Divider", description: "Separate sections", icon: Minus },
 ];
@@ -39,6 +40,10 @@ export function createMarkdownBlock(kind: BlockKind): JSONContent {
       content: [{ type: "listItem", content: [paragraph("First step")] }],
     };
     case "blockquote": return { type: "blockquote", content: [paragraph("Your quote")] };
+    case "card": return {
+      type: "blockquote",
+      content: [paragraph("[!CARD] Card title"), paragraph("Describe this feature or link to a guide.")],
+    };
     case "codeBlock": return { type: "codeBlock", content: text("Your code here") };
     case "horizontalRule": return { type: "horizontalRule" };
   }

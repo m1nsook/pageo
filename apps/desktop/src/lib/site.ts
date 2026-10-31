@@ -126,7 +126,7 @@ export function renderSafeMarkdown(html: string): string {
   return sanitized.innerHTML;
 }
 
-/** Convert GitHub-style Markdown admonitions into first-party site components
+/** Convert GitHub-style Markdown admonitions and cards into first-party site components
  * after sanitizing all user HTML. The same transformation runs in preview and
  * static export, so the project's Markdown stays the source of truth.
  */
@@ -141,9 +141,23 @@ function enhanceCallouts(container: HTMLElement) {
     const marker = first.firstChild;
     if (!marker || marker.nodeType !== Node.TEXT_NODE) continue;
     const text = marker.textContent ?? "";
-    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s|$)/i.exec(text);
+    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD)\](?:\s|$)/i.exec(text);
     if (!match) continue;
     const type = match[1].toUpperCase();
+    if (type === "CARD") {
+      // A Markdown blockquote is the source of truth. Build only DOM nodes
+      // from sanitized content, never from untrusted HTML or attributes.
+      const card = document.createElement("section");
+      card.className = "paglora-card";
+      const heading = document.createElement("div");
+      heading.className = "paglora-card-title";
+      heading.textContent = text.slice(match[0].length).trim() || "Card";
+      card.appendChild(heading);
+      first.remove();
+      while (quote.firstChild) card.appendChild(quote.firstChild);
+      quote.replaceWith(card);
+      continue;
+    }
     const callout = document.createElement("aside");
     callout.className = `paglora-callout paglora-callout-${type.toLowerCase()}`;
     callout.setAttribute("role", "note");
