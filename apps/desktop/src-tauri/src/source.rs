@@ -96,7 +96,26 @@ fn write_style_order(dir:&Path, files:&[String])->Result<(),String>{
         let mut f=fs::OpenOptions::new().write(true).create_new(true).open(&tmp).map_err(|e|e.to_string())?;
         f.write_all(&bytes).map_err(|e|e.to_string())?;
         f.sync_all().map_err(|e|e.to_string())?;
-        fs::rename(&tmp,dir.join(ORDER_MANIFEST)).map_err(|e|e.to_string())
+        let target=dir.join(ORDER_MANIFEST);
+        let backup=dir.join("styles.json.previous");
+        if target.exists() {
+            if !fs::symlink_metadata(&target).map_err(|e|e.to_string())?.file_type().is_file(){
+                return Err("Unsafe stylesheet manifest".into());
+            }
+            if backup.exists() {
+                if !fs::symlink_metadata(&backup).map_err(|e|e.to_string())?.file_type().is_file(){
+                    return Err("Unsafe stylesheet manifest backup".into());
+                }
+                fs::remove_file(&backup).map_err(|e|e.to_string())?;
+            }
+            fs::rename(&target,&backup).map_err(|e|e.to_string())?;
+        }
+        if let Err(e)=fs::rename(&tmp,&target){
+            if backup.exists(){let _=fs::rename(&backup,&target);}
+            return Err(e.to_string());
+        }
+        if backup.exists(){let _=fs::remove_file(&backup);}
+        Ok(())
     })();
     if write.is_err(){let _=fs::remove_file(tmp);}
     write
@@ -218,4 +237,49 @@ pub fn load_theme_css(app: AppHandle, project_id: String) -> Result<String, Stri
 pub fn save_theme_css(app: AppHandle, project_id: String, content: String) -> Result<(), String> {
     let dir=check_theme_dir(&project_dir(&app,&project_id)?)?;
     save_css_at(&dir,"custom.css",&content)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn temp() -> PathBuf {
+        let nonce=SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root=std::env::temp_dir().join(format!("paglora-css-{}-{nonce}",std::process::id()));
+        fs::create_dir_all(root.join("theme")).unwrap();
+        root
+    }
+    #[test]
+    fn preview_and_export_share_explicit_order_and_legacy_css() {
+        let root=temp();let dir=root.join("theme");
+        assert!(site_css(&root).unwrap().is_none());
+        fs::write(dir.join("custom.css"),":root{--z:0}").unwrap();
+        assert_eq!(source_style(&root,"custom.css").unwrap(),":root{--z:0}");
+        fs::write(dir.join("first.css"),":root{--z:1}").unwrap();
+        fs::write(dir.join("last.css"),":root{--z:2}").unwrap();
+        write_style_order(&dir,&["first.css".into(),"last.css".into()]).unwrap();
+        let css=site_css(&root).unwrap().unwrap();
+        assert!(css.find("theme/custom.css").unwrap()<css.find("theme/first.css").unwrap());
+        assert!(css.find("theme/first.css").unwrap()<css.find("theme/last.css").unwrap());
+        write_style_order(&dir,&["last.css".into(),"first.css".into()]).unwrap();
+        let reordered=site_css(&root).unwrap().unwrap();
+        assert!(reordered.find("theme/last.css").unwrap()<reordered.find("theme/first.css").unwrap());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn stylesheet_manifest_rejects_duplicates_traversal_and_missing_files() {
+        let root=temp();let dir=root.join("theme");
+        for value in ["../escape.css","custom.css","folder/child.css","Bad.css","-bad.css","bad-.css",".css"] {
+            assert!(!safe_style_name(value),"{value}");
+        }
+        assert!(write_style_order(&dir,&["dup.css".into(),"dup.css".into()]).is_err());
+        fs::write(dir.join("styles.json"),r#"{"version":1,"files":["../escape.css"]}"#).unwrap();
+        assert!(site_css(&root).is_err());
+        fs::write(dir.join("styles.json"),r#"{"version":1,"files":["absent.css"]}"#).unwrap();
+        assert!(site_css(&root).is_err());
+        fs::write(dir.join("absent.css"),"a{color:red}").unwrap();
+        assert!(site_css(&root).unwrap().unwrap().contains("a{color:red}"));
+        fs::write(dir.join("absent.css"),"x".repeat(MAX_CSS_BYTES+1)).unwrap();
+        assert!(site_css(&root).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
 }
