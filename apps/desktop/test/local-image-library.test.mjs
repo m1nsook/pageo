@@ -81,3 +81,31 @@ test("Rust asset listing verifies real image headers and never follows symlinks"
   assert.match(rust, /read_asset\(&project, name\)/);
   assert.match(commands, /sites::list_site_assets, sites::preview_site_asset/);
 });
+
+
+test("image gallery filters filenames case-insensitively and bounds eager thumbnails", () => {
+  const modelSource = readFileSync(new URL("../src/lib/asset-gallery.ts", import.meta.url), "utf8");
+  const compiled = ts.transpileModule(modelSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const galleryModel = { exports: {} };
+  new Function("module", "exports", compiled)(galleryModel, galleryModel.exports);
+  const { filterSiteAssets, IMAGE_GALLERY_PAGE_SIZE, INLINE_THUMBNAIL_LIMIT } = galleryModel.exports;
+  const images = [
+    { url: "assets/Setup-Screen.png", bytes: 10 },
+    { url: "assets/setup-mobile.webp", bytes: 20 },
+    { url: "assets/logo.png", bytes: 30 },
+  ];
+  assert.deepEqual(filterSiteAssets(images, "  SETUP  "), images.slice(0, 2));
+  assert.deepEqual(filterSiteAssets(images, "logo"), images.slice(2));
+  assert.deepEqual(filterSiteAssets(images, "not-found"), []);
+  assert.deepEqual(filterSiteAssets(images, ""), images);
+  assert.equal(images.length, 3, "filter must not mutate the original gallery");
+  assert.equal(IMAGE_GALLERY_PAGE_SIZE, 24);
+  assert.ok(INLINE_THUMBNAIL_LIMIT <= 256 * 1024);
+  const gallery = readFileSync(new URL("../src/components/editor/asset-library.tsx", import.meta.url), "utf8");
+  assert.match(gallery, /matchingAssets\.slice\(0, visibleLimit\)/);
+  assert.match(gallery, /asset\.bytes <= INLINE_THUMBNAIL_LIMIT/);
+  assert.match(gallery, /if \(active\) setThumbnail\(data\)/);
+  assert.match(gallery, /setVisibleLimit\(IMAGE_GALLERY_PAGE_SIZE\)/);
+});
