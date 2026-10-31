@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import type { ProjectSummary } from "@paglora/core";
-import { Archive, ArrowRight, BookOpen, ChevronRight, Clock3, Copy, FolderOpen, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { Archive, ChevronRight, Clock3, Copy, FolderOpen, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRightIcon, BookOpenIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Button } from "@/components/ui/button";
@@ -44,8 +45,8 @@ function ProjectCard({ project, onOpen, onExportBackup }: { project: ProjectSumm
       <button className="flex h-full min-h-48 flex-col rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
         <CardHeader className="w-full pt-5">
           <div className="flex items-center justify-between">
-            <span className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary"><BookOpen className="size-5" /></span>
-            <ArrowRight className="size-4 text-muted-foreground transition-transform duration-150 group-hover:translate-x-1" />
+            <span className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary"><BookOpenIcon weight="bold" className="size-5" /></span>
+            <ArrowRightIcon weight="bold" className="size-4 text-muted-foreground transition-transform duration-150 group-hover:translate-x-1" />
           </div>
         </CardHeader>
         <CardContent className="w-full flex-1 py-3">
@@ -92,7 +93,7 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
             <Card className="relative mb-9 overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/50 py-0 ring-1 ring-border">
               <CardContent className="relative min-h-56 px-7 py-8 sm:px-9">
                 <div className="relative z-10 max-w-xl">
-                  <Badge variant="outline" className="mb-5 gap-1.5 bg-background/80"><Sparkles className="size-3.5" /> Your documentation studio</Badge>
+                  <Badge variant="outline" className="mb-5 gap-1.5 bg-background/80"><SparkleIcon weight="fill" className="size-3.5" /> Your documentation studio</Badge>
                   <h1 className="font-display max-w-lg text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl">Create documentation you'll be proud to share.</h1>
                   <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">Write, organize, and design documentation locally. Your files always belong to you.</p>
                   <Button className="mt-6" onClick={openCreate}><Plus /> New project</Button>
