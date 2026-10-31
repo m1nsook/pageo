@@ -347,3 +347,19 @@ test("successful retry returns keyboard focus to search input", async () => {
   input.events.input();
   assert.equal(results.children[0].href, "guide.html");
 });
+
+test("CJK substring results are included even when MiniSearch finds token matches", async () => {
+  const app = fixture([
+    { title: "사용 안내", url: "exact.html", text: "사용" },
+    { title: "한국어사용법", url: "compound.html", text: "초보자 가이드" },
+    { title: "Unrelated", url: "other.html", text: "English documentation" },
+  ]);
+  const { input, results } = await app.open();
+  input.value = "사용";
+  input.events.input();
+  const urls = results.children.map(item => item.href);
+  assert.equal(urls.length, 2);
+  assert.ok(urls.includes("exact.html"));
+  assert.ok(urls.includes("compound.html"));
+  assert.equal(new Set(urls).size, 2, "each page should appear only once");
+});
