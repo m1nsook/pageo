@@ -131,7 +131,7 @@ export function SitePreview({ projectId, onBeforePreview }: {
             {busy ? <LoaderCircle className="animate-spin"/> : <RefreshCcw/>}
           </Button></StudioTooltip>
         </div>
-        <div className="relative flex min-h-0 flex-1 justify-center overflow-auto rounded-lg border border-border bg-muted/60 p-2 sm:p-4">
+        <div className="paglora-preview-stage relative flex min-h-0 flex-1 justify-center overflow-auto rounded-lg border border-border p-3 sm:p-6">
           {error && <div role="alert" className="absolute inset-x-3 top-3 z-10 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
           {!srcDoc && !error && <div className="flex items-center gap-2 self-center text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Preparing preview...</div>}
           {srcDoc && <iframe
@@ -142,10 +142,10 @@ export function SitePreview({ projectId, onBeforePreview }: {
             srcDoc={srcDoc}
             onLoad={onFrameLoad}
             style={{ width: `min(100%, ${deviceWidth[device]}px)` }}
-            className={cn("h-full min-h-72 shrink-0 rounded-md border border-border bg-white shadow-md transition-[width] duration-200", busy && "opacity-75")}
+            className={cn("paglora-preview-frame h-full min-h-72 shrink-0 rounded-md border bg-white transition-[width] duration-200", busy && "opacity-75")}
           />}
         </div>
-        <div className="shrink-0 text-xs text-muted-foreground"><Laptop className="mr-1 inline size-3.5"/> {deviceWidth[device]}px target width · Navigation works · No scripts run inside preview</div>
+        <div className="shrink-0 text-xs text-muted-foreground"><Laptop className="mr-1 inline size-3.5"/> {deviceWidth[device]}px target width · Navigation works · Site colors preserved · No scripts run inside preview</div>
       </DialogContent>
     </Dialog>
   );
