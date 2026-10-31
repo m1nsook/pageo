@@ -367,7 +367,8 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           <AssetLibrary projectId={document.project.id} canInsert={viewMode !== "site" && !leaving && !switchingView && Boolean(editor)}
             onBeforeCleanup={persist}
             onInsertImage={(src, alt) => Boolean(editor?.chain().focus().insertContent({ type: "pagloraImage", attrs: { src, alt } }).run())} />
-          <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"}
+          <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.id}
+            previewPageId={current.page.isPublic ? current.page.id : "index"}
             pages={pages} onBeforePreview={persist} onPageMetadataSaved={onPageMetadataSaved} onPageSourceSaved={(pageId, markdown) => {
               if (pageId === current.page.id && editor) {
                 // An explicit Monaco save is authoritative. Suppress Tiptap's
