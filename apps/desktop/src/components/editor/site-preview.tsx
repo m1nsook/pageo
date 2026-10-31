@@ -50,6 +50,8 @@ export function SitePreview({ projectId, onBeforePreview }: {
     } catch (cause) {
       if (request === requestId.current) {
         pendingFragment.current = "";
+        // Never leave an older page visible after the requested preview fails.
+        setSrcDoc("");
         setError(cause instanceof Error ? cause.message : String(cause));
       }
     } finally {
