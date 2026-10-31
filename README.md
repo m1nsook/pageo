@@ -128,6 +128,17 @@ npm.cmd pack --dry-run
 
 On Windows, use `npm.cmd` when PowerShell blocks `npm.ps1` under the system's execution policy. This does not require changing security settings. On macOS/Linux use `npm` instead.
 
+## Portable .paglora backups
+
+Projects can be backed up and shared **without a hosted account**. On the Projects screen, open a project's context menu and choose **Export .paglora backup**. A timestamped file is saved in the application's `backups/` directory, outside project storage. Its path is shown in Studio for copying into File Explorer.
+
+Choose **Import .paglora** on the Projects screen to restore an editable project. Import never overwrites a project; duplicate IDs are imported under a new ID.
+
+The version 1 `.paglora` format is a portable JSON + base64 archive, not a ZIP. It contains the editable `paglora.json` and `pages.json`, optional `site.json`, Markdown files (including private pages), CSS, and local PNG/JPEG/WebP/GIF images. It excludes generated website exports and trash. Every archive has an explicit version so future formats can evolve.
+
+Only regular allowlisted source files are accepted; unsafe paths, symlinks, duplicates and invalid manifests are rejected. The limit is 64 MiB of original source or 96 MiB per archive.
+
+**Backups can contain private documentation.** Never put a `.paglora` archive in a public website's `site/` folder or commit it to a public GitHub repository unless you intentionally want to disclose every page.
 ## Build and publish a website
 
 1. Open a project in **Paglora Desktop**, write your pages, and set their visibility.
