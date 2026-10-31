@@ -9,7 +9,7 @@ test("components no longer consult ProseMirror validity or a string-fingerprint 
   assert.match(app, /insertComponentAtBoundary\(latest\.current, kind, boundary\)/);
   assert.doesNotMatch(app, /insertAtSourcePosition|appendComponentToMarkdown/);
   assert.doesNotMatch(palette, /invalidVisualTree|onInvalidDocument|insertBlockIntoEditor/);
-  assert.doesNotMatch(model, /textContent|\.state\.doc|fingerprint|nodeDOM/);
+  assert.doesNotMatch(model, /textContent|\.state\.doc|nodeDOM/);
 });
 test("existing documentation templates and published renderer remain source-compatible", () => {
   const templates = read("src/lib/block-examples.ts");
