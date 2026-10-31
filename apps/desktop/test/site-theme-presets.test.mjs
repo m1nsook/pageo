@@ -43,3 +43,13 @@ test("designer changes actual Rust preview settings, not a standalone mockup", (
   assert.match(designer, /aria-pressed=\{settings\.siteLayout === layout\.id\}/);
   assert.match(designer, /aria-pressed=\{settings\.sitePalette === palette\.id\}/);
 });
+
+test("Studio card layout controls are persisted through the validated Rust site shell", () => {
+  assert.match(site, /cardLayout: "stacked" \| "grid"/);
+  assert.match(rust, /card_layout_default\(\) -> String \{ "stacked"\.into\(\) \}/);
+  assert.match(rust, /Unsupported documentation card layout/);
+  assert.match(rust, /data-card-layout="\{card_layout\}"/);
+  assert.match(designer, /patch\("cardLayout", layout\.id\)/);
+  assert.match(designer, /aria-pressed=\{settings\.cardLayout === layout\.id\}/);
+  assert.match(rust, /:root\[data-card-layout="grid"\] \.docs \.paglora-card-grid/);
+});

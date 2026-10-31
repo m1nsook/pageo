@@ -18,6 +18,11 @@ const SITE_LAYOUTS: { id: SiteSettings["siteLayout"]; name: string; detail: stri
   { id: "reading", name: "Reading", detail: "Quiet layout with spacious typography" },
 ];
 
+const CARD_LAYOUTS: { id: SiteSettings["cardLayout"]; name: string; detail: string }[] = [
+  { id: "stacked", name: "Stacked", detail: "One card per row; preserves existing sites" },
+  { id: "grid", name: "Responsive grid", detail: "Neighboring cards share balanced columns" },
+];
+
 const SITE_PALETTES: {
   id: SiteSettings["sitePalette"]; name: string; light: string; dark: string;
 }[] = [
@@ -221,6 +226,29 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
                       ))}
                     </div>
                     <p className="text-xs text-muted-foreground">Palettes coordinate backgrounds, text, borders and code blocks in both light and dark mode. Your custom accent stays independent.</p>
+                  </div>
+                  <div className="space-y-3">
+                    <Label>Documentation card layout</Label>
+                    <div className="grid grid-cols-2 gap-2" role="group" aria-label="Documentation card layout">
+                      {CARD_LAYOUTS.map(layout => (
+                        <button
+                          key={layout.id}
+                          type="button"
+                          aria-label={layout.name}
+                          aria-pressed={settings.cardLayout === layout.id}
+                          onClick={() => patch("cardLayout", layout.id)}
+                          className="rounded-xl border border-border p-3 text-left transition-colors hover:border-foreground/35 focus-visible:outline-2 focus-visible:outline-ring aria-pressed:border-primary aria-pressed:bg-primary/5"
+                        >
+                          <span aria-hidden="true" className={`mb-2 flex h-9 gap-1.5 rounded-md border border-border/70 p-1.5 ${layout.id === "stacked" ? "flex-col" : "flex-row"}`}>
+                            <span className="min-h-0 min-w-0 flex-1 rounded bg-primary/20" />
+                            <span className="min-h-0 min-w-0 flex-1 rounded bg-primary/20" />
+                          </span>
+                          <span className="block text-xs font-semibold">{layout.name}</span>
+                          <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">{layout.detail}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Place two or more Card blocks next to each other. The grid automatically fits the available article width and collapses to one column on narrow screens.</p>
                   </div>
                   <Separator />
                   <div className="space-y-2">
