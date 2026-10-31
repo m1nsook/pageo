@@ -33,6 +33,24 @@ export async function trashProject(id: string): Promise<string> {
   return invoke<string>("trash_project", { id });
 }
 
+export type TrashedProject = {
+  trashId: string;
+  project: ProjectSummary;
+  removedAt: number;
+};
+
+/** Read only trashed projects with a matching, validated project manifest. */
+export async function listTrashedProjects(): Promise<TrashedProject[]> {
+  requireDesktop();
+  return invoke<TrashedProject[]>("list_trashed_projects");
+}
+
+/** Restore one opaque trash entry without overwriting a project with the same ID. */
+export async function restoreTrashedProject(trashId: string): Promise<ProjectSummary> {
+  requireDesktop();
+  return invoke<ProjectSummary>("restore_trashed_project", { trashId });
+}
+
 /** Copy and verify all projects into a new, nonexistent directory; originals are retained. */
 export async function migrateProjectStorage(destination: string): Promise<string> {
   requireDesktop();

@@ -36,7 +36,7 @@ import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { StudioUpdateDialog, useStudioUpdater } from "@/components/studio/studio-updater";
 import { StudioReleaseDialog, LAST_STUDIO_VERSION_KEY } from "@/components/studio/studio-release-dialog";
 import { STUDIO_VERSION } from "@/lib/release-notes";
-import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, loadProject, migrateProjectStorage, projectsDirectory, trashProject } from "@/lib/projects";
+import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, listTrashedProjects, loadProject, migrateProjectStorage, projectsDirectory, restoreTrashedProject, trashProject, type TrashedProject } from "@/lib/projects";
 import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, setPageLayout, setPageNavigationGroup, type Page, type PageDocument } from "@/lib/pages";
 
 function friendlyError(error: unknown) { return error instanceof Error ? error.message : String(error); }
@@ -354,6 +354,8 @@ export default function App() {
   const [findOpen, setFindOpen] = useState(false);
   const [shortcuts, setShortcuts] = useState<ShortcutBindings>(readStudioShortcuts);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [trashItems, setTrashItems] = useState<TrashedProject[]>([]);
+  const [restoringTrashId, setRestoringTrashId] = useState<string | null>(null);
   const [active, setActive] = useState<ProjectDocument | null>(null);
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(desktop);
@@ -446,7 +448,12 @@ export default function App() {
   const refresh = useCallback(async () => {
     if (!desktop) return;
     setLoading(true);
-    try { setProjects(await listProjects()); setError(""); }
+    try {
+      const [active, removed] = await Promise.all([listProjects(), listTrashedProjects()]);
+      setProjects(active);
+      setTrashItems(removed);
+      setError("");
+    }
     catch (cause) { setError(friendlyError(cause)); }
     finally { setLoading(false); }
   }, [desktop]);
@@ -490,6 +497,7 @@ export default function App() {
       setError("");
       const moved = await trashProject(id);
       setProjects(previous => previous.filter(project => project.id !== id));
+      try { setTrashItems(await listTrashedProjects()); } catch (cause) { console.warn("Unable to refresh recently removed projects", cause); }
       toast.success("Project moved to trash", {
         description: "Files are preserved in Paglora's local trash folder.",
         action: { label: "Copy path", onClick: () => {
@@ -500,6 +508,20 @@ export default function App() {
       const message = friendlyError(cause);
       setError(message);
       toast.error("Could not remove project", { description: message });
+    }
+  }
+  async function restoreProject(trashId: string) {
+    if (restoringTrashId) return;
+    setRestoringTrashId(trashId);
+    try {
+      const restored = await restoreTrashedProject(trashId);
+      await refresh();
+      toast.success("Project restored", { description: `${restored.name} is available in your workspace.` });
+    } catch (cause) {
+      const message = friendlyError(cause);
+      toast.error("Unable to restore project", { description: message });
+    } finally {
+      setRestoringTrashId(null);
     }
   }
   async function moveStorage(destination: string) {
@@ -531,7 +553,7 @@ export default function App() {
     <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} trashItems={trashItems} restoringTrashId={restoringTrashId} onRestoreProject={(trashId) => void restoreProject(trashId)} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
       </SidebarInset>
       {!active && <StudioQuickFind open={findOpen} onOpenChange={setFindOpen} shortcut={shortcutLabel(shortcuts.find)}
         entries={projects.map(project => ({ id: project.id, title: project.name, description: "Local documentation project", kind: "project" as const }))}
