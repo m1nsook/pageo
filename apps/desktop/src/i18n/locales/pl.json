@@ -248,6 +248,12 @@
     "studio.updater.upToDate": "Używasz najnowszej stabilnej wersji Studio.",
     "studio.updater.onlyInstalled": "Sprawdzanie aktualizacji jest dostępne w zainstalowanej wersji Studio.",
     "studio.updater.checkError": "Nie udało się sprawdzić aktualizacji: {error}",
-    "studio.updater.installError": "Instalacja aktualizacji nie powiodła się: {error}"
+    "studio.updater.installError": "Instalacja aktualizacji nie powiodła się: {error}",
+    "studio.release.title": "Co nowego · Studio v{version}",
+    "studio.release.description": "Informacje o wydaniu są dostępne również offline i na GitHubie.",
+    "studio.release.open": "Co nowego",
+    "studio.release.close": "Rozumiem",
+    "studio.release.viewAll": "Zobacz wszystkie wydania na GitHubie",
+    "studio.release.empty": "Brak informacji o tym wydaniu w aplikacji."
   }
 }

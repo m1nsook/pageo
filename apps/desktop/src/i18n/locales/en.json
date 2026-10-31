@@ -248,6 +248,12 @@
     "studio.updater.upToDate": "You're using the latest stable Studio release.",
     "studio.updater.onlyInstalled": "Update checks are available in installed Studio builds.",
     "studio.updater.checkError": "Couldn't check for updates: {error}",
-    "studio.updater.installError": "Update installation failed: {error}"
+    "studio.updater.installError": "Update installation failed: {error}",
+    "studio.release.title": "What's New · Studio v{version}",
+    "studio.release.description": "Release notes are also available offline and on GitHub.",
+    "studio.release.open": "What's New",
+    "studio.release.close": "Got it",
+    "studio.release.viewAll": "View all releases on GitHub",
+    "studio.release.empty": "No notes are bundled for this version."
   }
 }
