@@ -127,6 +127,28 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs .paglora-card a:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 .docs blockquote p:last-child{margin-bottom:0}
 
+/* Consecutive Markdown cards become a group. The opt-in website setting
+   chooses a true responsive grid; older projects remain vertically stacked.
+   min(100%,...) prevents overflow within narrow article columns. */
+.docs .paglora-card-grid{display:block;margin:24px 0}
+:root[data-card-layout="grid"] .docs .paglora-card-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr));gap:16px;align-items:stretch
+}
+:root[data-card-layout="grid"] .docs .paglora-card-grid>.paglora-card{
+  min-width:0;margin:0;padding:23px 24px;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--brand) 4%,var(--bg)),var(--subtle));
+  transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease
+}
+:root[data-card-layout="grid"] .docs .paglora-card-grid>.paglora-card:hover{
+  border-color:color-mix(in srgb,var(--brand) 45%,var(--line));
+  box-shadow:0 8px 26px rgba(0,0,0,.08);transform:translateY(-2px)
+}
+:root[data-card-layout="grid"] .docs .paglora-card-grid>.paglora-card .paglora-card-title{font-size:16px;letter-spacing:-.025em}
+:root[data-card-layout="grid"] .docs .paglora-card-grid>.paglora-card a{overflow-wrap:anywhere}
+@media(prefers-reduced-motion:reduce){
+  :root[data-card-layout="grid"] .docs .paglora-card-grid>.paglora-card{transition:none}
+  :root[data-card-layout="grid"] .docs .paglora-card-grid>.paglora-card:hover{transform:none}
+}
 /* Markdown callouts — sanitized in the shared preview/build pipeline. */
 .docs .paglora-callout{--callout-accent:var(--brand);position:relative;display:block;margin:25px 0;padding:16px 19px 17px;border:1px solid color-mix(in srgb,var(--callout-accent) 38%,var(--line));border-left:3px solid var(--callout-accent);border-radius:11px;background:color-mix(in srgb,var(--callout-accent) 7%,var(--bg));box-shadow:0 1px 2px rgba(0,0,0,.025)}
 .docs .paglora-callout-title{display:flex;align-items:center;gap:9px;margin:0 0 6px;color:var(--fg);font-size:13px;font-weight:730;line-height:1.5}
@@ -321,6 +343,7 @@ fn language_default() -> String { "en".into() }
 fn accent_default() -> String { "#2196f3".into() }
 fn site_layout_default() -> String { "classic".into() }
 fn site_palette_default() -> String { "original".into() }
+fn card_layout_default() -> String { "stacked".into() }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -356,6 +379,9 @@ pub struct SiteSettings {
     site_layout: String,
     #[serde(default = "site_palette_default")]
     site_palette: String,
+    // Card layout is independent of the site's shell and neutral palette.
+    #[serde(default = "card_layout_default")]
+    card_layout: String,
     #[serde(default = "language_default")]
     language: String,
     // Optional remote font on the published site. Blank keeps the default Geist.
@@ -434,6 +460,7 @@ fn default_settings(name: &str) -> SiteSettings {
         accent_color: accent_default(),
         site_layout: site_layout_default(),
         site_palette: site_palette_default(),
+        card_layout: card_layout_default(),
         language: language_default(),
         google_font_family: String::new(),
     }
@@ -576,6 +603,9 @@ fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
     }
     if !["original", "graphite", "lavender", "linen"].contains(&settings.site_palette.as_str()) {
         return Err("Unsupported website color palette".into());
+    }
+    if !["stacked", "grid"].contains(&settings.card_layout.as_str()) {
+        return Err("Unsupported documentation card layout".into());
     }
     // An explicit allowlist prevents HTML attribute injection in <html lang>.
     if !["en", "ko", "pl", "de", "fr", "es", "ja", "zh-CN", "zh-TW", "pt-BR",
@@ -995,11 +1025,12 @@ fn render_site_page_with_description(
     let nav_position = &settings.navigation_position;
     let site_layout = &settings.site_layout;
     let site_palette = &settings.site_palette;
+    let card_layout = &settings.card_layout;
     let content_width = settings.content_width;
     let layout = &page.layout;
     let runtime_scripts = site_runtime_script_tags();
     format!(r##"<!doctype html>
-<html lang="{language}" dir="{direction}" data-color-mode="{theme_mode}" data-site-layout="{site_layout}" data-site-palette="{site_palette}">
+<html lang="{language}" dir="{direction}" data-color-mode="{theme_mode}" data-site-layout="{site_layout}" data-site-palette="{site_palette}" data-card-layout="{card_layout}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1356,12 +1387,15 @@ mod website_font_tests {
         let mut settings = default_settings("Docs");
         assert_eq!(settings.site_layout, "classic");
         assert_eq!(settings.site_palette, "original");
+        assert_eq!(settings.card_layout, "stacked");
         let mut legacy = serde_json::to_value(&settings).unwrap();
         legacy.as_object_mut().unwrap().remove("siteLayout");
         legacy.as_object_mut().unwrap().remove("sitePalette");
+        legacy.as_object_mut().unwrap().remove("cardLayout");
         let restored: SiteSettings = serde_json::from_value(legacy).unwrap();
         assert_eq!(restored.site_layout, "classic");
         assert_eq!(restored.site_palette, "original");
+        assert_eq!(restored.card_layout, "stacked");
         for layout in ["classic", "inset", "reading"] {
             settings.site_layout = layout.into();
             assert!(validate_settings(&settings).is_ok(), "{layout}");
@@ -1370,11 +1404,32 @@ mod website_font_tests {
             settings.site_palette = palette.into();
             assert!(validate_settings(&settings).is_ok(), "{palette}");
         }
+        for card_layout in ["stacked", "grid"] {
+            settings.card_layout = card_layout.into();
+            assert!(validate_settings(&settings).is_ok(), "{card_layout}");
+        }
+        settings.card_layout = r#"grid" onpointerover="alert(1)"#.into();
+        assert!(validate_settings(&settings).is_err());
+        settings.card_layout = "grid".into();
         settings.site_layout = r#"classic" onclick="alert(1)"#.into();
         assert!(validate_settings(&settings).is_err());
         settings.site_layout = "classic".into();
         settings.site_palette = "../unsafe".into();
         assert!(validate_settings(&settings).is_err());
+    }
+
+    // Both preview and export call the same render_site_page function.
+    fn html_preview_and_grid_markup_are_supported() -> bool {
+        let mut settings = default_settings("Docs");
+        settings.card_layout = "grid".into();
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Documentation".into(),
+        };
+        let html = render_site_page(&settings, &[page.clone()], &page, "<div class=\\"paglora-card-grid\\"></div>", &[]);
+        html.contains(r#"data-card-layout="grid""#)
+            && html.contains("paglora-card-grid")
+            && SITE_CSS.contains(r#":root[data-card-layout="grid"] .docs .paglora-card-grid"#)
     }
 
     #[test]
@@ -1394,6 +1449,7 @@ mod website_font_tests {
             assert!(html.contains("--brand:#b047d9;"), "{mode}");
             assert!(html.contains(r##"<meta name="theme-color" content="#17121e""##) || mode == "light");
         }
+        assert!(html_preview_and_grid_markup_are_supported());
         assert!(SITE_CSS.contains(r#":root[data-site-layout="inset"] .site-body"#));
         assert!(SITE_CSS.contains(r#":root[data-site-layout="reading"] .site-nav"#));
         assert!(SITE_CSS.contains(r#":root[data-site-palette="lavender"][data-color-mode="dark"]"#));

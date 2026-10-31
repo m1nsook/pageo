@@ -35,6 +35,8 @@ export type SiteSettings = {
   siteLayout: "classic" | "inset" | "reading";
   /** Neutral page surfaces; the custom accent is independent of the palette. */
   sitePalette: "original" | "graphite" | "lavender" | "linen";
+  /** Consecutive Markdown cards can form a responsive grid without custom CSS. */
+  cardLayout: "stacked" | "grid";
   googleFontFamily: string;
 };
 
@@ -187,6 +189,35 @@ function enhanceCallouts(container: HTMLElement) {
   }
 }
 
+/** Wrap only adjacent top-level cards; separate sections and single cards are
+ * never forced into a grid. No raw HTML is copied or interpolated here.
+ * Styling remains controlled by the validated site's cardLayout attribute.
+ */
+function groupAdjacentCards(container: HTMLElement) {
+  let current = container.firstElementChild;
+  while (current) {
+    if (!current.classList.contains("paglora-card")) {
+      current = current.nextElementSibling;
+      continue;
+    }
+    let next = current.nextElementSibling;
+    if (!next?.classList.contains("paglora-card")) {
+      current = next;
+      continue;
+    }
+    const grid = document.createElement("div");
+    grid.className = "paglora-card-grid";
+    current.before(grid);
+    grid.appendChild(current);
+    while (next?.classList.contains("paglora-card")) {
+      const after = next.nextElementSibling;
+      grid.appendChild(next);
+      next = after;
+    }
+    current = next;
+  }
+}
+
 export type TocHeading = { id: string; title: string; level: 2 | 3 };
 
 /** Use the final sanitized DOM as the source of heading anchors and the TOC.
@@ -197,6 +228,7 @@ function renderPageContent(markdownHtml: string): { html: string; toc: TocHeadin
   const container = document.createElement("div");
   container.innerHTML = renderSafeMarkdown(markdownHtml);
   enhanceCallouts(container);
+  groupAdjacentCards(container);
   const seen = new Set<string>();
   const toc: TocHeading[] = [];
   for (const heading of Array.from(container.querySelectorAll("h2, h3, h4"))) {

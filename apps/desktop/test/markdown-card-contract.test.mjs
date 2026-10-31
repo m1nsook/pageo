@@ -26,3 +26,16 @@ test("exported CSS styles documentation cards and keyboard focus", () => {
   assert.match(exporter, /\.docs \.paglora-card-title\{/);
   assert.match(exporter, /\.docs \.paglora-card a:focus-visible/);
 });
+
+test("adjacent documentation cards group safely without changing a lone card", () => {
+  assert.match(site, /function groupAdjacentCards\(container: HTMLElement\)/);
+  assert.match(site, /groupAdjacentCards\(container\);/);
+  assert.match(site, /current\.classList\.contains\("paglora-card"\)/);
+  assert.match(site, /next\?\.classList\.contains\("paglora-card"\)/);
+  assert.match(site, /grid\.className = "paglora-card-grid"/);
+  assert.match(site, /grid\.appendChild\(current\)/);
+  assert.match(site, /grid\.appendChild\(next\)/);
+  assert.doesNotMatch(site.match(/function groupAdjacentCards[\s\S]*?export type TocHeading/)?.[0] ?? "", /innerHTML|outerHTML/);
+  assert.match(exporter, /grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,245px\),1fr\)\)/);
+  assert.match(exporter, /@media\(prefers-reduced-motion:reduce\)/);
+});
