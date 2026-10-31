@@ -170,7 +170,7 @@ function enhanceCallouts(container: HTMLElement, language: string) {
     const marker = first.firstChild;
     if (!marker || marker.nodeType !== Node.TEXT_NODE) continue;
     const text = marker.textContent ?? "";
-    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|TABS|CODEGROUP)\](?:\s|$)/i.exec(text);
+    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|TABS|CODEGROUP|ACCORDION)\](?:\s|$)/i.exec(text);
     if (!match) continue;
     const type = match[1].toUpperCase();
     if (type === "CARD") {
@@ -212,6 +212,24 @@ function enhanceCallouts(container: HTMLElement, language: string) {
       continue;
     }
 
+
+    if (type === "ACCORDION") {
+      // A plain-text question and at least one answer block are required.
+      // Malformed markers remain ordinary blockquotes rather than hiding text.
+      if (first.childNodes.length !== 1 || first.firstChild?.nodeType !== Node.TEXT_NODE ||
+          quote.children.length < 2) continue;
+      const question = text.slice(match[0].length).trim();
+      if (!question || question.length > 160) continue;
+      const details = document.createElement("details");
+      details.className = "paglora-accordion";
+      const summary = document.createElement("summary");
+      summary.textContent = question;
+      details.appendChild(summary);
+      first.remove();
+      while (quote.firstChild) details.appendChild(quote.firstChild);
+      quote.replaceWith(details);
+      continue;
+    }
 
     if (type === "TABS") {
       // Nested Markdown blockquotes make each tab an editable, source-owned
@@ -342,6 +360,34 @@ function groupAdjacentCards(container: HTMLElement) {
   }
 }
 
+/** Visually group adjacent FAQ questions without hiding their native details/summary
+ * behavior. A heading, paragraph, or other component ends the group.
+ */
+function groupAdjacentAccordions(container: HTMLElement) {
+  let current = container.firstElementChild;
+  while (current) {
+    if (!current.classList.contains("paglora-accordion")) {
+      current = current.nextElementSibling;
+      continue;
+    }
+    let next = current.nextElementSibling;
+    if (!next?.classList.contains("paglora-accordion")) {
+      current = next;
+      continue;
+    }
+    const group = document.createElement("div");
+    group.className = "paglora-accordion-group";
+    current.before(group);
+    group.appendChild(current);
+    while (next?.classList.contains("paglora-accordion")) {
+      const after: Element | null = next.nextElementSibling;
+      group.appendChild(next);
+      next = after;
+    }
+    current = next;
+  }
+}
+
 export type TocHeading = { id: string; title: string; level: 2 | 3 };
 
 /** Use the final sanitized DOM as the source of heading anchors and the TOC.
@@ -353,6 +399,7 @@ function renderPageContent(markdownHtml: string, language: string): { html: stri
   container.innerHTML = renderSafeMarkdown(markdownHtml);
   enhanceCallouts(container, language);
   groupAdjacentCards(container);
+  groupAdjacentAccordions(container);
   const seen = new Set<string>();
   const toc: TocHeading[] = [];
   for (const heading of Array.from(container.querySelectorAll("h2, h3, h4"))) {

@@ -199,6 +199,22 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs .paglora-tabs-enhanced .paglora-tabs-item[hidden]{display:none}
 .docs .paglora-tabs-enhanced .paglora-tabs-item+.paglora-tabs-item{border-top:0}
 
+/* Native FAQ accordions: safe Markdown blockquotes become accessible details.
+   They work in the script-disabled Studio preview and offline static export. */
+.docs .paglora-accordion{margin:20px 0;border:1px solid var(--line);border-radius:11px;background:var(--bg);overflow:hidden}
+.docs .paglora-accordion>summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;list-style:none;cursor:pointer;font-size:14px;font-weight:680;line-height:1.55;color:var(--fg)}
+.docs .paglora-accordion>summary::-webkit-details-marker{display:none}
+.docs .paglora-accordion>summary::after{content:"+";flex:0 0 auto;font-size:20px;font-weight:450;line-height:1;color:var(--muted)}
+.docs .paglora-accordion[open]>summary::after{content:"−"}
+.docs .paglora-accordion[open]>summary{border-bottom:1px solid var(--line);background:var(--subtle)}
+.docs .paglora-accordion>summary:hover{background:var(--hover)}
+.docs .paglora-accordion>summary:focus-visible{outline:2px solid var(--brand);outline-offset:-3px}
+.docs .paglora-accordion>:not(summary){margin-inline:18px}
+.docs .paglora-accordion>:last-child:not(summary){margin-bottom:18px}
+.docs .paglora-accordion-group{margin:24px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.docs .paglora-accordion-group>.paglora-accordion{margin:0;border:0;border-radius:0}
+.docs .paglora-accordion-group>.paglora-accordion+.paglora-accordion{border-top:1px solid var(--line)}
+
 /* Markdown callouts — sanitized in the shared preview/build pipeline. */
 .docs .paglora-callout{--callout-accent:var(--brand);position:relative;display:block;margin:25px 0;padding:16px 19px 17px;border:1px solid color-mix(in srgb,var(--callout-accent) 38%,var(--line));border-left:3px solid var(--callout-accent);border-radius:11px;background:color-mix(in srgb,var(--callout-accent) 7%,var(--bg));box-shadow:0 1px 2px rgba(0,0,0,.025)}
 .docs .paglora-callout-title{display:flex;align-items:center;gap:9px;margin:0 0 6px;color:var(--fg);font-size:13px;font-weight:730;line-height:1.5}

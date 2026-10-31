@@ -80,3 +80,38 @@ test("headless exports first-party nested tabs and code groups instead of plain 
    assert.doesNotMatch(html,/<blockquote>\s*<p>\[!(?:TABS|CODEGROUP)/);
  }finally{rmSync(temp,{recursive:true,force:true});}
 });
+
+test("headless exports grouped, keyboard-native FAQ accordions with safe answer markup",()=> {
+  const temp=mkdtempSync(join(tmpdir(),"paglora-headless-accordion-")),folder=join(temp,"sample"),out=join(temp,"rendered.json");
+  try {
+    makeProject(folder);
+    const md=[
+      "# FAQ","",
+      "> [!ACCORDION] Does it work offline?",">",
+      "> Yes, [read the guide](installation.md) locally.","",
+      "> [!ACCORDION] Can I keep projects private?",">",
+      "> Private pages are not published.",">",
+      "> - Local-first","> - No account required","",
+      "## Another section","",
+      "> [!ACCORDION] Is the export portable?",">",
+      "> It is plain HTML.","",
+      "> [!ACCORDION] Broken question with no answer","",
+      "> [!ACCORDION] **Unsupported rich question**",">",
+      "> This remains visible as Markdown.","",
+      "<script>alert('not allowed')</script>"
+    ].join("\n");
+    writeFileSync(join(folder,"docs","index.md"),md);
+    execFileSync(process.execPath,[tool,folder,out],{encoding:"utf8"});
+    const [{html,searchText}]=JSON.parse(readFileSync(out,"utf8"));
+    assert.equal((html.match(/class="paglora-accordion"/g)||[]).length,3);
+    assert.equal((html.match(/class="paglora-accordion-group"/g)||[]).length,1);
+    assert.match(html,/<details class="paglora-accordion"><summary>Does it work offline\?<\/summary>/);
+    assert.match(html,/<summary>Can I keep projects private\?<\/summary>/);
+    assert.match(html,/href="installation\.html"/);
+    assert.match(html,/Private pages are not published/);
+    assert.match(html,/\[!ACCORDION\] Broken question with no answer/);
+    assert.match(html,/Unsupported rich question/);
+    assert.doesNotMatch(html,/<script|onclick=|javascript:/i);
+    assert.doesNotMatch(searchText,/Never export this page/);
+  }finally{rmSync(temp,{recursive:true,force:true});}
+});

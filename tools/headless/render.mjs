@@ -109,7 +109,7 @@ function enhance(root, document, translate) {
     const marker = first.firstChild;
     if (!marker || marker.nodeType !== 3) continue;
     const text = marker.textContent || "";
-    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|TABS|CODEGROUP)\](?:\s|$)/i.exec(text);
+    const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|CARD|STEPS|TABS|CODEGROUP|ACCORDION)\](?:\s|$)/i.exec(text);
     if (!match) continue;
     const kind = match[1].toUpperCase();
     if (kind === "CARD") {
@@ -139,6 +139,20 @@ function enhance(root, document, translate) {
       first.remove();list.classList.add("paglora-steps-list");
       while(quote.firstChild)step.appendChild(quote.firstChild);
       quote.replaceWith(step);continue;
+    }
+    if (kind === "ACCORDION") {
+      // Mirror Studio: never turn malformed source into collapsed hidden text.
+      if (first.childNodes.length!==1 || first.firstChild?.nodeType!==3 ||
+          quote.children.length<2) continue;
+      const question=text.slice(match[0].length).trim();
+      if(!question || question.length>160) continue;
+      const details=document.createElement("details");
+      details.className="paglora-accordion";
+      const summary=document.createElement("summary");
+      summary.textContent=question;details.appendChild(summary);
+      first.remove();
+      while(quote.firstChild)details.appendChild(quote.firstChild);
+      quote.replaceWith(details);continue;
     }
     if (kind === "TABS") {
       const sources=[...quote.children].slice(1);
@@ -218,6 +232,18 @@ function enhance(root, document, translate) {
     current.before(grid);grid.appendChild(current);
     while(next?.classList.contains("paglora-card")) {
       const after=next.nextElementSibling;grid.appendChild(next);next=after;
+    }
+    current=next;
+  }
+  current=root.firstElementChild;
+  while(current) {
+    if(!current.classList.contains("paglora-accordion")) {current=current.nextElementSibling;continue;}
+    let next=current.nextElementSibling;
+    if(!next?.classList.contains("paglora-accordion")) {current=next;continue;}
+    const group=document.createElement("div");group.className="paglora-accordion-group";
+    current.before(group);group.appendChild(current);
+    while(next?.classList.contains("paglora-accordion")) {
+      const after=next.nextElementSibling;group.appendChild(next);next=after;
     }
     current=next;
   }
