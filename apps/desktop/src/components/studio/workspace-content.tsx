@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type { ProjectSummary } from "@paglora/core";
-import { ArrowRight, BookOpen, ChevronRight, Clock3, Copy, FolderOpen, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { Archive, ArrowRight, BookOpen, ChevronRight, Clock3, Copy, FolderOpen, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,8 @@ function WorkspaceHeader({ section }: { section: string }) {
   );
 }
 
-function ProjectCard({ project, onOpen }: { project: ProjectSummary; onOpen: () => void }) {
+function ProjectCard({ project, onOpen, onExportBackup }: { project: ProjectSummary; onOpen: () => void; onExportBackup: () => void }) {
+  const { t } = useTranslation();
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -58,6 +59,7 @@ function ProjectCard({ project, onOpen }: { project: ProjectSummary; onOpen: () 
       <ContextMenuContent className="min-w-48">
         <ContextMenuItem onSelect={onOpen}><BookOpen /> Open project</ContextMenuItem>
         <ContextMenuSeparator />
+        <ContextMenuItem onSelect={onExportBackup}><Archive /> {t("studio.backup.export")}</ContextMenuItem>
         <ContextMenuItem onSelect={() => {
           if (navigator.clipboard?.writeText) {
             void navigator.clipboard.writeText(project.name).catch((error: unknown) => {
@@ -70,10 +72,13 @@ function ProjectCard({ project, onOpen }: { project: ProjectSummary; onOpen: () 
   );
 }
 
-export function Dashboard({ projects, openCreate, openProject, view, loading, search, setSearch, desktop, error }: {
+export function Dashboard({ projects, openCreate, openProject, onExportBackup, onImportBackup, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
   projects: ProjectSummary[]; openCreate: () => void; openProject: (id: string) => void;
+  onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; backupNotice: string; backupPath: string;
   view: WorkspaceView; loading: boolean; search: string; setSearch: (value: string) => void; desktop: boolean; error: string;
 }) {
+  const { t } = useTranslation();
+  const backupInput = useRef<HTMLInputElement>(null);
   const visible = useMemo(() => projects.filter(p => p.name.toLowerCase().includes(search.trim().toLowerCase())), [projects, search]);
   const heading = view === "home" ? "Your projects" : "All projects";
   return (
@@ -97,6 +102,15 @@ export function Dashboard({ projects, openCreate, openProject, view, loading, se
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div><h2 className="text-xl font-semibold tracking-tight">{heading}</h2><p className="mt-1 text-sm text-muted-foreground">Continue working or start something new.</p></div>
             <div className="flex items-center gap-2">
+              <input ref={backupInput} type="file" accept=".paglora" className="hidden" aria-label={t("studio.backup.import")}
+                onChange={event => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (file) onImportBackup(file);
+                }} />
+              <Button variant="outline" onClick={() => backupInput.current?.click()} disabled={!desktop}>
+                <Archive /> {t("studio.backup.import")}
+              </Button>
               <div className="relative"><Search className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" />
                 <Input aria-label="Search projects" className="w-52 pl-9" placeholder="Search projects" value={search} onChange={e => setSearch(e.target.value)} /></div>
               {view === "projects" && <Button onClick={openCreate}><Plus /> New project</Button>}
@@ -104,12 +118,17 @@ export function Dashboard({ projects, openCreate, openProject, view, loading, se
           </div>
           {!desktop && <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Browser preview only. Run <code>bun run desktop</code> to access local projects.</div>}
           {error && <p role="alert" className="mt-6 rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+          {backupNotice && <div role="status" className="mt-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 text-sm">
+            <span className="min-w-0 break-all">{backupNotice}</span>
+            {backupPath && <Button variant="outline" size="sm" aria-label={t("studio.backup.copyPath")}
+              onClick={() => { if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(backupPath); }}><Copy /></Button>}
+          </div>}
           {loading ? (
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Loading projects">
               {[0, 1, 2].map(n => <Card key={n} className="min-h-48"><CardHeader><Skeleton className="size-10" /></CardHeader><CardContent className="space-y-2"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-3 w-1/2" /></CardContent></Card>)}
             </div>
           ) : visible.length > 0 ? (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(p => <ProjectCard key={p.id} project={p} onOpen={() => openProject(p.id)} />)}</div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(p => <ProjectCard key={p.id} project={p} onOpen={() => openProject(p.id)} onExportBackup={() => onExportBackup(p.id)} />)}</div>
           ) : (
             <Empty className="mt-6 min-h-64 border border-dashed border-border bg-card">
               <EmptyHeader>
@@ -120,6 +139,7 @@ export function Dashboard({ projects, openCreate, openProject, view, loading, se
               {!search && <EmptyContent><Button onClick={openCreate}><Plus /> Create project</Button></EmptyContent>}
             </Empty>
           )}
+          <p className="mt-6 text-xs text-muted-foreground">{t("studio.backup.description")}</p>
           <div className="mt-8 flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4" /> Paglora works without a cloud account.</div>
         </div>
       </div>

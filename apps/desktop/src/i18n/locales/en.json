@@ -226,6 +226,14 @@
     "studio.design.mobile": "Mobile",
     "studio.design.previewTitle": "Live website layout preview",
     "studio.design.rendering": "Rendering site...",
-    "studio.design.rendererHelp": "The same renderer produces the website you export."
+    "studio.design.rendererHelp": "The same renderer produces the website you export.",
+    "studio.backup.export": "Export .paglora backup",
+    "studio.backup.import": "Import .paglora",
+    "studio.backup.saved": "Backup saved to {path}",
+    "studio.backup.imported": "Imported project: {id}",
+    "studio.backup.invalid": "Choose a .paglora file smaller than 96 MiB.",
+    "studio.backup.description": "Portable project backups include pages, design settings, CSS and images. Backups stay on your computer.",
+    "studio.backup.copyPath": "Copy backup path",
+    "studio.backup.result": "Backup and import result"
   }
 }

@@ -226,6 +226,14 @@
     "studio.design.mobile": "Telefon",
     "studio.design.previewTitle": "Podgląd układu witryny",
     "studio.design.rendering": "Renderowanie witryny...",
-    "studio.design.rendererHelp": "Ten sam mechanizm generuje eksportowaną witrynę."
+    "studio.design.rendererHelp": "Ten sam mechanizm generuje eksportowaną witrynę.",
+    "studio.backup.export": "Eksportuj kopię .paglora",
+    "studio.backup.import": "Importuj plik .paglora",
+    "studio.backup.saved": "Kopia zapisana w {path}",
+    "studio.backup.imported": "Zaimportowano projekt: {id}",
+    "studio.backup.invalid": "Wybierz plik .paglora mniejszy niż 96 MiB.",
+    "studio.backup.description": "Przenośne kopie projektu zawierają strony, ustawienia wyglądu, CSS i obrazy. Kopie pozostają na komputerze.",
+    "studio.backup.copyPath": "Kopiuj ścieżkę kopii",
+    "studio.backup.result": "Wynik kopii i importu"
   }
 }
