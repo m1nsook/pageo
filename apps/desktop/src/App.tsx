@@ -211,7 +211,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
   // editor during the initial Canvas -> Edit layout transition.
   useLayoutEffect(() => {
     if (!editor || editor.isDestroyed) return;
-    const editing = viewMode !== "site";
+    const editing = viewMode !== "site" && componentMode === "write";
     editor.setEditable(editing);
     if (!editing) return;
     const frame = requestAnimationFrame(() => {
@@ -227,7 +227,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [editor, viewMode]);
+  }, [editor, viewMode, componentMode]);
   useEffect(() => {
     if (viewMode !== "edit" || !pendingBlock || !editor) return;
     const position = pendingBlock.pageId === current.page.id
