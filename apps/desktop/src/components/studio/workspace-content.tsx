@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import type { ProjectSummary } from "@paglora/core";
-import { Archive, ChevronRight, Clock3, Copy, ExternalLink, FolderOpen, Plus, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { Archive, ChevronRight, Clock3, Copy, ExternalLink, FolderOpen, LoaderCircle, Plus, Search, ShieldCheck, Trash2 } from "lucide-react";
 import { ArrowRightIcon, BookOpenIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -173,8 +174,9 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
   );
 }
 
-export function Settings({ location, desktop, updater, onOpenReleaseNotes }: { location: string; desktop: boolean; updater: StudioUpdaterControls; onOpenReleaseNotes: () => void }) {
+export function Settings({ location, desktop, updater, onOpenReleaseNotes, onMigrateStorage, storageMigrating, storageError }: { location: string; desktop: boolean; updater: StudioUpdaterControls; onOpenReleaseNotes: () => void; onMigrateStorage: (destination: string) => Promise<void>; storageMigrating: boolean; storageError: string }) {
   const { locale, setLocale, t } = useTranslation();
+  const [storageDestination, setStorageDestination] = useState("");
   const rows = [
     { keys: ["Ctrl", "F"], name: "Find projects or pages", detail: "Find by name or navigation group" },
     { keys: ["Ctrl", "S"], name: "Save current page", detail: "Also saves a file in the source editor" },
@@ -220,7 +222,28 @@ export function Settings({ location, desktop, updater, onOpenReleaseNotes }: { l
                       void navigator.clipboard.writeText(location).catch(error => console.warn("Could not copy local storage path", error));
                     }}><Copy className="size-3.5" /> Copy path</Button>
                 </div>
-                <p className="text-xs text-muted-foreground">Portable .paglora backups are supported today. Exports are saved outside the projects folder in Paglora's local backup directory. Custom project directories are not supported yet.</p>
+                <form className="flex flex-wrap items-end gap-2 pt-1" onSubmit={event => {
+                  event.preventDefault();
+                  if (!storageDestination.trim() || storageMigrating) return;
+                  void onMigrateStorage(storageDestination.trim()).then(() => setStorageDestination(""));
+                }}>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <Label htmlFor="storage-new-folder">Move projects to a new folder</Label>
+                    <Input id="storage-new-folder" placeholder="D:\\Paglora Projects" value={storageDestination}
+                      onChange={event => setStorageDestination(event.target.value)}
+                      disabled={!desktop || storageMigrating} autoComplete="off" />
+                  </div>
+                  <Button variant="outline" type="submit" disabled={!desktop || storageMigrating || !storageDestination.trim()}>
+                    {storageMigrating ? <LoaderCircle className="size-4 animate-spin" /> : <FolderOpen className="size-4" />}
+                    {storageMigrating ? "Copying and verifying…" : "Move projects"}
+                  </Button>
+                </form>
+                {storageError && <p role="alert" className="text-xs text-destructive">{storageError}</p>}
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Enter an absolute path for a <strong>new folder that does not exist yet</strong> (its parent must exist).
+                  Paglora copies and verifies every file before changing its active location. Originals remain in the previous
+                  folder as a recovery copy; backups remain in Paglora app data.
+                </p>
               </CardContent>
             </Card>
             <Card className="gap-0 md:col-span-2">
