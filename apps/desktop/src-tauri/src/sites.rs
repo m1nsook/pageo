@@ -1723,9 +1723,9 @@ mod website_font_tests {
         let folder = std::env::temp_dir().join(format!("paglora-image-library-{stamp}"));
         let dir = folder.join("assets");
         fs::create_dir_all(&dir).unwrap();
-        fs::write(dir.join("good.png"), b"\\x89PNG\\r\\n\\x1a\\ncontent").unwrap();
+        fs::write(dir.join("good.png"), b"\x89PNG\r\n\x1a\ncontent").unwrap();
         fs::write(dir.join("fake.png"), b"<script>bad</script>").unwrap();
-        fs::write(dir.join("wrong.jpg"), b"\\x89PNG\\r\\n\\x1a\\ncontent").unwrap();
+        fs::write(dir.join("wrong.jpg"), b"\x89PNG\r\n\x1a\ncontent").unwrap();
         fs::write(dir.join("evil.svg"), b"<svg></svg>").unwrap();
         let items = list_project_assets(&folder).unwrap();
         assert_eq!(items.len(), 1);
