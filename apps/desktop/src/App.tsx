@@ -302,7 +302,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
         {showBlockTools && viewMode === "edit" && <BlockPalette editor={editor} disabled={leaving} />}
       </div>
       <StudioQuickFind open={findOpen} onOpenChange={onFindOpenChange}
-        shortcut={findShortcut} entries={pages.map(page => ({ id: page.id, title: page.title, description: page.navGroup, kind: "page" as const }))}
+        projectId={document.project.id} shortcut={findShortcut} entries={pages.map(page => ({ id: page.id, title: page.title, description: page.navGroup, kind: "page" as const }))}
         onSelect={id => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }} />
     </main>
   );
