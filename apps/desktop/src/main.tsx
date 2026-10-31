@@ -8,8 +8,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauri } from "@/lib/projects";
 import "./index.css";
 
-/** Keep Windows' native caption in step with Studio appearance.
- * This does not remove decorations or interfere with native window controls.
+/** Keep the OS window's native theme (resize frame, system dialogs) in sync
+ * with Studio. The app-drawn titlebar uses Studio CSS tokens instead.
  */
 function NativeWindowTheme() {
   const { resolvedTheme } = useTheme();

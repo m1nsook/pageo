@@ -30,12 +30,14 @@ test("Studio font and icon roles remain explicit", () => {
   assert.match(read("components/editor/monaco-code-editor.tsx"), /JetBrains Mono Variable/);
 });
 
-test("native titlebar follows Studio appearance without disabling decorations", () => {
+test("Paglora titlebar replaces native caption, retaining OS-theme sync", () => {
   const config = JSON.parse(readFileSync(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"));
   const capabilities = JSON.parse(readFileSync(new URL("../src-tauri/capabilities/default.json", import.meta.url), "utf8"));
   const windowConfig = config.app.windows.find((item) => item.label === "main");
   assert.equal(windowConfig.theme, "Dark");
-  assert.notEqual(windowConfig.decorations, false);
+  assert.equal(windowConfig.decorations, false);
+  assert.match(read("App.tsx"), /<StudioTitlebar activeProject=/);
+  assert.match(read("index.css"), /data-paglora-desktop-shell/);
   assert.ok(capabilities.permissions.includes("core:window:allow-set-theme"));
   assert.match(read("main.tsx"), /getCurrentWindow\(\)/);
   assert.match(read("main.tsx"), /setTheme\(resolvedTheme === "dark" \? "dark" : "light"\)/);
