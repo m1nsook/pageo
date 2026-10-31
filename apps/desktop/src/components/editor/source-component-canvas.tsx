@@ -63,7 +63,7 @@ export function SourceComponentCanvas({
             }}
             className="group block w-full cursor-pointer rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:border-primary focus-visible:outline-none"
           >
-            <div className="editor-content !min-h-0 pointer-events-none"
+            <div className="paglora-component-preview pointer-events-none"
               dangerouslySetInnerHTML={{ __html: block.html }} />
           </div>
           {slot(index + 1)}
