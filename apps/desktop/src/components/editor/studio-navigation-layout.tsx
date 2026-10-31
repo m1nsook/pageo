@@ -3,10 +3,9 @@ import type { Layout } from "react-resizable-panels";
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from "@/components/ui/resizable";
 
 const STORE = "paglora-studio-navigation-layout-v1";
-const DEFAULT_WIDTH = 20;
 
 export function readNavigationLayout(key: string, hasLeft: boolean, hasRight: boolean): Layout {
-  const defaults = hasLeft && hasRight ? { navigation: 19, content: 61, details: 20 }
+  const defaults: Layout = hasLeft && hasRight ? { navigation: 19, content: 61, details: 20 }
     : hasLeft ? { navigation: 22, content: 78 }
     : hasRight ? { content: 76, details: 24 } : { content: 100 };
   try {
