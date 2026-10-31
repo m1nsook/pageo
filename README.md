@@ -39,7 +39,7 @@ The version is synchronized across the workspace, Windows Tauri app, and Rust pa
 - **Appearance:** Light / Dark / System switching with a remembered browser preference where storage is available.
 - **Content features:** callouts (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`), responsive cards, guided steps, code-block Copy buttons, Unicode heading permalinks, task lists, collapsible disclosures, and Markdown tables.
 - **Local images:** import PNG, JPEG, WebP, and GIF files into a project; only images referenced by public pages or the site logo are copied into the static export.
-- **Multilingual foundations:** choose the document language from 18 options (including Korean, Polish, Japanese, Chinese, and Arabic); Arabic exports use RTL layout. This does not automatically translate content.
+- **Multilingual foundations:** choose among 18 built-in document languages plus any newly synchronized and reviewed community language packs. Right-to-left direction can come from package metadata (Arabic remains RTL by default). This does not automatically translate content.
 - **SEO for static hosts:** optional HTTPS site root produces per-page canonical URLs and a public-page-only `sitemap.xml`, with page-specific descriptions and social metadata.
 - **Safe publication:** Markdown HTML is sanitized before export; pages marked private are excluded from the published site, search index, and sitemap.
 
@@ -66,7 +66,7 @@ Paglora now has a community translation source: **[m1nsook/paglora-lang](https:/
 - **Website language:** configure **Design site → Document language** separately for each project. Its built-in navigation, appearance/copy controls and documentation callout labels use the relevant reviewed pack when available. Other language choices use English interface text until translated.
 - **Document content:** Paglora never automatically translates your `docs/*.md` writing, page titles, navigation groups or custom labels. Authors can write those in their own language.
 
-For a new language, fork `paglora-lang`, copy `locales/en.json` to your locale code (for example, `locales/fr.json`), translate values and open a PR. The repository has issue templates for coordination and automated translation labels. After human review, update a local Paglora checkout from a local clone of the translations repository:
+For a new language, fork [`paglora-lang`](https://github.com/m1nsook/paglora-lang), create a blank language file using `node scripts/new-locale.mjs fr "Français" "French"`, translate the values you know, and open a pull request. A coverage command (`node scripts/coverage.mjs`) reports translated catalog keys; untranslated messages fall back to English. The repository has issue templates for coordination and automated translation labels. After human review, update a local Paglora checkout from a local clone of the translations repository:
 
 ```powershell
 node scripts/sync-translations.mjs ../paglora-lang
@@ -181,9 +181,19 @@ packages/cli/          Public `paglora` npm alpha CLI
 packages/site-runtime/ Browser-side enhancements for exported sites
 ```
 
-## Documentation
+## Official repositories and documentation
 
-The official documentation is being authored **with Paglora itself** in the separate private `m1nsook/paglora-docs` repository. It includes a real Paglora project that will eventually serve as both the user guide and a live GitHub Pages demo. It is not publicly deployed yet.
+| Repository | Purpose |
+| --- | --- |
+| **[m1nsook/paglora](https://github.com/m1nsook/paglora)** | Paglora Desktop, Rust renderer, npm CLI, development, issues and releases |
+| **[m1nsook/paglora-docs](https://github.com/m1nsook/paglora-docs)** | Public documentation source project `project/paglora-docs/` and deployed static export `site/` |
+| **[m1nsook/paglora-lang](https://github.com/m1nsook/paglora-lang)** | Community translation catalogs, language requests, translation PRs and validation |
+
+**Live website:** [Paglora Docs](https://m1nsook.github.io/paglora-docs/), built using Paglora itself. The source is public, and its `site/` export is hosted through GitHub Pages.
+
+**Important publishing distinction:** Editing documentation Markdown or changing **Design site** in Studio modifies your **local Paglora project only**. GitHub Pages deploys `paglora-docs/site/`, not your local Studio preview or `project/` folder. To update the public website, sync the saved local project to `paglora-docs/project/paglora-docs/`, rebuild in Desktop, copy the **complete static export** to `paglora-docs/site/`, and push both through GitHub Desktop. See the [docs synchronization guide](https://github.com/m1nsook/paglora-docs/blob/main/project/README.md). **Sync the newest repository source into Studio before editing** to avoid overwriting documentation changes with an older local copy.
+
+Use [paglora-lang](https://github.com/m1nsook/paglora-lang) for translation pull requests. The editor language and each generated site's document language are separate settings; neither machine-translates project Markdown.
 
 ## Contributing and license
 
