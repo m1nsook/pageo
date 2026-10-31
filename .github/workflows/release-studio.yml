@@ -1,0 +1,63 @@
+name: Studio versioned release (manual approval only)
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Exact stable Studio version X.Y.Z"
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: studio-versioned-release
+  cancel-in-progress: false
+jobs:
+  build-draft:
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - name: Require intentional version bump and curated notes
+        run: node scripts/check-desktop-release.mjs "${{ inputs.version }}"
+      - run: bun install --frozen-lockfile
+      - name: Build embedded website runtime
+        run: bun packages/site-runtime/build.mjs
+      - name: Test before drafting
+        run: |
+          node --test apps/desktop/test/*.test.mjs
+          bun run check
+          cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml --lib
+      - name: Require configured and signed Tauri updater before stable releases
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: node scripts/check-updater-ready.mjs
+      - name: Read curated release notes
+        shell: pwsh
+        id: notes
+        run: |
+          $end = "NOTES_$([Guid]::NewGuid().ToString('N'))"
+          "body<<$end" >> $env:GITHUB_OUTPUT
+          Get-Content ".github/releases/v${{ inputs.version }}.md" -Encoding utf8 >> $env:GITHUB_OUTPUT
+          "$end" >> $env:GITHUB_OUTPUT
+      - name: Build installer and upload to a reviewable draft
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          tauriScript: bun tauri
+          tagName: v${{ inputs.version }}
+          releaseName: Paglora Studio v${{ inputs.version }}
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: true
+          prerelease: false
+          updaterJsonPreferNsis: true
