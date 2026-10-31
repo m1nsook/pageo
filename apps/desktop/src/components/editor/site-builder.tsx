@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { CheckCircle2, Copy, Globe2, LoaderCircle, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, Globe2, LoaderCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { buildPublicSite, loadSiteSettings, saveSiteSettings, type SiteSettings } from "@/lib/site";
+import { buildPublicSite, loadSiteSettings, saveSiteSettings, type SiteBuildResult, type SiteSettings } from "@/lib/site";
 
 export function SiteBuilder({ projectId, onBeforeBuild }: {
   projectId: string;
@@ -18,6 +18,7 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [output, setOutput] = useState("");
+  const [report, setReport] = useState<SiteBuildResult | null>(null);
   const [copyStatus, setCopyStatus] = useState("");
   const generation = useRef(0);
 
@@ -27,6 +28,7 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
     generation.current++;
     setSettings(null);
     setOutput("");
+    setReport(null);
     setCopyStatus("");
     setBusy(false);
     setLoading(true);
@@ -41,6 +43,7 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
   function field(key: keyof SiteSettings, value: string) {
     setSettings(current => current ? { ...current, [key]: value } : null);
     setOutput("");
+    setReport(null);
     setCopyStatus("");
   }
 
@@ -51,13 +54,17 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
     setBusy(true);
     setError("");
     setOutput("");
+    setReport(null);
     setCopyStatus("");
     try {
       // Save active editor content before reading the files for the site.
       await onBeforeBuild();
       await saveSiteSettings(projectId, settings);
-      const path = await buildPublicSite(projectId);
-      if (generation.current === started) setOutput(path);
+      const result = await buildPublicSite(projectId);
+      if (generation.current === started) {
+        setOutput(result.path);
+        setReport(result);
+      }
     } catch (cause) {
       if (generation.current === started) setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -114,8 +121,26 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
                 <code className="min-w-0 flex-1 break-all rounded-md bg-white/70 p-2 text-xs">{output}</code>
                 <Button type="button" variant="outline" size="icon-sm" title="Copy export directory" aria-label="Copy export directory" onClick={() => void copyOutput()}><Copy /></Button>
               </div>
-              {copyStatus && <p role="status" className="text-xs">{copyStatus}</p>}
-              <p className="text-xs">Open <code>index.html</code> in the exported folder for a local preview.</p>
+              {report && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2 rounded-md border border-emerald-200 bg-white/65 p-3 text-center text-xs">
+                    <div><strong className="block text-base">{report.publicPages}</strong>Public pages</div>
+                    <div><strong className="block text-base">{report.privatePages}</strong>Private excluded</div>
+                    <div><strong className="block text-base">{report.localImages}</strong>Local images</div>
+                  </div>
+                  {report.warnings.length > 0 ? (
+                    <section aria-label="Publish warnings" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-950">
+                      <p className="flex items-center gap-2 font-medium"><AlertTriangle className="size-4" /> {report.warnings.length} link warning{report.warnings.length === 1 ? "" : "s"}</p>
+                      <p className="mt-1 text-xs">The website was generated, but some internal links point to missing or private pages.</p>
+                      <ul className="mt-2 max-h-36 list-disc space-y-1 overflow-y-auto pl-5 text-xs">
+                        {report.warnings.map(warning => <li key={warning} className="break-words">{warning}</li>)}
+                      </ul>
+                    </section>
+                  ) : <p role="status" className="text-xs">No links to missing or private pages were found in the published content.</p>}
+                </div>
+              )}
+              {copyStatus && <p role="status" className="text-xs">{copyStatus}</p>
+              <p className="text-xs">Test search, appearance switching, and code-copy controls over HTTP(S) after deploying. Opening HTML with file:// can block search-index.json.</p>
             </div>}
             <DialogFooter>
               <Button type="button" variant="outline" disabled={busy} onClick={() => setOpen(false)}>Close</Button>

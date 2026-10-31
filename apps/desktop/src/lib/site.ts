@@ -4,6 +4,16 @@ import { listPages, loadPage } from "@/lib/pages";
 
 export type SiteLink = { label: string; url: string };
 
+export type SiteBuildResult = {
+  /** Absolute directory path of the completed, staged-then-installed export. */
+  path: string;
+  publicPages: number;
+  privatePages: number;
+  localImages: number;
+  /** Only links from published pages are examined; no private source is exported. */
+  warnings: string[];
+};
+
 export type SiteSettings = {
   title: string;
   description: string;
@@ -190,7 +200,7 @@ function renderPageContent(markdownHtml: string): { html: string; toc: TocHeadin
   return { html: container.innerHTML, toc: toc.slice(0, 100), searchText };
 }
 
-export async function buildPublicSite(projectId: string): Promise<string> {
+export async function buildPublicSite(projectId: string): Promise<SiteBuildResult> {
   const pages = await listPages(projectId);
   const publicPages = pages.filter(page => page.isPublic);
   const rendered = await Promise.all(publicPages.map(async page => {
@@ -198,7 +208,7 @@ export async function buildPublicSite(projectId: string): Promise<string> {
     const html = await marked.parse(document.markdown);
     return { id: page.id, ...renderPageContent(html) };
   }));
-  return invoke<string>("build_site", { projectId, rendered });
+  return invoke<SiteBuildResult>("build_site", { projectId, rendered });
 }
 
 /** Render a public page with the same sanitized markup as static export.
