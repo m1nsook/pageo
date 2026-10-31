@@ -1,6 +1,6 @@
 import { useMemo, useRef } from "react";
 import type { ProjectSummary } from "@paglora/core";
-import { Archive, ChevronRight, Clock3, Copy, FolderOpen, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { Archive, ChevronRight, Clock3, Copy, FolderOpen, Plus, Search, ShieldCheck } from "lucide-react";
 import { ArrowRightIcon, BookOpenIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
