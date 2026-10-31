@@ -280,3 +280,53 @@ button:disabled { cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   .paglora-preview-frame { transition: none; }
 }
+
+/* Milestone C / Windows WebView2: project dialog compositor guard.
+   Project editing keeps live iframe surfaces mounted behind dialogs. Blurred,
+   animated Radix overlays can trigger a full webview layer recomposition and
+   expose the webview's unpainted backing color (white on some GPU drivers).
+   Avoid these effects ONLY while a project editor is present; normal Radix
+   modality, focus traps, close/cancel and dialog layout remain unchanged.
+   Portals are appended to body, so the project flag must be searched on :root.
+ */
+:root {
+  background-color: var(--background);
+  color-scheme: light;
+}
+:root.dark {
+  background-color: var(--background);
+  color-scheme: dark;
+}
+:root:has([data-paglora-project-root]) {
+  /* Also paint the root and body when a portal is added/removed. */
+  background-color: var(--studio-surface-1);
+}
+:root:has([data-paglora-project-root]) body,
+:root:has([data-paglora-project-root]) #root {
+  background-color: var(--studio-surface-1);
+}
+:root:has([data-paglora-project-root]) :is(
+  [data-slot="dialog-overlay"],
+  [data-slot="alert-dialog-overlay"],
+  [data-slot="sheet-overlay"],
+  [data-slot="drawer-overlay"]
+) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  animation: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+  background-color: rgb(12 13 18 / 52%) !important;
+}
+:root:has([data-paglora-project-root]) :is(
+  [data-slot="dialog-content"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="drawer-content"],
+  [data-slot="popover-content"]
+) {
+  animation: none !important;
+  /* Never remove layout transforms here: Radix uses translate(-50%,-50%)
+     for centering, unrelated to transition keyframes. */
+  transition-property: none !important;
+}
