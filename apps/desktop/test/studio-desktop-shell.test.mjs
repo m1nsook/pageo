@@ -94,3 +94,24 @@ test("Milestone A avoids native title tooltips and dead navigation promises", ()
   assert.equal(config.app.windows[0].decorations, true);
   assert.match(read("src/main.tsx"), /setTheme\(resolvedTheme === "dark" \? "dark" : "light"\)/);
 });
+
+test("every remaining Studio toolbar and outline native tooltip uses Paglora's shared component", () => {
+  const outline = read("src/components/editor/block-outline.tsx");
+  assert.doesNotMatch(outline, /\\btitle=/);
+  assert.match(outline, /StudioTooltip label="Delete block/);
+  assert.match(outline, /StudioTooltip label="Undo"/);
+  const builder = read("src/components/editor/site-builder.tsx");
+  assert.doesNotMatch(builder, /title="Copy export directory"/);
+  assert.match(builder, /StudioTooltip label="Copy export directory"/);
+  const preview = read("src/components/editor/site-preview.tsx");
+  assert.doesNotMatch(preview, /title="Refresh preview"/);
+  assert.match(preview, /StudioTooltip label="Refresh preview"/);
+  const designer = read("src/components/editor/site-designer.tsx");
+  assert.doesNotMatch(designer, /title=\\{t\\(color\\.name\\)\\}/);
+  assert.match(designer, /StudioTooltip key=\\{color\\.name\\}/);
+  const trash = read("src/components/studio/project-trash-panel.tsx");
+  assert.doesNotMatch(trash, /title=\\{item\\.project\\.name\\}/);
+  assert.match(trash, /StudioTooltip label=\\{item\\.project\\.name\\}/);
+  // iframe title remains mandatory for accessibility; never remove it.
+  assert.match(preview, /title=\\{\\`Public website:/);
+});
