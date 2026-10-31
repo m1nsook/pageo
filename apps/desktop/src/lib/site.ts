@@ -30,6 +30,10 @@ export const loadSiteSettings = (projectId: string) =>
 export const saveSiteSettings = (projectId: string, settings: SiteSettings) =>
   invoke<void>("save_site_settings", { projectId, settings });
 
+/** Store a local image inside the project and receive a safe assets/ URL. */
+export const importSiteAsset = (projectId: string, filename: string, bytes: number[]) =>
+  invoke<string>("import_site_asset", { projectId, filename, bytes });
+
 const allowed = new Set([
   "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "hr",
   "strong", "em", "del", "s", "code", "pre", "blockquote",
@@ -51,7 +55,9 @@ function safeLink(raw: string): string | null {
 
 function safeImage(raw: string): string | null {
   const link = raw.trim();
-  // First static-site milestone supports externally hosted HTTPS media.
+  // Flat project-owned PNG/JPEG/WebP/GIF images are bundled only when
+  // referenced by public pages. Never allow traversal, SVG or data URLs.
+  if (/^assets\/[a-z0-9-]{1,90}\.(?:png|jpg|webp|gif)$/.test(link)) return link;
   return /^https:\/\/[^\s]+$/i.test(link) ? link : null;
 }
 
