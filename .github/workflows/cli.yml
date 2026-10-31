@@ -32,6 +32,8 @@ jobs:
         run: node --test packages/cli/test/cli.test.mjs
       - name: Check package contents
         run: npm pack --dry-run ./packages/cli
+      - name: Smoke-test packed CLI entrypoint and project round trip
+        run: node packages/cli/test/package-smoke.mjs
       - name: Check npm name (informational only)
         if: matrix.os == 'ubuntu-latest'
         run: |
