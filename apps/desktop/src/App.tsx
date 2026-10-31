@@ -375,12 +375,15 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
                 if (saveTimer.current) clearTimeout(saveTimer.current);
                 latest.current = markdown;
                 revision.current += 1;
-                editor.commands.setContent(markdown, { contentType: "markdown", emitUpdate: false });
                 rawSourceFallbackActive.current = true;
                 try {
+                  editor.commands.setContent(markdown, { contentType: "markdown", emitUpdate: false });
                   editor.state.doc.check();
                   rawSourceFallbackActive.current = false;
-                } catch { /* Keep original source authoritative. */ }
+                } catch {
+                  // Source was already saved by Monaco. The visual parser must
+                  // never turn a successful source edit into a rejected save.
+                }
                 setSaveState("saved");
                 setSaveError("");
               }
