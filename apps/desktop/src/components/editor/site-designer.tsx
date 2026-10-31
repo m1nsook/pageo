@@ -59,7 +59,16 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
-  const [preview, setPreview] = useState("");
+  // A srcDoc assignment blanks the single iframe for one WebView2 frame.
+  // Keep the current website mounted until an offscreen replacement is ready.
+  const [previewFrames, setPreviewFrames] = useState<[{ html: string; revision: number }, { html: string; revision: number }]>([
+    { html: "", revision: 0 }, { html: "", revision: 0 },
+  ]);
+  const [visiblePreviewSlot, setVisiblePreviewSlot] = useState<0 | 1>(0);
+  const visibleSlotRef = useRef<0 | 1>(0);
+  const previewRequest = useRef(0);
+  const pendingPreview = useRef<{ slot: 0 | 1; request: number; generation: number } | null>(null);
+  const [renderingPreview, setRenderingPreview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -72,13 +81,18 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
 
   useEffect(() => {
     generation.current++;
+    previewRequest.current++;
+    pendingPreview.current = null;
+    visibleSlotRef.current = 0;
+    setVisiblePreviewSlot(0);
+    setPreviewFrames([{ html: "", revision: 0 }, { html: "", revision: 0 }]);
+    setRenderingPreview(false);
     if (!open) return;
     let mounted = true;
     setBusy(false);
     setUploading(false);
     setLoading(true);
     setSettings(null);
-    setPreview("");
     editVersion.current++;
     setError("");
     setSaved(false);
@@ -92,14 +106,52 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
   useEffect(() => {
     if (!open || !settings) return;
     let mounted = true;
-    // Debounce editing so the real Rust renderer doesn't rerun on every keystroke.
+    const request = ++previewRequest.current;
+    const startedGeneration = generation.current;
+    // Debounce edits; a late completion must not replace a newer revision.
     const timer = window.setTimeout(() => {
+      if (!mounted || startedGeneration !== generation.current) return;
+      setRenderingPreview(true);
       void previewPublicPage(projectId, "index", settings)
-        .then(html => { if (mounted) setPreview(html); })
-        .catch(cause => { if (mounted) { setPreview(""); setError(String(cause)); } });
+        .then(html => {
+          if (!mounted || startedGeneration !== generation.current || request !== previewRequest.current) return;
+          const slot: 0 | 1 = visibleSlotRef.current === 0 ? 1 : 0;
+          pendingPreview.current = { slot, request, generation: startedGeneration };
+          setPreviewFrames(previous => {
+            const next: typeof previous = [...previous];
+            next[slot] = { html, revision: request };
+            return next;
+          });
+        })
+        .catch(cause => {
+          if (mounted && startedGeneration === generation.current && request === previewRequest.current) {
+            pendingPreview.current = null;
+            setRenderingPreview(false);
+            setError(String(cause));
+            // Preserve the last successfully painted site rather than exposing
+            // a blank iframe when the renderer fails.
+          }
+        });
     }, 200);
     return () => { mounted = false; clearTimeout(timer); };
   }, [open, projectId, settings]);
+
+  function finishPreviewLoad(slot: 0 | 1, revision: number) {
+    const pending = pendingPreview.current;
+    if (!pending || pending.slot !== slot || pending.request !== revision ||
+        pending.generation !== generation.current) return;
+    // WebView2 onLoad can precede the first composited frame. Yield two paint
+    // opportunities before revealing the newly loaded iframe.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const current = pendingPreview.current;
+      if (!current || current.slot !== slot || current.request !== revision ||
+          current.generation !== generation.current) return;
+      pendingPreview.current = null;
+      visibleSlotRef.current = slot;
+      setVisiblePreviewSlot(slot);
+      setRenderingPreview(false);
+    }));
+  }
 
   function patch<K extends keyof SiteSettings>(key: K, value: SiteSettings[K]) {
     editVersion.current++;
@@ -387,7 +439,9 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
           <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-3 py-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground"><Eye className="size-4" /> {t("studio.design.liveWebsite")}
-              <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px]">Site: {settings?.themeMode ?? "loading"}</span></div>
+              <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px]">Site: {settings?.themeMode ?? "loading"}</span>
+              {renderingPreview && <LoaderCircle className="size-3.5 animate-spin" aria-label="Updating website preview" />}
+            </div>
             <div className="flex gap-1">
               <Button type="button" aria-pressed={width === "desktop"} variant={width === "desktop" ? "secondary" : "ghost"} size="sm" onClick={() => setWidth("desktop")}>{t("studio.design.desktop")}</Button>
               <Button type="button" aria-pressed={width === "tablet"} variant={width === "tablet" ? "secondary" : "ghost"} size="sm" onClick={() => setWidth("tablet")}>{t("studio.design.tablet")}</Button>
@@ -395,10 +449,27 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
             </div>
           </div>
           <div className="paglora-preview-stage flex min-h-0 flex-1 justify-center overflow-auto p-3 sm:p-6">
-            {preview ? <iframe title={t("studio.design.previewTitle")} sandbox="allow-same-origin" srcDoc={preview}
-              style={{ width: width === "desktop" ? "100%" : width === "tablet" ? "min(100%,768px)" : "min(100%,390px)" }}
-              className="paglora-preview-frame h-full min-h-72 rounded-md border bg-white transition-[width] duration-200 motion-reduce:transition-none"/> :
-              <p className="flex items-center gap-2 self-center text-xs text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/> {t("studio.design.rendering")}</p>}
+            {previewFrames.some(frame => frame.html) ? (
+              <div className="relative h-full min-h-72 shrink-0 transition-[width] duration-200 motion-reduce:transition-none"
+                style={{ width: width === "desktop" ? "100%" : width === "tablet" ? "min(100%,768px)" : "min(100%,390px)" }}>
+                {previewFrames.map((frame, index) => frame.html ? (
+                  <iframe key={`${index}-${frame.revision}`}
+                    title={`${t("studio.design.previewTitle")} ${index + 1}`}
+                    sandbox="allow-same-origin"
+                    srcDoc={frame.html}
+                    aria-hidden={visiblePreviewSlot !== index}
+                    tabIndex={visiblePreviewSlot === index ? 0 : -1}
+                    onLoad={() => finishPreviewLoad(index as 0 | 1, frame.revision)}
+                    style={{ zIndex: visiblePreviewSlot === index ? 2 : 1,
+                      opacity: visiblePreviewSlot === index ? 1 : 0,
+                      pointerEvents: visiblePreviewSlot === index ? "auto" : "none" }}
+                    className="paglora-preview-frame absolute inset-0 h-full w-full rounded-md border bg-transparent"
+                  />
+                ) : null)}
+              </div>
+            ) : <p className="flex items-center gap-2 self-center text-xs text-muted-foreground">
+                <LoaderCircle className="size-4 animate-spin"/> {t("studio.design.rendering")}
+              </p>}
           </div>
           <p className="flex shrink-0 items-center gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground"><ArrowRight className="size-3.5"/> {t("studio.design.rendererHelp")}</p>
         </div>

@@ -22,6 +22,8 @@ test("late save results cannot mark a different project saved", () => {
   assert.match(source, /if \(generation\.current === startedGeneration\) setBusy\(false\)/);
 });
 
-test("failed live previews do not leave stale published content on screen", () => {
-  assert.match(source, /\.catch\(cause => \{ if \(mounted\) \{ setPreview\(""\); setError\(String\(cause\)\); \} \}\);/);
+test("designer retains a previous ready preview when rendering fails", () => {
+  assert.match(source, /setError\(String\(cause\)\)/);
+  assert.match(source, /setRenderingPreview\(false\)/);
+  assert.doesNotMatch(source, /setPreview\(" "\)/);
 });
