@@ -8,9 +8,11 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { previewPublicPage } from "@/lib/site";
 import { listPages, type Page } from "@/lib/pages";
-import { cn } from "@/lib/utils";
+import { resolveCanvasLink } from "@/lib/site-preview-links";
 
 type Device = "desktop" | "tablet" | "mobile";
+type Frame = { html: string; pageId: string; revision: number; fragment: string };
+const blankFrame = (): Frame => ({ html: "", pageId: "", revision: 0, fragment: "" });
 const deviceWidth: Record<Device, number> = { desktop: 1280, tablet: 820, mobile: 390 };
 
 export function SitePreview({ projectId, onBeforePreview }: {
@@ -21,82 +23,93 @@ export function SitePreview({ projectId, onBeforePreview }: {
   const [pages, setPages] = useState<Page[]>([]);
   const [selected, setSelected] = useState("index");
   const [device, setDevice] = useState<Device>("desktop");
-  const [srcDoc, setSrcDoc] = useState("");
+  // Keep the visible website mounted while a replacement preview is rendered.
+  const [frames, setFrames] = useState<[Frame, Frame]>([blankFrame(), blankFrame()]);
+  const [visibleSlot, setVisibleSlot] = useState<0 | 1>(0);
+  const visibleRef = useRef<0 | 1>(0);
+  const pending = useRef<{ slot: 0 | 1; request: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const frame = useRef<HTMLIFrameElement | null>(null);
   // Ignore responses from an older page selection or a closed preview.
   const requestId = useRef(0);
-  // A cross-page Markdown link can include a heading fragment. Restore it
-  // after the script-disabled srcDoc iframe finishes loading the target page.
-  const pendingFragment = useRef("");
   const publicPages = pages.filter(page => page.isPublic);
 
   const refresh = useCallback(async (pageId?: string, fragment = "") => {
     const request = ++requestId.current;
-    pendingFragment.current = fragment;
+    pending.current = null;
     setBusy(true);
     setError("");
     try {
       await onBeforePreview();
       if (request !== requestId.current) return;
-      const available = (await listPages(projectId)).filter(page => page.isPublic);
+      const available = (await listPages(projectId)).filter(item => item.isPublic);
       if (request !== requestId.current) return;
-      const next = available.some(page => page.id === pageId) ? pageId! : "index";
+      const next = available.some(item => item.id === pageId) ? pageId! : "index";
       const html = await previewPublicPage(projectId, next);
       if (request !== requestId.current) return;
+      const slot: 0 | 1 = visibleRef.current === 0 ? 1 : 0;
+      pending.current = { slot, request };
       setPages(available);
-      setSelected(next);
-      setSrcDoc(html);
+      setFrames(previous => {
+        const updated: [Frame, Frame] = [...previous];
+        updated[slot] = { html, pageId: next, revision: request, fragment };
+        return updated;
+      });
+      // Busy remains until the hidden document's onLoad confirms readiness.
     } catch (cause) {
       if (request === requestId.current) {
-        pendingFragment.current = "";
-        // Never leave an older page visible after the requested preview fails.
-        setSrcDoc("");
+        pending.current = null;
         setError(cause instanceof Error ? cause.message : String(cause));
+        // Do not destroy the already-rendered page on a failed refresh.
+        setBusy(false);
       }
-    } finally {
-      if (request === requestId.current) setBusy(false);
     }
   }, [projectId, onBeforePreview]);
 
   useEffect(() => {
-    // Clear the previous project's public content immediately when switching
-    // workspaces, including while the preview dialog remains open.
+    // A project change clears BOTH frames: never display another project's
+    // private workspace data, even for one frame of a pending transition.
     requestId.current++;
-    pendingFragment.current = "";
+    pending.current = null;
+    visibleRef.current = 0;
+    setVisibleSlot(0);
+    setFrames([blankFrame(), blankFrame()]);
     setPages([]);
     setSelected("index");
-    setSrcDoc("");
     if (open) void refresh();
     else setBusy(false);
   }, [open, projectId]); // page navigation calls refresh itself
 
-  function onFrameLoad() {
-    const doc = frame.current?.contentDocument;
-    if (!doc) return;
-    const fragment = pendingFragment.current;
-    pendingFragment.current = "";
-    if (fragment) doc.getElementById(fragment)?.scrollIntoView({ block: "start" });
-    // Scripts are disabled in the sandbox. Intercept navigation in the parent
-    // so clicking an internal docs link switches the previewed Paglora page.
-    doc.addEventListener("click", event => {
-      const anchor = (event.target as Element | null)?.closest?.("a[href]");
+  function onFrameLoad(event: React.SyntheticEvent<HTMLIFrameElement>, snapshot: Frame, slot: 0 | 1) {
+    if (!pending.current || pending.current.request !== snapshot.revision || pending.current.slot !== slot) return;
+    const doc = event.currentTarget.contentDocument;
+    if (!doc) {
+      pending.current = null;
+      setError("The public preview document could not be opened.");
+      setBusy(false);
+      return;
+    }
+    const publicIds = pages.filter(item => item.isPublic).map(item => item.id);
+    // No iframe scripts are allowed. Links are resolved in parent React, with
+    // private pages, external origins and invalid paths explicitly rejected.
+    doc.addEventListener("click", click => {
+      const anchor = (click.target as Element | null)?.closest?.("a[href]");
       if (!anchor) return;
-      const href = anchor.getAttribute("href") || "";
-      if (href.startsWith("#")) return;
-      event.preventDefault(); // do not navigate to the host WebView or network
-      const [path, ...hash] = href.split("#");
-      const pathname = path.replace(/^\.\//, "");
-      const target = pathname.replace(/\.html$/, "");
-      if (!publicPages.some(page => page.id === target)) return;
-      let fragment = "";
-      try { fragment = decodeURIComponent(hash.join("#")); }
-      catch { return; } // malformed fragments must not navigate or crash
-      if (target === selected) {
-        if (fragment) doc.getElementById(fragment)?.scrollIntoView({ block: "start" });
-      } else void refresh(target, fragment);
-    }, { once: false });
+      click.preventDefault();
+      const destination = resolveCanvasLink(anchor.getAttribute("href") ?? "", publicIds);
+      if (!destination) return;
+      if (destination.kind === "fragment") {
+        if (destination.fragment) doc.getElementById(destination.fragment)?.scrollIntoView({ block: "start" });
+      } else if (destination.pageId === snapshot.pageId) {
+        if (destination.fragment) doc.getElementById(destination.fragment)?.scrollIntoView({ block: "start" });
+      } else void refresh(destination.pageId, destination.fragment);
+    });
+    if (snapshot.fragment) doc.getElementById(snapshot.fragment)?.scrollIntoView({ block: "start" });
+    pending.current = null;
+    visibleRef.current = slot;
+    setVisibleSlot(slot);
+    setSelected(snapshot.pageId);
+    setBusy(false);
   }
 
   return (
@@ -132,18 +145,29 @@ export function SitePreview({ projectId, onBeforePreview }: {
           </Button></StudioTooltip>
         </div>
         <div className="paglora-preview-stage relative flex min-h-0 flex-1 justify-center overflow-auto rounded-lg border border-border p-3 sm:p-6">
-          {error && <div role="alert" className="absolute inset-x-3 top-3 z-10 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-          {!srcDoc && !error && <div className="flex items-center gap-2 self-center text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Preparing preview...</div>}
-          {srcDoc && <iframe
-            key={selected}
-            ref={frame}
-            title={`Public website: ${selected}`}
-            sandbox="allow-same-origin"
-            srcDoc={srcDoc}
-            onLoad={onFrameLoad}
-            style={{ width: `min(100%, ${deviceWidth[device]}px)` }}
-            className={cn("paglora-preview-frame h-full min-h-72 shrink-0 rounded-md border bg-white transition-[width] duration-200", busy && "opacity-75")}
-          />}
+          {error && <div role="alert" className="absolute inset-x-3 top-3 z-20 rounded-lg border border-destructive/30 bg-card p-3 text-sm text-destructive">Could not load requested page: {error}. The previous preview remains available.</div>}
+          {!frames.some(frame => frame.html) && !error && <div className="flex items-center gap-2 self-center text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Preparing preview...</div>}
+          {frames.some(frame => frame.html) && (
+            <div className="relative h-full min-h-72 shrink-0 transition-[width] duration-200 motion-reduce:transition-none"
+              style={{ width: `min(100%, ${deviceWidth[device]}px)` }}>
+              {frames.map((snapshot, slot) => snapshot.html ? (
+                <iframe key={`${slot}-${snapshot.revision}`}
+                  title={`Public website: ${snapshot.pageId}`}
+                  sandbox="allow-same-origin"
+                  srcDoc={snapshot.html}
+                  aria-hidden={visibleSlot !== slot}
+                  tabIndex={visibleSlot === slot ? 0 : -1}
+                  onLoad={event => onFrameLoad(event, snapshot, slot as 0 | 1)}
+                  style={{ zIndex: visibleSlot === slot ? 2 : 1, opacity: visibleSlot === slot ? 1 : 0,
+                    pointerEvents: visibleSlot === slot && !busy ? "auto" : "none" }}
+                  className="paglora-preview-frame absolute inset-0 h-full w-full rounded-md border bg-white"
+                />
+              ) : null)}
+              {busy && <div className="pointer-events-none absolute right-3 top-3 z-10 flex items-center gap-2 rounded-md border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-md">
+                <LoaderCircle className="size-3.5 animate-spin" /> Updating preview…
+              </div>}
+            </div>
+          )}
         </div>
         <div className="shrink-0 text-xs text-muted-foreground"><Laptop className="mr-1 inline size-3.5"/> {deviceWidth[device]}px target width · Navigation works · Site colors preserved · No scripts run inside preview</div>
       </DialogContent>
