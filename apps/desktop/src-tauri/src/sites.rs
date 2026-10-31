@@ -586,6 +586,34 @@ fn sitemap_xml(site_url: &str, public_pages: &[&crate::pages::Page]) -> String {
     xml
 }
 
+// Only reviewed language packages (or the historical built-in languages) may
+// be selected. The strict tag shape also prevents injecting HTML attributes.
+fn safe_site_language_tag(code: &str) -> bool {
+    let bytes = code.as_bytes();
+    (bytes.len() == 2 && bytes.iter().all(u8::is_ascii_lowercase)) ||
+    (bytes.len() == 5 && bytes[0..2].iter().all(u8::is_ascii_lowercase) &&
+        bytes[2] == b'-' && bytes[3..5].iter().all(u8::is_ascii_uppercase))
+}
+fn supported_site_language(code: &str) -> bool {
+    if !safe_site_language_tag(code) { return false; }
+    const BUILT_IN: &[&str] = &[
+        "en", "ko", "pl", "de", "fr", "es", "ja", "zh-CN", "zh-TW", "pt-BR",
+        "ru", "uk", "ar", "tr", "it", "cs", "hu", "th",
+    ];
+    BUILT_IN.contains(&code) || PAGLORA_LOCALE_SOURCES.iter().any(|(locale, _)| *locale == code)
+}
+fn site_text_direction(language: &str) -> &'static str {
+    if let Some((_, raw)) = PAGLORA_LOCALE_SOURCES.iter().find(|(locale, _)| *locale == language) {
+        if serde_json::from_str::<serde_json::Value>(raw).ok()
+            .and_then(|value| value.get("direction").and_then(|direction| direction.as_str()).map(str::to_owned))
+            .as_deref() == Some("rtl") {
+            return "rtl";
+        }
+    }
+    // Arabic remains RTL even before its community catalog is available.
+    if language == "ar" { "rtl" } else { "ltr" }
+}
+
 fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
     if !valid_site_url(&settings.site_url) {
         return Err("Published site URL must be an HTTPS site root ending in /, without credentials, ports, query, or fragments".into());
@@ -618,9 +646,7 @@ fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
     if !["stacked", "grid"].contains(&settings.card_layout.as_str()) {
         return Err("Unsupported documentation card layout".into());
     }
-    // An explicit allowlist prevents HTML attribute injection in <html lang>.
-    if !["en", "ko", "pl", "de", "fr", "es", "ja", "zh-CN", "zh-TW", "pt-BR",
-         "ru", "uk", "ar", "tr", "it", "cs", "hu", "th"].contains(&settings.language.as_str()) {
+    if !supported_site_language(&settings.language) {
         return Err("Unsupported website content language".into());
     }
     let accent = settings.accent_color.as_bytes();
@@ -896,14 +922,15 @@ fn theme_color_meta(mode: &str, palette: &str) -> String {
 }
 
 // Open Graph uses language_region identifiers, unlike HTML's BCP 47 lang.
-fn social_locale(language: &str) -> &'static str {
-    match language {
-        "ko" => "ko_KR", "pl" => "pl_PL", "de" => "de_DE", "fr" => "fr_FR",
+fn social_locale(language: &str) -> String {
+    let locale = match language {
+        "en" => "en_US", "ko" => "ko_KR", "pl" => "pl_PL", "de" => "de_DE", "fr" => "fr_FR",
         "es" => "es_ES", "ja" => "ja_JP", "zh-CN" => "zh_CN", "zh-TW" => "zh_TW",
         "pt-BR" => "pt_BR", "ru" => "ru_RU", "uk" => "uk_UA", "ar" => "ar_SA",
         "tr" => "tr_TR", "it" => "it_IT", "cs" => "cs_CZ", "hu" => "hu_HU",
-        "th" => "th_TH", _ => "en_US",
-    }
+        "th" => "th_TH", _ => return language.replace('-', "_"),
+    };
+    locale.to_string()
 }
 fn public_search_index(
     public_pages: &[&crate::pages::Page],
@@ -1047,7 +1074,7 @@ fn render_site_page_with_description(
     let theme_color = theme_color_meta(theme_mode, &settings.site_palette);
     let language = &settings.language;
     let og_locale = social_locale(language);
-    let direction = if language == "ar" { "rtl" } else { "ltr" };
+    let direction = site_text_direction(language);
     let google_font = google_font_markup(&settings.google_font_family);
     // Hex color was checked by validate_settings for both preview and build.
     // Dark and system-dark palettes set --brand with higher specificity than :root.
@@ -1645,8 +1672,18 @@ mod website_font_tests {
 
         korean.language = r#"en" onload="alert(1)"#.into();
         assert!(validate_settings(&korean).is_err());
-        korean.language = "xx".into();
+        korean.language = "xx".into(); // Unreviewed locale is not published.
         assert!(validate_settings(&korean).is_err());
+        for unsafe_code in ["en-", "en-us", "EN", "sv-SE-any", "pl\" onload=\"alert(1)", "../pl"] {
+            assert!(!safe_site_language_tag(unsafe_code), "{unsafe_code}");
+        }
+        for existing in ["en", "pl", "ko", "fr", "zh-CN", "ar", "pt-BR"] {
+            assert!(supported_site_language(existing), "{existing}");
+        }
+        assert_eq!(site_text_direction("ar"), "rtl");
+        assert_eq!(site_text_direction("ko"), "ltr");
+        assert_eq!(social_locale("sv-SE"), "sv_SE");
+        assert_eq!(social_locale("en"), "en_US");
     }
 
     #[test]

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useTranslation } from "@/i18n";
+import { DOCUMENT_LANGUAGES, useTranslation } from "@/i18n";
 import { ArrowRight, Eye, LayoutTemplate, LoaderCircle, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -259,14 +259,7 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
                     <Select value={settings.language} onValueChange={value => patch("language", value as SiteSettings["language"])}>
                       <SelectTrigger className="w-full" aria-label={t("studio.design.documentLanguage")}><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {[
-                          ["en", "English"], ["ko", "한국어"], ["pl", "Polski"], ["de", "Deutsch"],
-                          ["fr", "Français"], ["es", "Español"], ["ja", "日本語"],
-                          ["zh-CN", "简体中文"], ["zh-TW", "繁體中文"], ["pt-BR", "Português (Brasil)"],
-                          ["ru", "Русский"], ["uk", "Українська"], ["ar", "العربية"],
-                          ["tr", "Türkçe"], ["it", "Italiano"], ["cs", "Čeština"],
-                          ["hu", "Magyar"], ["th", "ไทย"],
-                        ].map(([code, label]) => <SelectItem key={code} value={code}>{label}</SelectItem>)}
+                        {DOCUMENT_LANGUAGES.map(({ code, label }) => <SelectItem key={code} value={code}>{label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">{t("studio.design.documentLanguageHelp")}</p>

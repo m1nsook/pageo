@@ -15,6 +15,22 @@ const catalogs: Record<string, LocaleCatalog> = Object.fromEntries(Object.values
 export const LANGUAGES = Object.values(catalogs).sort((a,b) =>
   a.locale === "en" ? -1 : b.locale === "en" ? 1 : a.nativeName.localeCompare(b.nativeName)
 ).map(({ locale, nativeName, englishName, direction }) => ({ locale, nativeName, englishName, direction }));
+const BUILT_IN_DOCUMENT_LANGUAGES: readonly (readonly [string, string])[] = [
+  ["en", "English"], ["ko", "한국어"], ["pl", "Polski"], ["de", "Deutsch"],
+  ["fr", "Français"], ["es", "Español"], ["ja", "日本語"],
+  ["zh-CN", "简体中文"], ["zh-TW", "繁體中文"], ["pt-BR", "Português (Brasil)"],
+  ["ru", "Русский"], ["uk", "Українська"], ["ar", "العربية"],
+  ["tr", "Türkçe"], ["it", "Italiano"], ["cs", "Čeština"],
+  ["hu", "Magyar"], ["th", "ไทย"],
+];
+// Preserve historical HTML-language options while automatically exposing new
+// reviewed locale packs synchronized from paglora-lang.
+export const DOCUMENT_LANGUAGES: ReadonlyArray<{ code: string; label: string }> =
+  Array.from(new Map<string, string>([
+    ...BUILT_IN_DOCUMENT_LANGUAGES,
+    ...LANGUAGES.map(({ locale, nativeName }) => [locale, nativeName] as const),
+  ]), ([code, label]) => ({ code, label }));
+
 const STORAGE_KEY = "paglora:studio-locale";
 const supported = (value: string) => Object.prototype.hasOwnProperty.call(catalogs, value);
 
