@@ -4,6 +4,9 @@ Paglora is in early development. Desktop milestone numbers are separate from the
 
 ## Unreleased — desktop source (after 0.2.0)
 
+### Studio workflow
+- Added user-configurable keyboard shortcuts for local project/page search, project creation, project navigation and Studio Settings. A Radix shortcut recorder validates reserved/duplicate combinations, offers a reset action and stores settings locally without modifying documentation projects.
+
 ### Studio visual editing
 - The Blocks outline now supports duplicating and deleting complete source-owned Markdown blocks, Alt+Up/Down reordering, explicit Undo/Redo, and caret-aware selection after changes. All actions use undoable ProseMirror transactions and existing autosave; no project schema changes.
 
