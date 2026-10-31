@@ -5,8 +5,8 @@ const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8"
 const gallery = read("src/components/editor/block-component-gallery.tsx");
 const palette = read("src/components/editor/block-palette.tsx");
 test("Gallery drag uses exactly the same handler and source boundary as palette", () => {
-  assert.match(gallery, /onBeginDrag: \(event: ReactPointerEvent<HTMLElement>, kind: BlockKind\)/);
-  assert.match(gallery, /onPointerDown=\{event => onBeginDrag\(event, block\.kind\)\}/);
+  assert.match(gallery, /onBeginDrag: \(event: React\.PointerEvent<HTMLElement>, kind: BlockKind\)/);
+  assert.match(gallery, /onPointerDown=\{event => onBeginDrag\(event, kind\)\}/);
   assert.match(palette, /onBeginDrag=\{start\}/);
   assert.match(palette, /onInsert=\{kind => insert\(kind, callbacks\.current\.selectedBoundary\)\}/);
   assert.match(gallery, /onDragStart=\{event => event\.preventDefault\(\)\}/);
