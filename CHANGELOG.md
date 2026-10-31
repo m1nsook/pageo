@@ -5,6 +5,7 @@ Paglora is in early development. Desktop milestone numbers are separate from the
 ## Unreleased — desktop source (after 0.2.0)
 
 ### Documentation authoring
+- Added Markdown `[!CODEGROUP]` fenced-code examples with Studio insertion, safe language labels, script-free stacked fallback, and progressively enhanced accessible tabs in published sites. No new project schema.
 - Added a source-owned `[!STEPS]` Markdown component with an ordered-list timeline, accessible static HTML, RTL-aware styling, and Studio block insertion. It requires no browser script and preserves existing project files.
 
 ## 0.2.0 — desktop development milestone (October 31, 2026)

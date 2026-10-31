@@ -116,6 +116,62 @@
     });
   }
 
+
+  // Code groups are readable as labeled, stacked examples without scripts.
+  // Only after the full tab interface exists do we hide inactive examples.
+  let codeGroupIndex = 0;
+  for (const group of document.querySelectorAll?.(".docs .paglora-code-group") ?? []) {
+    const panels = Array.from(group.querySelectorAll(".paglora-code-group-item"));
+    const container = group.querySelector(".paglora-code-group-panels");
+    if (panels.length < 2 || !container) continue;
+    const groupId = codeGroupIndex++;
+    const tablist = document.createElement("div");
+    tablist.className = "paglora-code-group-tabs";
+    tablist.setAttribute("role", "tablist");
+    tablist.setAttribute("aria-label", group.getAttribute("aria-label") || "Code examples");
+    const tabs = panels.map((panel, index) => {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.className = "paglora-code-group-tab";
+      tab.textContent = panel.querySelector(".paglora-code-group-label")?.textContent || "Example " + (index + 1);
+      const tabId = "paglora-code-tab-" + groupId + "-" + index;
+      const panelId = "paglora-code-panel-" + groupId + "-" + index;
+      tab.id = tabId;
+      panel.id = panelId;
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-controls", panelId);
+      panel.setAttribute("role", "tabpanel");
+      panel.setAttribute("aria-labelledby", tabId);
+      panel.tabIndex = 0;
+      tab.addEventListener("click", () => activate(index));
+      tab.addEventListener("keydown", event => {
+        const direction = root.dir === "rtl" ? -1 : 1;
+        let next = index;
+        if (event.key === "ArrowRight") next = (index + direction + tabs.length) % tabs.length;
+        else if (event.key === "ArrowLeft") next = (index - direction + tabs.length) % tabs.length;
+        else if (event.key === "Home") next = 0;
+        else if (event.key === "End") next = tabs.length - 1;
+        else return;
+        event.preventDefault();
+        activate(next, true);
+      });
+      tablist.appendChild(tab);
+      return tab;
+    });
+    function activate(selected, focus = false) {
+      tabs.forEach((tab, index) => {
+        const active = index === selected;
+        tab.setAttribute("aria-selected", String(active));
+        tab.tabIndex = active ? 0 : -1;
+        panels[index].hidden = !active;
+      });
+      if (focus) tabs[selected].focus();
+    }
+    container.before(tablist);
+    activate(0);
+    group.classList.add("paglora-code-group-enhanced");
+  }
+
   // Expose sharable heading anchors without changing project Markdown.
   for (const heading of document.querySelectorAll?.(".docs h2[id], .docs h3[id], .docs h4[id]") ?? []) {
     const id = heading.getAttribute("id");
