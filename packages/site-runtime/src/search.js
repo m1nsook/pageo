@@ -131,11 +131,11 @@ import MiniSearch from "minisearch";
           return response.json();
         })
         .then(data => {
-          // The exporter supports at most 500 pages. Reject an oversized index
-          // before filtering/indexing so malformed deployments cannot force
-          // unbounded work in a reader\u0027s browser.
+          // Keep raw index validation bounded, but tolerate invalid entries
+          // before the first 500 valid public pages (legacy behavior).
+          // The exporter itself generates at most 500 entries.
           if (!data || data.version !== 1 || !Array.isArray(data.pages) ||
-              data.pages.length > 500) throw new Error("Invalid search index");
+              data.pages.length > 2000) throw new Error("Invalid search index");
           const seenUrls = new Set();
           loaded = data.pages.filter(page => {
             if (!page || typeof page.title !== "string" || page.title.length > 200 ||
