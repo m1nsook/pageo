@@ -3,6 +3,8 @@ import type { ProjectSummary } from "@paglora/core";
 import { Archive, ChevronRight, Clock3, Copy, ExternalLink, FolderOpen, LoaderCircle, Plus, Search, ShieldCheck, Trash2 } from "lucide-react";
 import { ArrowRightIcon, BookOpenIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
+import { ProjectTrashPanel } from "@/components/studio/project-trash-panel";
+import type { TrashedProject } from "@/lib/projects";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { StudioShortcutSettings } from "@/components/studio/studio-shortcut-settings";
@@ -100,8 +102,8 @@ function ProjectCard({ project, onOpen, onExportBackup, onTrash }: { project: Pr
   );
 }
 
-export function Dashboard({ projects, openCreate, openProject, onExportBackup, onImportBackup, onTrashProject, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
-  projects: ProjectSummary[]; openCreate: () => void; openProject: (id: string) => void;
+export function Dashboard({ projects, trashItems, restoringTrashId, onRestoreProject, openCreate, openProject, onExportBackup, onImportBackup, onTrashProject, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
+  projects: ProjectSummary[]; trashItems: TrashedProject[]; restoringTrashId: string | null; onRestoreProject: (trashId: string) => void; openCreate: () => void; openProject: (id: string) => void;
   onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; onTrashProject: (id: string) => void; backupNotice: string; backupPath: string;
   view: WorkspaceView; loading: boolean; search: string; setSearch: (value: string) => void; desktop: boolean; error: string;
 }) {
@@ -167,6 +169,7 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
               {!search && <EmptyContent><Button onClick={openCreate}><Plus /> Create project</Button></EmptyContent>}
             </Empty>
           )}
+          {desktop && <ProjectTrashPanel items={trashItems} busy={restoringTrashId} onRestore={onRestoreProject} />}
           <p className="mt-6 text-xs text-muted-foreground">{t("studio.backup.description")}</p>
           <div className="mt-8 flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4" /> Paglora works without a cloud account.</div>
         </div>
