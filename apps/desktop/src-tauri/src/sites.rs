@@ -1290,7 +1290,7 @@ mod website_font_tests {
             let html = render_site_page(&settings, &[page.clone()], &page, "<p>Docs</p>", &[]);
             assert!(html.contains(r#"data-site-layout="inset" data-site-palette="lavender""#));
             assert!(html.contains("--brand:#b047d9;"), "{mode}");
-            assert!(html.contains(r#"<meta name="theme-color" content="#17121e""#) || mode == "light");
+            assert!(html.contains(r##"<meta name="theme-color" content="#17121e""##) || mode == "light");
         }
         assert!(SITE_CSS.contains(r#":root[data-site-layout="inset"] .site-body"#));
         assert!(SITE_CSS.contains(r#":root[data-site-layout="reading"] .site-nav"#));
