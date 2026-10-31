@@ -20,7 +20,7 @@ fn project_dir(app: &AppHandle, id: &str) -> Result<PathBuf, String> {
         !id.bytes().all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == b'-') {
         return Err("Invalid project ID".into());
     }
-    let path = app.path().app_data_dir().map_err(|e| e.to_string())?.join("projects").join(id);
+    let path = crate::storage::projects_root(app)?.join(id);
     if fs::symlink_metadata(&path).map_err(|e| e.to_string())?.file_type().is_symlink() {
         return Err("Project directory cannot be a symlink".into());
     }

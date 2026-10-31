@@ -181,7 +181,7 @@ fn install_backup(bytes: &[u8], projects_root: &Path) -> Result<String, String> 
 pub fn export_project_backup(app: AppHandle, project_id: String) -> Result<String, String> {
     if !valid_id(&project_id) { return Err("Invalid project ID".into()); }
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let path = data_dir.join("projects").join(&project_id);
+    let path = crate::storage::projects_root(&app)?.join(&project_id);
     if !path.is_dir() || fs::symlink_metadata(&path).map_err(|e| e.to_string())?.file_type().is_symlink() {
         return Err("Project folder missing or unsafe".into());
     }
@@ -199,7 +199,7 @@ pub fn export_project_backup(app: AppHandle, project_id: String) -> Result<Strin
 }
 #[tauri::command]
 pub fn import_project_backup(app: AppHandle, archive: Vec<u8>) -> Result<String, String> {
-    let storage = app.path().app_data_dir().map_err(|e| e.to_string())?.join("projects");
+    let storage = crate::storage::projects_root(&app)?;
     install_backup(&archive,&storage)
 }
 

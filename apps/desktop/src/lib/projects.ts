@@ -33,6 +33,12 @@ export async function trashProject(id: string): Promise<string> {
   return invoke<string>("trash_project", { id });
 }
 
+/** Copy and verify all projects into a new, nonexistent directory; originals are retained. */
+export async function migrateProjectStorage(destination: string): Promise<string> {
+  requireDesktop();
+  return invoke<string>("migrate_project_storage", { destination });
+}
+
 export async function projectsDirectory(): Promise<string> {
   requireDesktop();
   return invoke<string>("projects_directory");

@@ -1,4 +1,5 @@
 mod projects;
+mod storage;
 mod pages;
 mod sites;
 mod source;
@@ -19,6 +20,7 @@ pub fn run() {
             projects::load_project,
             projects::save_document,
             projects::projects_directory, projects::trash_project,
+            storage::project_storage_directory, storage::migrate_project_storage,
             backup::export_project_backup, backup::import_project_backup,
             updates::check_studio_update, updates::install_studio_update,
             pages::list_pages, pages::load_page, pages::create_page,
