@@ -38,7 +38,7 @@ The version is synchronized across the workspace, Windows Tauri app, and Rust pa
 - **Documentation navigation:** grouped/collapsible sidebars, public-page-only links, and active table-of-contents headings.
 - **Offline MiniSearch:** Ctrl+K / Cmd+K opens an accessible search dialog backed by a bundled MiniSearch index, with prefix matching, typo-tolerant fallback, and Korean/Japanese/Chinese substring support. `search-index.json` contains **only public pages**.
 - **Appearance:** Light / Dark / System switching with a remembered browser preference where storage is available.
-- **Content features:** callouts (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`), responsive cards, guided steps, accessible content tabs, keyboard-accessible code groups, code-block Copy buttons, Unicode heading permalinks, task lists, collapsible disclosures, and Markdown tables.
+- **Content features:** callouts (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`), responsive cards, guided steps, accessible FAQ accordions, content tabs, keyboard-accessible code groups, code-block Copy buttons, Unicode heading permalinks, task lists, collapsible disclosures, and Markdown tables.
 - **Local images:** import PNG, JPEG, WebP, and GIF files into a project; only images referenced by public pages or the site logo are copied into the static export.
 - **Multilingual foundations:** choose among 18 built-in document languages plus any newly synchronized and reviewed community language packs. Right-to-left direction can come from package metadata (Arabic remains RTL by default). This does not automatically translate content.
 - **SEO for static hosts:** optional HTTPS site root produces per-page canonical URLs and a public-page-only `sitemap.xml`, with page-specific descriptions and social metadata.
@@ -95,6 +95,22 @@ Choose **Code group** from Studio's Insert palette, or group two or more fenced 
 ````
 
 Studio's script-disabled preview shows **all examples with language labels**, so no content is hidden while editing. Published websites progressively enhance the same safe HTML into tabs, with Left/Right arrows, Home/End, RTL-aware arrow direction, visible keyboard focus and working code-copy buttons. Without JavaScript every example remains readable. Only groups containing 2–12 fenced code blocks are enhanced; malformed markers remain ordinary blockquotes. This is standard Markdown, not executable MDX.
+
+### FAQ accordions in Markdown
+
+Choose **Accordion** from Studio's Insert palette or write a blockquote beginning with `[!ACCORDION]` followed by a question and at least one answer block:
+
+```md
+> [!ACCORDION] Can I publish without a server?
+>
+> Yes. Paglora exports plain HTML, CSS, images and optional browser scripts.
+
+> [!ACCORDION] Are private pages included?
+>
+> No. Only explicitly public pages are exported.
+```
+
+Each question becomes a native HTML `<details><summary>` disclosure, so mouse, touch and keyboard expansion works **without JavaScript**, including in the script-disabled Studio preview. Adjacent questions receive a compact FAQ group; headings or other content separate groups. Answers can contain ordinary Markdown links, lists and code. Invalid or empty questions remain visible blockquotes rather than silently hiding content. The original `docs/*.md` stays portable and editable.
 
 ## Localization and translations
 
