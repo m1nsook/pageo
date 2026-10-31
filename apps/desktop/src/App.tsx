@@ -22,6 +22,7 @@ import { SiteDesigner } from "@/components/editor/site-designer";
 import { ThemeSourceEditor } from "@/components/editor/theme-source-editor";
 import { InlineSitePreview } from "@/components/editor/inline-site-preview";
 import { editableCanvasText, findCanvasSourcePosition, replacePlainCanvasText, type CanvasBlockSelection } from "@/lib/canvas-blocks";
+import { preservePagloraMarkers } from "@/lib/markdown-markers";
 import { PageInspector } from "@/components/editor/page-inspector";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
@@ -110,7 +111,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     contentType: "markdown",
     editorProps: { attributes: { class: "editor-content focus:outline-none" } },
     onUpdate: ({ editor: current }) => {
-      latest.current = current.getMarkdown();
+      latest.current = preservePagloraMarkers(current.getMarkdown());
       revision.current += 1;
       setSaveState("unsaved");
       if (saveTimer.current) clearTimeout(saveTimer.current);
