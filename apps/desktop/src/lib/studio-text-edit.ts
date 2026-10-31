@@ -4,7 +4,7 @@
 export type EditableTarget = HTMLInputElement | HTMLTextAreaElement;
 export type TextSelection = { start: number; end: number };
 
-const TEXT_TYPES = new Set(["text", "search", "url", "email", "tel", "number"]);
+const TEXT_TYPES = new Set(["text", "search", "url", "email", "tel"]);
 
 export function isStudioTextTarget(target: EventTarget | null): target is EditableTarget {
   if (target instanceof HTMLTextAreaElement) return true;
