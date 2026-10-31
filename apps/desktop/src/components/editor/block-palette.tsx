@@ -41,6 +41,10 @@ export function BlockPalette({ editor, disabled, onInvalidDocument }: { editor: 
   const [dropLine, setDropLine] = useState<{ left: number; top: number; width: number } | null>(null);
   const [insertionStatus, setInsertionStatus] = useState("");
   const suppressClick = useRef(false);
+  // Save-state rerenders recreate the parent callback. Keep its latest value
+  // without cancelling an active WebView2 pointer gesture.
+  const invalidDocumentRef = useRef(onInvalidDocument);
+  invalidDocumentRef.current = onInvalidDocument;
 
   function insert(kind: BlockKind, point?: { y: number }): boolean {
     const title = BLOCKS.find(block => block.kind === kind)?.title ?? "Block";
@@ -58,7 +62,7 @@ export function BlockPalette({ editor, disabled, onInvalidDocument }: { editor: 
     // A broken Tiptap parse does NOT mean the .md file is broken. Instead of
     // blocking all 20 components, use the source-preserving fallback supplied
     // by the project editor. Never overwrite the document with editor.getMarkdown().
-    if (invalidVisualTree && onInvalidDocument?.(kind, point)) {
+    if (invalidVisualTree && invalidDocumentRef.current?.(kind, point)) {
       const message = "Inserted " + title + " at the selected Markdown block boundary.";
       setInsertionStatus(message);
       toast.success(title + " placed", { description: "Saved at the selected block, preserving original Markdown." });
@@ -155,7 +159,7 @@ export function BlockPalette({ editor, disabled, onInvalidDocument }: { editor: 
       cancelPointerBlock();
       clearDropHighlight();
     };
-  }, [editor, disabled, onInvalidDocument]);
+  }, [editor, disabled]);
 
   function startPointer(event: ReactPointerEvent<HTMLButtonElement>, kind: BlockKind) {
     if (!editor || disabled || event.button !== 0 || !event.isPrimary) return;

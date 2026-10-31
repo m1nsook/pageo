@@ -54,8 +54,38 @@ function sourceBoundary(source: string, editorBlocks: readonly VisibleSourceBloc
     throw new Error("The selected editor boundary is outside the document.");
   }
   const blocks = sourceBlocks(source);
-  if (boundary === 0) return blocks.length ? blocks[0].offset : 0;
-  if (boundary === editorBlocks.length) return source.length;
+  // A malformed visual parse can omit source blocks. Never assume its first
+  // or last visible block corresponds to the beginning/end of the .md file.
+  if (editorBlocks.length === 0) {
+    if (blocks.length === 0) return 0;
+    throw new Error("No visible editor blocks can anchor this Markdown insertion.");
+  }
+  if (blocks.length === 0) throw new Error("The source has no matching Markdown blocks.");
+  const overlap = (a: string, b: string) =>
+    Boolean(a && b) && (a.includes(b) || b.includes(a));
+
+  if (boundary === 0) {
+    const first = signature(editorBlocks[0].text);
+    if (overlap(first, blocks[0].signature)) return blocks[0].offset;
+    // An unsupported leading construct may be absent from the visual tree.
+    // Only insert before the first visible block if it has a unique anchor.
+    const matches = blocks.filter(block => first.length >= 5 && overlap(first, block.signature));
+    if (matches.length === 1) return matches[0].offset;
+    throw new Error("Cannot safely identify the first visible Markdown block.");
+  }
+  if (boundary === editorBlocks.length) {
+    const last = signature(editorBlocks[boundary - 1].text);
+    const lastSource = blocks[blocks.length - 1].signature;
+    // With differing token counts, require a unique last-block anchor before
+    // allowing an append. Otherwise an omitted tail would silently move the
+    // user's requested insertion to the end of the file.
+    if (overlap(last, lastSource) &&
+        (blocks.length === editorBlocks.length ||
+         (last.length >= 5 && blocks.filter(block => overlap(last, block.signature)).length === 1))) {
+      return source.length;
+    }
+    throw new Error("The last visible block cannot be mapped safely to the end of the source.");
+  }
 
   // The common path: one top-level Markdown token per rendered editor block.
   // Check nearby text to avoid silently placing a block in the wrong section.
@@ -64,11 +94,13 @@ function sourceBoundary(source: string, editorBlocks: readonly VisibleSourceBloc
     const after = signature(editorBlocks[boundary].text);
     const beforeSource = blocks[boundary - 1].signature;
     const afterSource = blocks[boundary].signature;
-    const overlap = (a: string, b: string) => Boolean(a && b) && (a.includes(b) || b.includes(a));
-    // Both surrounding blocks must match if they contain text. An empty
-    // heading/hr alone is not sufficient evidence of a correct source offset.
+    // Both surrounding blocks must match if they contain text. Two empty
+    // signatures are not evidence of a safe alignment.
     if ((!before || overlap(before, beforeSource)) &&
-        (!after || overlap(after, afterSource))) return blocks[boundary].offset;
+        (!after || overlap(after, afterSource)) &&
+        ((before && beforeSource) || (after && afterSource))) {
+      return blocks[boundary].offset;
+    }
   }
 
   // In malformed editor trees the token/node counts can differ. Resolve a

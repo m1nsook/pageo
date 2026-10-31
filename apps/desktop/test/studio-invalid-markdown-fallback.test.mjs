@@ -66,13 +66,44 @@ test("source-position fingerprints never pretend to sanitize HTML or change orig
   assert.ok(!read("src/lib/source-block-insert.ts").includes("replace(/<"));
 });
 
+test("an omitted visual tail never silently appends after unrepresented Markdown", () => {
+  const doc = "# Intro\n\nLast visible paragraph.\n\n## Hidden tail\n\nPrivate details.\n";
+  const partial = [{ text: "Intro" }, { text: "Last visible paragraph." }];
+  assert.throws(() => positioned(doc, "paragraph", partial, partial.length),
+    /last visible block cannot be mapped safely/i);
+  const repeated = "# Intro\n\nRepeat text\n\nRepeat text\n";
+  assert.throws(() => positioned(repeated, "paragraph",
+    [{ text: "Intro" }, { text: "Repeat text" }], 2),
+    /last visible block cannot be mapped safely/i);
+});
+
+test("first visible block maps to its real source offset after unsupported leading Markdown", () => {
+  const doc = "# Hidden\n\nVisible paragraph.\n\n## End\n";
+  const partial = [{ text: "Visible paragraph." }, { text: "End" }];
+  assert.equal(positioned(doc, "paragraph", partial, 0),
+    "# Hidden\n\nWrite something...\n\nVisible paragraph.\n\n## End\n");
+  assert.throws(() => positioned("# Hidden\n\nRepeat text\n\nRepeat text\n",
+    "paragraph", [{ text: "Repeat text" }], 0),
+    /cannot safely identify the first visible/i);
+});
+
+test("empty or ambiguous editor anchors fail closed", () => {
+  assert.equal(positioned("", "paragraph", [], 0), "Write something...\n");
+  assert.throws(() => positioned("# Real source\n", "paragraph", [], 0),
+    /no visible editor blocks/i);
+  assert.throws(() => positioned("# \n\n---\n", "paragraph",
+    [{ text: "" }, { text: "" }], 1),
+    /cannot safely map|unique markdown section/i);
+});
+
 test("failed Tiptap parse routes click/pointer to exact source placement, not old append fallback", () => {
   const insert = read("src/lib/block-insertion.ts");
   const palette = read("src/components/editor/block-palette.tsx");
   const app = read("src/App.tsx");
   assert.match(insert, /blockDropBoundary\(editor: Editor, clientY: number\)/);
   assert.match(insert, /selectionBlockBoundary\(editor: Editor\)/);
-  assert.match(palette, /onInvalidDocument\?\.\(kind, point\)/);
+  assert.match(palette, /invalidDocumentRef\.current\?\.\(kind, point\)/);
+  assert.match(palette, /\}, \[editor, disabled\]\);/);
   assert.match(app, /insertComponentAtMarkdownBoundary\(latest\.current, kind, visibleBlocks, boundary\)/);
   assert.match(app, /rawSourceFallbackActive\.current = true/);
   assert.doesNotMatch(app, /appendComponentToMarkdown/);
