@@ -78,6 +78,8 @@ export function InlineSitePreview({
   applyInlineRef.current = onApplyInlineText;
   const [space, setSpace] = useState({ width: 1000, height: 700 });
   const previewPageId = page.isPublic ? page.id : "index";
+  const previewIdentity = JSON.stringify([projectId, previewPageId]);
+  const lastPreviewIdentity = useRef("");
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -106,6 +108,13 @@ export function InlineSitePreview({
 
   useEffect(() => {
     let active = true;
+    // Do not display the previous project/page in the design canvas while
+    // the new script-disabled preview is still being generated. Ordinary
+    // same-page saves retain their current preview until the refresh lands.
+    if (lastPreviewIdentity.current !== previewIdentity) {
+      lastPreviewIdentity.current = previewIdentity;
+      setHtml("");
+    }
     setBusy(true);
     setError("");
     void previewPublicPage(projectId, previewPageId)
@@ -113,7 +122,7 @@ export function InlineSitePreview({
       .catch(cause => { if (active) { setError(describeError(cause)); setHtml(""); } })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
-  }, [projectId, previewPageId, savedVersion, reload, page.layout, page.title, page.isPublic, page.navGroup, pages]);
+  }, [projectId, previewPageId, previewIdentity, savedVersion, reload, page.layout, page.title, page.isPublic, page.navGroup, pages]);
 
   const refresh = useCallback(async () => {
     setBusy(true);
