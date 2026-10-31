@@ -420,6 +420,76 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 :root[data-site-layout="reading"] .site-main{padding-top:30px}
 }
 
+/* Browser Print / Save as PDF: readable public article, no application chrome.
+   Use the same rules for every palette, layout and screen width. */
+@page{margin:15mm}
+@media print{
+  :root,:root[data-color-mode="dark"],:root[data-site-palette]{
+    color-scheme:light!important;--bg:#fff!important;--fg:#171717!important;
+    --muted:#505050!important;--line:#d4d4d4!important;--subtle:#f7f7f7!important;
+    --brand:#155d9b!important;--code-bg:#f7f7f7!important;--code-fg:#171717!important
+  }
+  html{scroll-behavior:auto!important;scroll-padding-top:0!important}
+  body,:root[data-site-layout="inset"] body{background:#fff!important;color:#171717!important}
+  .site-header,.mobile-nav,.site-nav,.on-this-page,.mobile-toc,.site-footer,
+  .page-pager,.skip-link,.paglora-search-backdrop,.paglora-search-trigger,
+  .paglora-appearance-toggle,.paglora-copy-code,.paglora-heading-link{display:none!important}
+  :root .site-body,:root .site-body.nav-right,:root .site-body.nav-top,
+  :root .site-body.layout-landing{
+    display:block!important;width:100%!important;max-width:none!important;
+    min-height:0!important;margin:0!important;border:0!important;
+    border-radius:0!important;box-shadow:none!important;overflow:visible!important;
+    background:#fff!important
+  }
+  :root .site-main,:root .site-body.nav-right .site-main,
+  :root .site-body.nav-top .site-main,:root .layout-landing .site-main{
+    display:block!important;width:100%!important;max-width:none!important;
+    margin:0!important;padding:0!important;grid-column:auto!important
+  }
+  :root .article-wrap,:root .layout-wide .article-wrap,
+  :root .layout-landing .article-wrap{
+    width:100%!important;max-width:none!important;margin:0!important
+  }
+  .page-heading{margin:0 0 14pt!important;padding-bottom:7pt!important;
+    border-bottom:1px solid #d4d4d4!important;color:#505050!important;font-size:9pt!important}
+  .docs{font-size:10.5pt!important;line-height:1.55!important;
+    color:#171717!important;overflow:visible!important}
+  .docs h1,.docs h2,.docs h3,.docs h4{
+    color:#171717!important;break-after:avoid-page;page-break-after:avoid;
+    scroll-margin:0!important
+  }
+  .docs h1{font-size:23pt!important;margin:0 0 15pt!important}
+  .docs h2{font-size:16pt!important;margin-top:22pt!important}
+  .docs h3{font-size:13pt!important}
+  .docs p,.docs li{orphans:3;widows:3}
+  .docs a{color:#171717!important;text-decoration:underline!important}
+  .docs img{max-width:100%!important;max-height:230mm!important;
+    object-fit:contain!important;break-inside:avoid-page;page-break-inside:avoid}
+  .docs pre,.docs pre.paglora-has-copy{
+    white-space:pre-wrap!important;overflow:visible!important;
+    overflow-wrap:anywhere!important;word-break:break-word!important;
+    background:#f7f7f7!important;color:#171717!important;
+    border:1px solid #d4d4d4!important;box-shadow:none!important;
+    padding:10pt!important;break-inside:auto!important
+  }
+  .docs pre code{color:#171717!important;white-space:inherit!important}
+  .docs table{display:table!important;width:100%!important;max-width:100%!important;
+    overflow:visible!important;border-collapse:collapse!important}
+  .docs th,.docs td{min-width:0!important;padding:6pt!important;overflow-wrap:anywhere!important}
+  .docs .paglora-card,.docs .paglora-callout,.docs .paglora-steps-list>li{
+    break-inside:avoid-page;page-break-inside:avoid
+  }
+  /* The runtime reveals all panels before print; these rules also handle
+     browsers that honor author print CSS over the hidden attribute. */
+  .docs .paglora-code-group-item[hidden],.docs .paglora-tabs-item[hidden]{display:block!important}
+  .docs .paglora-code-group-tabs,.docs .paglora-tabs-tablist{display:none!important}
+  .docs .paglora-code-group-enhanced .paglora-code-group-label,
+  .docs .paglora-tabs-enhanced .paglora-tabs-label{display:block!important}
+  .docs .paglora-code-group-item,.docs .paglora-tabs-item{
+    break-inside:avoid-page;page-break-inside:avoid
+  }
+}
+
 "#;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
