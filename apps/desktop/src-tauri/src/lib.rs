@@ -26,6 +26,7 @@ pub fn run() {
             projects::permanently_delete_trashed_project,
             storage::project_storage_directory, storage::migrate_project_storage,
             storage::project_storage_status, storage::reconnect_project_storage,
+            storage::return_to_previous_storage,
             backup::export_project_backup, backup::import_project_backup,
             updates::check_studio_update, updates::install_studio_update,
             external_links::open_documentation,

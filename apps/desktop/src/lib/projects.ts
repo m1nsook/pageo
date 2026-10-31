@@ -67,6 +67,7 @@ export type ProjectStorageStatus = {
   available: boolean;
   isCustom: boolean;
   error: string | null;
+  previousLocation: string | null;
 };
 
 /** Read configured path even when the drive is offline; never fall back. */
@@ -85,6 +86,12 @@ export async function reconnectProjectStorage(destination: string, confirmation:
 export async function pickStorageFolder(): Promise<string | null> {
   requireDesktop();
   return invoke<string | null>("pick_storage_folder");
+}
+
+/** Return to the previous drive by creating a NEW verified copy, never overwriting stale data. */
+export async function returnToPreviousStorage(confirmation: string): Promise<string> {
+  requireDesktop();
+  return invoke<string>("return_to_previous_storage", { confirmation });
 }
 
 /** Copy and verify all projects into a new, nonexistent directory; originals are retained. */

@@ -6,6 +6,7 @@ use std::{fs, io::Read, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
 use tauri::{AppHandle, Manager};
 
 const SETTINGS: &str = "project-storage.json";
+const HISTORY: &str = "project-storage-history.json";
 const MAX_FILES: usize = 25_000;
 const MAX_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 
@@ -126,6 +127,46 @@ fn validate_project_folders(source: &Path) -> Result<(), String> {
     Ok(())
 }
 
+
+/// Path history is metadata only. It grants no extra filesystem permissions.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StorageHistory { version: u8, roots: Vec<String> }
+
+fn read_history(data_dir: &Path) -> Result<Vec<String>, String> {
+    let path=data_dir.join(HISTORY);
+    if !path.exists() { return Ok(Vec::new()); }
+    if !fs::symlink_metadata(&path).map_err(|e|e.to_string())?.file_type().is_file() {
+        return Err("Unsafe storage history configuration".into());
+    }
+    let config: StorageHistory=serde_json::from_str(&fs::read_to_string(path).map_err(|e|e.to_string())?)
+        .map_err(|e|format!("Invalid storage history: {e}"))?;
+    if config.version!=1 || config.roots.len()>12 ||
+        config.roots.iter().any(|p| !Path::new(p).is_absolute()) {
+        return Err("Unsupported storage history".into());
+    }
+    Ok(config.roots)
+}
+fn remember_root(data_dir: &Path, previous: &Path) -> Result<(), String> {
+    let old=previous.to_str().ok_or("Storage path must be UTF-8")?.to_string();
+    let mut roots=read_history(data_dir)?;
+    roots.retain(|p| p!=&old);
+    roots.insert(0,old);
+    roots.truncate(8);
+    let bytes=serde_json::to_vec_pretty(&StorageHistory{version:1,roots}).map_err(|e|e.to_string())?;
+    let stamp=SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e|e.to_string())?.as_nanos();
+    let temp=data_dir.join(format!("project-storage-history-{stamp}.tmp"));
+    let write=(|| -> Result<(),String> {
+        use std::io::Write;
+        let mut file=fs::OpenOptions::new().write(true).create_new(true).open(&temp).map_err(|e|e.to_string())?;
+        file.write_all(&bytes).map_err(|e|e.to_string())?;
+        file.sync_all().map_err(|e|e.to_string())?;
+        fs::rename(&temp,data_dir.join(HISTORY)).map_err(|e|e.to_string())
+    })();
+    if write.is_err() { let _=fs::remove_file(temp); }
+    write
+}
+
 fn migrate_at(data_dir: &Path, requested: &Path) -> Result<PathBuf, String> {
     let source = root_at(data_dir)?;
     if !requested.is_absolute() { return Err("Enter an absolute storage folder path.".into()); }
@@ -152,6 +193,8 @@ fn migrate_at(data_dir: &Path, requested: &Path) -> Result<PathBuf, String> {
         let _ = fs::remove_dir_all(&stage);
         return Err(format!("Cannot finalize destination; original files unchanged: {error}"));
     }
+    // Record where a safe, verified copy was migrated from before activating it.
+    remember_root(data_dir, &source)?;
     let config = StorageSettings { version: 1, root: target.to_string_lossy().into_owned() };
     let bytes = serde_json::to_vec_pretty(&config).map_err(|e| e.to_string())?;
     let tmp = data_dir.join("project-storage.json.tmp");
@@ -187,6 +230,7 @@ pub struct ProjectStorageStatus {
     available: bool,
     is_custom: bool,
     error: Option<String>,
+    previous_location: Option<String>,
 }
 fn status_at(data_dir: &Path) -> Result<ProjectStorageStatus, String> {
     let prefs=data_dir.join(SETTINGS);
@@ -203,12 +247,14 @@ fn status_at(data_dir: &Path) -> Result<ProjectStorageStatus, String> {
         if !path.is_absolute() {return Err("Configured storage path is not absolute".into());}
         let check=checked_existing_folder(&path);
         return Ok(ProjectStorageStatus {
-            configured_path:config.root,available:check.is_ok(),is_custom:true,error:check.err()
+            configured_path:config.root.clone(),available:check.is_ok(),is_custom:true,error:check.err(),
+            previous_location:read_history(data_dir)?.into_iter().find(|path| path!=&config.root)
         });
     }
     let root=root_at(data_dir)?;
     Ok(ProjectStorageStatus {
-        configured_path:root.to_string_lossy().into_owned(),available:true,is_custom:false,error:None
+        configured_path:root.to_string_lossy().into_owned(),available:true,is_custom:false,error:None,
+        previous_location:read_history(data_dir)?.into_iter().find(|path| path.as_str()!=root.to_string_lossy().as_ref())
     })
 }
 #[tauri::command]
@@ -238,6 +284,8 @@ fn reconnect_at(data_dir: &Path, requested: &Path, confirmation: &str) -> Result
     if fs::read_dir(&resolved).map_err(|e|e.to_string())?.next().is_none() {
         return Err("An empty folder is not an existing Paglora workspace. No changes made.".into());
     }
+    // Preserve the unavailable previous path so a reattached drive can be found later.
+    remember_root(data_dir, Path::new(&status.configured_path))?;
     let manifest=StorageSettings {version:1,root:resolved.to_string_lossy().into_owned()};
     let contents=serde_json::to_vec_pretty(&manifest).map_err(|e|e.to_string())?;
     let stamp=SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e|e.to_string())?.as_nanos();
@@ -265,6 +313,31 @@ fn reconnect_at(data_dir: &Path, requested: &Path, confirmation: &str) -> Result
 pub fn reconnect_project_storage(app: AppHandle, destination: String, confirmation: String) -> Result<String,String> {
     let data=app.path().app_data_dir().map_err(|e|e.to_string())?;
     Ok(reconnect_at(&data,Path::new(destination.trim()),&confirmation)?.to_string_lossy().into_owned())
+}
+
+
+/// Returning to a previous drive creates a fresh VERIFIED copy beside the old
+/// workspace rather than activating a stale snapshot (which would lose edits).
+/// Neither the old previous folder nor the active source is modified.
+fn return_to_previous_at(data_dir: &Path, confirmation: &str) -> Result<PathBuf, String> {
+    if confirmation!="RETURN" {return Err("Type RETURN to confirm the storage change.".into());}
+    let current=root_at(data_dir)?;
+    let previous=read_history(data_dir)?.into_iter()
+        .find(|path| Path::new(path)!=current)
+        .ok_or("No previous storage location was recorded.")?;
+    let original=PathBuf::from(previous);
+    let parent=checked_existing_folder(original.parent().ok_or("Previous drive has no parent folder.")?)?;
+    let stamp=SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e|e.to_string())?.as_nanos();
+    let new_folder=parent.join(format!("Paglora Projects Returned-{stamp}"));
+    if new_folder.starts_with(&current) || current.starts_with(&new_folder) {
+        return Err("Previous location overlaps the current workspace.".into());
+    }
+    migrate_at(data_dir,&new_folder)
+}
+#[tauri::command]
+pub fn return_to_previous_storage(app: AppHandle, confirmation: String) -> Result<String,String> {
+    let data=app.path().app_data_dir().map_err(|e|e.to_string())?;
+    Ok(return_to_previous_at(&data,&confirmation)?.to_string_lossy().into_owned())
 }
 
 #[cfg(test)]
@@ -349,6 +422,38 @@ mod tests {
         fs::create_dir(candidate.join("malicious!")).unwrap();
         assert!(reconnect_at(&data,&candidate,"RECONNECT").is_err());
         assert_eq!(status_at(&data).unwrap().configured_path,prefs.root);
+        fs::remove_dir_all(tmp).unwrap();
+    }
+
+    #[test]
+    fn returning_to_previous_drive_copies_latest_docs_without_touching_snapshot() {
+        let tmp=temporary("return-history");
+        let data=tmp.join("data"); fs::create_dir(&data).unwrap();
+        let original=root_at(&data).unwrap();
+        sample_project(&original);
+        let alternate=tmp.join("on-other-drive");
+        migrate_at(&data,&alternate).unwrap();
+        assert_eq!(status_at(&data).unwrap().previous_location.as_deref(),original.to_str());
+        // Simulate edits after the original location was left behind.
+        fs::write(alternate.join("alpha/docs/index.md"),"# Changed after move").unwrap();
+        assert!(return_to_previous_at(&data,"").is_err());
+        let returned=return_to_previous_at(&data,"RETURN").unwrap();
+        assert_eq!(returned.parent().unwrap(),original.parent().unwrap());
+        assert_ne!(returned,original);
+        assert_eq!(fs::read_to_string(returned.join("alpha/docs/index.md")).unwrap(),"# Changed after move");
+        assert_eq!(fs::read_to_string(original.join("alpha/docs/index.md")).unwrap(),"# Alpha\nprivate content");
+        assert_eq!(root_at(&data).unwrap(),fs::canonicalize(returned).unwrap());
+        assert!(alternate.join("alpha/docs/index.md").exists());
+        fs::remove_dir_all(tmp).unwrap();
+    }
+    #[test]
+    fn returning_without_history_never_changes_an_active_workspace() {
+        let tmp=temporary("return-without-history");
+        let data=tmp.join("data");fs::create_dir(&data).unwrap();
+        let current=root_at(&data).unwrap();
+        sample_project(&current);
+        assert!(return_to_previous_at(&data,"RETURN").is_err());
+        assert_eq!(root_at(&data).unwrap(),current);
         fs::remove_dir_all(tmp).unwrap();
     }
 
