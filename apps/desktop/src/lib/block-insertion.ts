@@ -1,14 +1,15 @@
 import type { Editor } from "@tiptap/core";
+import { Selection } from "@tiptap/pm/state";
 import { createMarkdownBlock, type BlockKind } from "@/components/editor/block-catalog";
 
-/** Never target an arbitrary nested text position for a block drop.
- * Align placement to a document-level boundary using the real editor nodes.
+/** Snap drops to the boundary of a top-level document node, never into
+ * nested markup where a drop could split an existing Markdown component.
  */
 export function blockDropPosition(editor: Editor, clientY: number): number {
   let position = editor.state.doc.content.size;
   editor.state.doc.forEach((_node, offset) => {
     const element = editor.view.nodeDOM(offset);
-    if (!(element instanceof HTMLElement)) return;
+    if (typeof HTMLElement === "undefined" || !(element instanceof HTMLElement)) return;
     const bounds = element.getBoundingClientRect();
     if (clientY < bounds.top + bounds.height / 2 && position === editor.state.doc.content.size) {
       position = offset;
@@ -17,10 +18,7 @@ export function blockDropPosition(editor: Editor, clientY: number): number {
   return position;
 }
 
-/** Click inserts AFTER the entire top-level block containing the selection.
- * Inserting at selection.from could split a heading and hide the result
- * between two fragments; it also violated our previous 1-click expectation.
- */
+/** Click inserts after the whole top-level block containing the selection. */
 export function selectionBlockEnd(editor: Editor): number {
   const selection = editor.state.selection.$from;
   if (selection.depth === 0) return editor.state.doc.content.size;
@@ -30,19 +28,64 @@ export function selectionBlockEnd(editor: Editor): number {
     : editor.state.doc.content.size;
 }
 
-/** This is the only insertion path for both click and drag. A successful
- * command must actually change the ProseMirror document, not merely consume
- * a DOM event. scrollIntoView exposes offscreen click insertions to the user.
+type InsertionFailure = (reason: string) => void;
+
+/** Single click/drag/gallery insertion path.
+ *
+ * Tiptap's insertContentAt can attempt schema fitting against an invalid
+ * document, throwing "Called contentMatchAt on a node with invalid content".
+ * Build the node with THIS editor's live schema, validate both documents,
+ * and commit one ordinary undoable ProseMirror transaction instead. Never
+ * repair bad Markdown by silently replacing or discarding the user's page.
  */
-export function insertBlockIntoEditor(editor: Editor, kind: BlockKind, clientY?: number): boolean {
-  if (!editor.isEditable || editor.isDestroyed) return false;
-  const previous = editor.state.doc;
-  const position = clientY === undefined
-    ? selectionBlockEnd(editor)
-    : blockDropPosition(editor, clientY);
-  const inserted = editor.chain().focus()
-    .insertContentAt(position, createMarkdownBlock(kind))
-    .scrollIntoView()
-    .run();
-  return inserted && !editor.state.doc.eq(previous);
+export function insertBlockIntoEditor(
+  editor: Editor, kind: BlockKind, clientY?: number, onFailure?: InsertionFailure,
+): boolean {
+  const fail = (reason: string) => { onFailure?.(reason); return false; };
+  if (editor.isDestroyed || !editor.isEditable) return fail("The editor is not editable. Switch to Edit view.");
+  try {
+    const { state, view } = editor;
+    try {
+      state.doc.check();
+    } catch {
+      return fail("This page contains invalid editor structure. Inspect its Markdown in Source view; no content was changed.");
+    }
+
+    // JSON is constructed from the vetted palette, not any external drag MIME.
+    // Use the active schema so multiple copies of prosemirror-model cannot
+    // introduce incompatible parsed nodes through insertContentAt.
+    const block = state.schema.nodeFromJSON(createMarkdownBlock(kind));
+    block.check();
+    if (!block.isBlock) return fail("The selected component is not a block.");
+    const position = clientY === undefined
+      ? selectionBlockEnd(editor)
+      : blockDropPosition(editor, clientY);
+    const $position = state.doc.resolve(position);
+    if ($position.depth !== 0 ||
+      !state.doc.canReplaceWith($position.index(), $position.index(), block.type, block.marks)) {
+      return fail("That location cannot accept the selected component.");
+    }
+
+    const previous = state.doc;
+    const transaction = state.tr.insert(position, block);
+    transaction.doc.check();
+    if (!transaction.docChanged || transaction.doc.eq(previous)) {
+      return fail("The component did not change the document.");
+    }
+
+    // The new component is visible and ready for typing; a leaf divider
+    // instead uses the nearest valid selection. One dispatch = one undo step.
+    transaction.setSelection(Selection.near(
+      transaction.doc.resolve(Math.min(position + 1, transaction.doc.content.size)), 1,
+    ));
+    transaction.scrollIntoView();
+    view.dispatch(transaction);
+    if (editor.state.doc.eq(previous)) return fail("The editor did not apply the insertion.");
+    try { view.focus(); } catch { /* Focus is cosmetic; insertion succeeded. */ }
+    return true;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("Paglora block insertion failed:", error);
+    return fail("Insertion was refused: " + detail + ". No editor content was intentionally replaced.");
+  }
 }
