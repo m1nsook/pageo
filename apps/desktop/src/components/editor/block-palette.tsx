@@ -23,7 +23,7 @@ function clearDropHighlight() {
   zone?.classList.remove("ring-2", "ring-primary", "ring-inset");
 }
 
-export function BlockPalette({ editor, disabled }: { editor: Editor | null; disabled: boolean }) {
+export function BlockPalette({ editor, disabled, onInvalidDocument }: { editor: Editor | null; disabled: boolean; onInvalidDocument?: (kind: BlockKind) => boolean }) {
   const [search, setSearch] = useState("");
   const [dragging, setDragging] = useState<BlockKind | null>(null);
   const [overEditor, setOverEditor] = useState(false);
@@ -34,16 +34,27 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
     const title = BLOCKS.find(block => block.kind === kind)?.title ?? "Block";
     if (!editor || disabled) return false;
     let explanation = "The document was not changed.";
-    // Preserve #209's safe, user-visible validation feedback. All pointer
-    // and click paths go through this one guarded insertion function.
-    const success = insertBlockIntoEditor(editor, kind, point?.y, reason => { explanation = reason; });
-    if (!success) {
-      setInsertionStatus("Unable to insert " + title + ". " + explanation);
-      toast.error("Could not insert " + title, { description: explanation });
-      return false;
+    let invalidVisualTree = false;
+    const success = insertBlockIntoEditor(editor, kind, point?.y, (reason, code) => {
+      explanation = reason;
+      invalidVisualTree = code === "invalidDocument";
+    });
+    if (success) {
+      setInsertionStatus("Inserted " + title + " into the document.");
+      return true;
     }
-    setInsertionStatus("Inserted " + title + " into the document.");
-    return true;
+    // A broken Tiptap parse does NOT mean the .md file is broken. Instead of
+    // blocking all 20 components, use the source-preserving fallback supplied
+    // by the project editor. Never overwrite the document with editor.getMarkdown().
+    if (invalidVisualTree && onInvalidDocument?.(kind)) {
+      const message = "Appended " + title + " to the end of the original Markdown. Open Source to edit it.";
+      setInsertionStatus(message);
+      toast.info(title + " added to page source", { description: "Saved at the end of the page; visual editing may be limited for this Markdown." });
+      return true;
+    }
+    setInsertionStatus("Unable to insert " + title + ". " + explanation);
+    toast.error("Could not insert " + title, { description: explanation });
+    return false;
   }
 
   useEffect(() => {

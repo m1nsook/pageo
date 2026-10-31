@@ -21,7 +21,7 @@ test("component click and pointer drop share one verified editor insertion path"
  assert.match(ins,/view\.dispatch\(transaction\)/);
  assert.match(ins,/transaction\.doc\.check\(\)/);
  assert.doesNotMatch(ins,/\.insertContentAt\(/);
- assert.match(palette,/insertBlockIntoEditor\(editor, kind, point\?\.y, reason =>/);
+ assert.match(palette,/insertBlockIntoEditor\(editor, kind, point\?\.y, \(reason, code\) =>/);
  assert.match(palette,/onClick=\{\(\) => click\(kind\)\}/);
  assert.match(palette,/document\.dispatchEvent\(new Event\("paglora:gallery-block-dropped"\)\)/);
 });

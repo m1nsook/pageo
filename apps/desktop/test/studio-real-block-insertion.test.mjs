@@ -149,7 +149,7 @@ test("already-invalid Markdown document does not crash or lose any saved content
   assert.doesNotThrow(() => assert.equal(
     insertion.insertBlockIntoEditor(ctx.editor, "card", undefined, reason => failures.push(reason)), false,
   ));
-  assert.match(failures.join(" "), /invalid editor structure.*Source view/i);
+  assert.match(failures.join(" "), /visual editor could not represent this Markdown/i);
   assert.equal(ctx.changed, 0);
   assert.equal(ctx.state.doc.child(0).textContent, "Original content");
 });
@@ -167,7 +167,7 @@ test("nested cursor inserts after its top-level ancestor without splitting it", 
 test("click and pointer-release flow share a single validated transaction", () => {
   const source = read("src/components/editor/block-palette.tsx");
   const insert = read("src/lib/block-insertion.ts");
-  assert.match(source, /insertBlockIntoEditor\(editor, kind, point\?\.y, reason =>/);
+  assert.match(source, /insertBlockIntoEditor\(editor, kind, point\?\.y, \(reason, code\) =>/);
   assert.match(source, /window\.addEventListener\("pointerup", release, true\)/);
   assert.match(source, /event\.clientX, event\.clientY/);
   assert.match(source, /clearDropHighlight\(\)/);

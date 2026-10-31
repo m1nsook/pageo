@@ -17,7 +17,9 @@ test("reloading or changing projects preserves/isolates correct preview frame",(
  assert.match(src,/setPreviewFrames\(\[emptyPreview\(\),emptyPreview\(\)\]\)/);
  assert.match(src,/pendingPreview\.current=null/);
  assert.match(src,/await refresh\(\)/);
- assert.match(src,/previewPublicPage\(projectId,currentPageId\)/);
+ // Private page Source may edit the current draft while the preview safely uses a public page.
+ assert.match(src,/previewPublicPage\(projectId,previewPageId\)/);
+ assert.match(src,/\[projectId, previewPageId\]/);
 });
 test("preview scripts remain disabled and Studio-only matte never changes published site",()=>{
  assert.match(src,/sandbox="allow-same-origin"/);

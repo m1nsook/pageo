@@ -22,17 +22,19 @@ function errorMessage(cause: unknown): string {
  * This is NOT an arbitrary filesystem explorer or an executable code editor.
  */
 export function ThemeSourceEditor({
-  projectId, currentPageId, pages, onBeforePreview, onPageSourceSaved, onPageMetadataSaved,
+  projectId, currentPageId, previewPageId, pages, onBeforePreview, onPageSourceSaved, onPageMetadataSaved,
 }: {
   projectId: string;
   currentPageId: string;
+  previewPageId: string;
   pages: Page[];
   onBeforePreview: () => Promise<void>;
   onPageSourceSaved: (pageId: string, content: string) => void;
   onPageMetadataSaved: (page: Page) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [file, setFile] = useState<SourceFile>("theme/custom.css");
+  // Source opens the active Markdown document, rather than theme CSS.
+  const [file, setFile] = useState<SourceFile>(() => safeFile(currentPageId));
   const [value, setValue] = useState("");
   const [savedValue, setSavedValue] = useState("");
   // Two real, script-disabled site frames prevent a white flash when Monaco
@@ -75,7 +77,7 @@ export function ThemeSourceEditor({
     try {
       await beforePreviewRef.current();
       if (revision!==previewRevision.current) return;
-      const rendered=await previewPublicPage(projectId,currentPageId);
+      const rendered=await previewPublicPage(projectId,previewPageId);
       if (revision!==previewRevision.current) return;
       const slot: 0 | 1=visiblePreviewSlot.current===0?1:0;
       pendingPreview.current={revision,slot};
@@ -91,7 +93,7 @@ export function ThemeSourceEditor({
         throw cause;
       }
     }
-  }, [projectId, currentPageId]);
+  }, [projectId, previewPageId]);
 
   function finishPreviewLoad(slot:0|1,revision:number){
     if(pendingPreview.current?.slot!==slot || pendingPreview.current.revision!==revision)return;
@@ -129,7 +131,8 @@ export function ThemeSourceEditor({
   useEffect(() => {
     if (!open) return;
     const version = ++operation.current;
-    setFile("theme/custom.css");
+    const selectedPageFile = safeFile(currentPageId);
+    setFile(selectedPageFile);
     setValue("");
     setSavedValue("");
     // A project switch must never leak the previous project's preview.
@@ -146,7 +149,8 @@ export function ThemeSourceEditor({
         const order=await listThemeStyles(projectId);
         if (version !== operation.current) return;
         setStyleFiles(order);
-        await loadSelected("theme/custom.css", version);
+        // Always load the current page source. CSS is still in the file list.
+        await loadSelected(selectedPageFile, version);
         if (version === operation.current) await refresh();
       })
       .catch(cause => { if (version === operation.current) setError(errorMessage(cause)); })
@@ -183,8 +187,13 @@ export function ThemeSourceEditor({
         pageSavedRef.current(pageId, value);
       }
       setSavedValue(value);
-      await refresh();
-      setMessage(`Saved ${file} · Site preview updated`);
+      setMessage(`Saved ${file}`);
+      try {
+        await refresh();
+        setMessage(`Saved ${file} · Site preview updated`);
+      } catch (previewError) {
+        setError("Source was saved, but site preview could not refresh: " + errorMessage(previewError));
+      }
     } catch (cause) { setError(errorMessage(cause)); }
     finally { setSaving(false); }
   }, [saving, loading, readOnly, dirty, file, pages, pageId, projectId, value, refresh]);
@@ -269,18 +278,19 @@ export function ThemeSourceEditor({
   return (
     <Dialog open={open} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm"><Code2 /> Source</Button>
+        <Button variant="outline" size="sm" aria-label="Edit current page Markdown source"><Code2 /> Page source</Button>
       </DialogTrigger>
       <DialogContent className="flex h-[92dvh] max-h-[96dvh] w-[min(97vw,1700px)] max-w-none flex-col gap-3 overflow-hidden p-4 sm:max-w-none">
         <DialogHeader className="shrink-0">
-          <DialogTitle className="flex items-center gap-2"><Code2 className="size-4" /> Project source workspace</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Code2 className="size-4" /> Page Markdown &amp; project source</DialogTitle>
           <DialogDescription>
-            Explore real project Markdown and theme CSS in Monaco. Metadata is read-only and protected by Paglora's schema. Changes to pages update the visual editor.
+            The current page opens as editable Markdown. Other documentation pages and CSS are available in the file list. Metadata remains protected.
           </DialogDescription>
         </DialogHeader>
         <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row">
           <nav aria-label="Project source files" className="max-h-36 shrink-0 overflow-y-auto rounded-lg border border-border bg-muted/20 p-2 lg:max-h-none lg:w-56">
-            {section("docs", "Documentation", pages.map(page => ({ path: safeFile(page.id), label: `${page.id}.md` })))}
+            <p className="mb-2 rounded border border-border bg-card px-2 py-2 text-[11px] leading-relaxed text-muted-foreground">Page source is editable Markdown. Select any document below to edit its real .md content.</p>
+            {section("docs", "Markdown pages", pages.map(page => ({ path: safeFile(page.id), label: `${page.id}.md${page.id === currentPageId ? " · current" : ""}` })))}
             {section("theme", "Theme", styleFiles.map((name,index)=>({path:`theme/${name}` as SourceFile,label:`${index+1}. ${name}` })))}
             {treeOpen.theme && <div aria-label="Stylesheet cascade order" className="mb-3 space-y-2 rounded-md border border-border bg-card p-2">
               <p className="text-[11px] leading-relaxed text-muted-foreground">Site default CSS → custom.css → additional styles in order. Last declaration wins in Preview and published Build.</p>
@@ -306,7 +316,7 @@ export function ThemeSourceEditor({
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/40 px-3 py-2">
               <div className="min-w-0">
                 <p className="truncate font-mono text-xs font-medium">{file}{dirty ? " •" : ""}</p>
-                <p className="text-xs text-muted-foreground">{readOnly ? "Schema protected · Read-only" : dirty ? "Unsaved changes" : "Saved source file"}</p>
+                <p className="text-xs text-muted-foreground">{readOnly ? "Schema protected · Read-only" : dirty ? "Unsaved changes" : file.endsWith(".md") ? "Editable Markdown source · Ctrl+S to save" : "Saved source file"}</p>
               </div>
               {!readOnly && <Button size="sm" disabled={loading || saving || !dirty} onClick={() => void save()}>
                 {saving ? <LoaderCircle className="animate-spin" /> : <Save />} Save
