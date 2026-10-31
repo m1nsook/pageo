@@ -1083,7 +1083,7 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
         }
         if !image_names.is_empty() {
             fs::create_dir(staged.join("assets")).map_err(|e| e.to_string())?;
-            for name in image_names {
+            for name in &image_names {
                 let (bytes, _) = read_asset(&dir, &name)?;
                 fs::write(staged.join("assets").join(name), bytes).map_err(|e| e.to_string())?;
             }
@@ -1189,10 +1189,10 @@ mod website_font_tests {
         ];
         let home = RenderedPage {
             id: "index".into(),
-            html: r#"<a href="guide.html#usage">Valid</a>
+            html: r##"<a href="guide.html#usage">Valid</a>
 <a href="./draft.html">Private</a><a href="gone.html">Missing</a>
 <a href="gone.html">Duplicate</a><a href="https://example.test/external.html">External</a>
-<a href="#local-heading">Local heading</a>"#.into(),
+<a href="#local-heading">Local heading</a>"##.into(),
             toc: vec![],
             search_text: String::new(),
         };
