@@ -144,22 +144,22 @@ export function SiteBuilder({ projectId, onBeforeBuild }: {
               <p className="text-xs text-muted-foreground">Each count reflects actual completed Markdown rendering, HTML checks, image copies, or page writes. Atomic install stays indeterminate; no simulated percentages.</p>
             </div>}
             {error && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
-            {output && <div className="space-y-2 rounded-lg border border-emerald-300/60 bg-emerald-50 p-3 text-sm text-emerald-900">
+            {output && <div className="space-y-2 rounded-lg border border-emerald-300/60 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-100">
               <div className="flex items-center gap-2 font-medium"><CheckCircle2 className="size-4" /> Static website generated</div>
               <p className="text-xs">Open the following folder on your computer. Upload its entire contents to your static host:</p>
               <div className="flex min-w-0 items-center gap-2">
-                <code className="min-w-0 flex-1 break-all rounded-md bg-white/70 p-2 text-xs">{output}</code>
+                <code className="min-w-0 flex-1 break-all rounded-md bg-white/70 p-2 text-xs dark:bg-background/60">{output}</code>
                 <StudioTooltip label="Copy export directory"><Button type="button" variant="outline" size="icon-sm" aria-label="Copy export directory" onClick={() => void copyOutput()}><Copy /></Button></StudioTooltip>
               </div>
               {report && (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-3 gap-2 rounded-md border border-emerald-200 bg-white/65 p-3 text-center text-xs">
+                  <div className="grid grid-cols-3 gap-2 rounded-md border border-emerald-200 bg-white/65 p-3 text-center text-xs dark:border-emerald-400/20 dark:bg-background/40">
                     <div><strong className="block text-base">{report.publicPages}</strong>Public pages</div>
                     <div><strong className="block text-base">{report.privatePages}</strong>Private excluded</div>
                     <div><strong className="block text-base">{report.localImages}</strong>Local images</div>
                   </div>
                   {report.warnings.length > 0 ? (
-                    <section aria-label="Publish warnings" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-950">
+                    <section aria-label="Publish warnings" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-950 dark:border-amber-400/25 dark:bg-amber-500/10 dark:text-amber-100">
                       <p className="flex items-center gap-2 font-medium"><AlertTriangle className="size-4" /> {report.warnings.length} link warning{report.warnings.length === 1 ? "" : "s"}</p>
                       <p className="mt-1 text-xs">The website was generated, but some internal links point to missing or private pages.</p>
                       <ul className="mt-2 max-h-36 list-disc space-y-1 overflow-y-auto pl-5 text-xs">

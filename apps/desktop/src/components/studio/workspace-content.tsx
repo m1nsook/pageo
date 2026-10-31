@@ -273,7 +273,7 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
             <Card className="gap-3 md:col-span-2">
               <CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="size-4" /> {t("studio.settings.localStorage")}</CardTitle>
                 <CardDescription>{t("studio.settings.storageDescription")}</CardDescription></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-2" aria-busy={storageMigrating}>
                 <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
                   <code className="min-w-0 flex-1 break-all px-1 font-mono text-xs">{desktop ? storageStatus?.configuredPath || location || t("studio.settings.storagePending") : t("studio.settings.desktopOnly")}</code>
                   <Button variant="outline" size="sm" disabled={!desktop || !location}
@@ -282,6 +282,15 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
                       void navigator.clipboard.writeText(location).catch(error => console.warn("Could not copy local storage path", error));
                     }}><Copy className="size-3.5" /> {t("studio.storage.copyPath")}</Button>
                 </div>
+                <Accordion key={storageStatus?.available ? "online" : "offline"} type="single"
+                  collapsible defaultValue={storageStatus?.available ? undefined : "advanced"}>
+                  <AccordionItem value="advanced" className="border-0">
+                    <AccordionTrigger className="py-2 text-sm hover:no-underline" disabled={storageMigrating}>
+                      <span className="flex items-center gap-2"><FolderOpen className="size-4" />
+                        {storageStatus?.isCustom && !storageStatus.available ? t("studio.storage.offline") : t("studio.storage.move")}
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-2 pt-2">
                 {desktop && storageStatus?.isCustom && !storageStatus.available && (
                   <div role="alert" className="space-y-3 rounded-md border border-destructive/30 bg-destructive/5 p-3">
                     <p className="text-sm font-semibold text-destructive">{t("studio.storage.offline")}</p>
@@ -357,6 +366,13 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   {t("studio.storage.migrationHelp")}
                 </p>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+                {storageMigrating && <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <LoaderCircle className="size-3.5 animate-spin" />
+                  {t("studio.storage.copying")}
+                </p>}
               </CardContent>
             </Card>
             <Card className="gap-0 md:col-span-2">
