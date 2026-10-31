@@ -61,6 +61,31 @@ body { margin: 0; min-width: 560px; }
 button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
+/* Paglora scrollbars: compact native WebView scrolling without generic browser chrome.
+   Isolated to Studio; published documentation is rendered in its own iframe. */
+:root {
+  --studio-scroll-track: #e5e7ed;
+  --studio-scroll-thumb: #afb6c2;
+  --studio-scroll-hover: #7d899d;
+}
+.dark {
+  --studio-scroll-track: #18181d;
+  --studio-scroll-thumb: #484852;
+  --studio-scroll-hover: #6a6a78;
+}
+#root, [data-radix-popper-content-wrapper] {
+  scrollbar-width: thin;
+  scrollbar-color: var(--studio-scroll-thumb) var(--studio-scroll-track);
+}
+#root * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--studio-scroll-thumb) var(--studio-scroll-track);
+}
+#root ::-webkit-scrollbar { width: 9px; height: 9px; }
+#root ::-webkit-scrollbar-track { background: var(--studio-scroll-track); }
+#root ::-webkit-scrollbar-thumb { border: 2px solid var(--studio-scroll-track); border-radius: 7px; background: var(--studio-scroll-thumb); }
+#root ::-webkit-scrollbar-thumb:hover { background: var(--studio-scroll-hover); }
+
 /* Lucide stays crisp for editing controls; Phosphor handles filled navigation. */
 #root svg.lucide { stroke-width: 2.25; }
 /* Epic-style density: flat chrome, stronger text and a quiet selected rail. */
