@@ -4,6 +4,14 @@ Paglora is in early development. Desktop milestone numbers are separate from the
 
 ## Unreleased — desktop source (after 0.2.0)
 
+### Publishing and static-site packaging (release candidate)
+- Introduced a deterministic content-addressed browser asset layout: `_paglora/chunks/<hash>.js` and `_paglora/chunks/css/<hash>.css`. The hashed files are referenced by exported HTML; legacy root assets remain temporarily available for compatibility.
+- Added compact HTML page mirrors in `pages/` with canonical root-page bases and `noindex,follow`; existing public links, search results and canonical URLs continue pointing to the existing root HTML filenames. The final canonical `pages/` migration is deferred until end-to-end navigation, search and SEO verification.
+- Added optional published-site favicons: HTTPS image URL or a locally generated transparent 64×64 PNG from uploaded PNG/JPEG/WebP/GIF. Local icons are included in exports and inlined for script-disabled preview.
+- Updated packaging guards for the official headless GitHub Pages docs build (companion `paglora-docs` PR), without adding remote dependencies to generated sites.
+- All changes are under review and are **not a stable release** until app CI, generated-site smoke tests, Windows Studio acceptance and the installer/update release gate pass.
+
+
 ### Studio workflow
 - Offline backup import/export now shows real indeterminate stages (file read, native validation/import, workspace refresh, and native export). Duplicate archive actions and conflicting project removal are blocked while busy; a completed import with a failed list refresh is reported separately from a failed import.
 - Added user-configurable keyboard shortcuts for local project/page search, project creation, project navigation and Studio Settings. A Radix shortcut recorder validates reserved/duplicate combinations, offers a reset action and stores settings locally without modifying documentation projects.

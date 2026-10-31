@@ -13,6 +13,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { importSiteAsset, loadSiteSettings, previewPublicPage, saveSiteSettings, type SiteLink, type SiteSettings } from "@/lib/site";
+import { createFaviconPng } from "@/lib/favicon";
 
 const SITE_LAYOUTS: { id: SiteSettings["siteLayout"]; name: string; detail: string }[] = [
   { id: "classic", name: "studio.design.layoutClassic", detail: "studio.design.layoutClassicDetail" },
@@ -158,6 +159,23 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
     setSettings(current => current ? { ...current, [key]: value } : null);
     setSaved(false);
     setError("");
+  }
+
+  async function uploadFavicon(file: File) {
+    const startedGeneration = generation.current;
+    const isCurrent = () => generation.current === startedGeneration;
+    setUploading(true);
+    setError("");
+    try {
+      const bytes = await createFaviconPng(file);
+      if (!isCurrent()) return;
+      const url = await importSiteAsset(projectId, "favicon.png", bytes);
+      if (isCurrent()) patch("faviconUrl", url);
+    } catch (cause) {
+      if (isCurrent()) setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      if (isCurrent()) setUploading(false);
+    }
   }
 
   async function uploadLogo(file: File) {
@@ -394,6 +412,24 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
                       }} />
                     <p className="text-xs text-muted-foreground">
                       {uploading ? t("studio.design.logoImporting") : t("studio.design.logoHelp")}
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="designer-favicon">Favicon</Label>
+                    <Input id="designer-favicon" type="text" maxLength={500}
+                      placeholder="https://example.com/favicon.png or assets/favicon.png"
+                      value={settings.faviconUrl ?? ""} onChange={event => patch("faviconUrl", event.target.value)} />
+                    <Label htmlFor="designer-favicon-upload">Upload and generate a favicon</Label>
+                    <Input id="designer-favicon-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                      disabled={uploading || busy}
+                      onChange={event => {
+                        const file = event.target.files?.[0];
+                        if (file) void uploadFavicon(file);
+                        event.target.value = "";
+                      }} />
+                    <p className="text-xs text-muted-foreground">
+                      Use an HTTPS image URL or import a PNG, JPEG, WebP or GIF.
+                      Paglora generates a transparent 64 × 64 PNG locally and includes it in the public site.
                     </p>
                   </div>
                   <div className="grid gap-2">
