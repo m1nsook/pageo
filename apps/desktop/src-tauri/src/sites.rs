@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::{collections::{HashMap, HashSet}, fs, io::Write, path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
 use tauri::{AppHandle, Manager};
 
+include!("locale_catalogs.rs");
+
 const CONFIG: &str = "site.json";
 const EXPORTS: &str = "site-exports";
 const MAX_ASSET_BYTES: usize = 5 * 1024 * 1024;
@@ -850,6 +852,29 @@ fn escape(value: &str) -> String {
 
 fn filename(id: &str) -> String { format!("{id}.html") }
 
+// The bundled catalogs are validated snapshots of paglora-lang.
+// Missing keys/languages fall back to canonical English.
+fn website_messages(locale: &str) -> serde_json::Map<String, serde_json::Value> {
+    let parse = |text: &str| -> serde_json::Map<String, serde_json::Value> {
+        serde_json::from_str::<serde_json::Value>(text).ok()
+            .and_then(|value| value.get("messages").and_then(|m| m.as_object()).cloned())
+            .unwrap_or_default()
+    };
+    let canonical = PAGLORA_LOCALE_SOURCES.iter().find(|(code, _)| *code == "en")
+        .map(|(_, content)| *content).unwrap_or("{}");
+    let mut values = parse(canonical);
+    if locale != "en" {
+        if let Some((_, content)) = PAGLORA_LOCALE_SOURCES.iter().find(|(code, _)| *code == locale) {
+            values.extend(parse(content));
+        }
+    }
+    values
+}
+fn website_label<'a>(messages: &'a serde_json::Map<String, serde_json::Value>, key: &'a str) -> &'a str {
+    messages.get(key).and_then(|value| value.as_str()).unwrap_or(key)
+}
+
+
 // Match browser chrome to the exported page's configured light/dark palette.
 // System mode uses media-qualified tags so browser UI follows OS changes.
 fn theme_color_meta(mode: &str, palette: &str) -> String {
@@ -924,6 +949,19 @@ fn render_site_page_with_description(
     search_text: Option<&str>,
 ) -> String {
     let public_pages: Vec<_> = pages.iter().filter(|p| p.is_public).collect();
+    let messages = website_messages(&settings.language);
+    let toc_title = escape(website_label(&messages, "site.navigation.onThisPage"));
+    let previous_text = escape(website_label(&messages, "site.navigation.previous"));
+    let next_text = escape(website_label(&messages, "site.navigation.next"));
+    let browse_text = escape(website_label(&messages, "site.navigation.browse"));
+    let skip_text = escape(website_label(&messages, "site.navigation.skip"));
+    // Browser-only enhancements read plain JSON, never executable translator content.
+    let mut browser_labels = serde_json::Map::new();
+    for (key, value) in &messages {
+        if key.starts_with("site.") { browser_labels.insert(key.clone(), value.clone()); }
+    }
+    let browser_json = serde_json::to_string(&browser_labels).unwrap_or_else(|_| "{}".into())
+        .replace('<', "\\u003c").replace('>', "\\u003e").replace('&', "\\u0026");
     let mut links = String::new();
     let mut previous_group: Option<&str> = None;
     for item in &public_pages {
@@ -958,20 +996,20 @@ fn render_site_page_with_description(
         ));
     }
     let toc_aside = if toc_links.is_empty() { String::new() } else {
-        format!("<div class=\"toc-inner\"><h2>On this page</h2>{toc_links}</div>")
+        format!("<div class=\"toc-inner\"><h2>{toc_title}</h2>{toc_links}</div>")
     };
     let mobile_toc = if toc_links.is_empty() { String::new() } else {
-        format!("<details class=\"mobile-toc\"><summary>On this page</summary>{toc_links}</details>")
+        format!("<details class=\"mobile-toc\"><summary>{toc_title}</summary>{toc_links}</details>")
     };
     let mut pager = String::new();
     if let Some(index) = public_pages.iter().position(|item| item.id == page.id) {
         if index > 0 {
             let previous = public_pages[index - 1];
-            pager.push_str(&format!("<a class=\"previous\" href=\"{}\"><small>← Previous</small><span>{}</span></a>",
+            pager.push_str(&format!("<a class=\"previous\" href=\"{}\"><small>← {previous_text}</small><span>{}</span></a>",
                 filename(&previous.id), escape(&previous.title)));
         }
         if let Some(next) = public_pages.get(index + 1) {
-            pager.push_str(&format!("<a class=\"next\" href=\"{}\"><small>Next →</small><span>{}</span></a>",
+            pager.push_str(&format!("<a class=\"next\" href=\"{}\"><small>{next_text} →</small><span>{}</span></a>",
                 filename(&next.id), escape(&next.title)));
         }
     }
@@ -1060,9 +1098,9 @@ fn render_site_page_with_description(
 {accent_style}
 </head>
 <body class="page-layout-{layout}">
-<a class="skip-link" href="#content">Skip to content</a>
+<a class="skip-link" href="#content">{skip_text}</a>
 <header class="site-header {header_class}"><div class="top-bar"><a class="brand brand-wrap" href="index.html">{logo}{brand_title}</a>{header_links}</div></header>
-<details class="mobile-nav"><summary>Browse documentation</summary><nav class="mobile-nav-inner" aria-label="Mobile page navigation">{links}</nav></details>
+<details class="mobile-nav"><summary>{browse_text}</summary><nav class="mobile-nav-inner" aria-label="Mobile page navigation">{links}</nav></details>
 <div class="site-body nav-{nav_position} layout-{layout}">
 <nav class="site-nav" aria-label="Documentation navigation"><div class="site-nav-inner">{links}</div></nav>
 <main class="site-main" id="content" style="--paglora-content-width:{content_width}px">
@@ -1075,6 +1113,7 @@ fn render_site_page_with_description(
 <aside class="on-this-page" aria-label="Table of contents">{toc_aside}</aside>
 </div>
 {footer}
+<script type="application/json" id="paglora-i18n">{browser_json}</script>
 {runtime_scripts}
 </body>
 </html>"##)
@@ -1464,6 +1503,28 @@ mod website_font_tests {
         assert!(SITE_CSS.contains(r#":root[data-site-palette="lavender"][data-color-mode="dark"]"#));
         assert!(SITE_CSS.contains(r#":root[data-site-palette="lavender"]:not([data-color-mode="light"])"#));
         assert!(SITE_CSS.contains(r#"@media(max-width:800px)"#));
+    }
+
+    #[test]
+    fn website_chrome_translates_with_site_language_and_english_fallback() {
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Example".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Docs".into(),
+        };
+        let mut settings = default_settings("Example");
+        settings.language = "pl".into();
+        let polish = render_site_page(&settings, &[page.clone()], &page, "<p>Author text</p>", &[]);
+        assert!(polish.contains("Przeglądaj dokumentację"));
+        assert!(polish.contains("Przejdź do treści"));
+        assert!(polish.contains("Author text"));
+        assert!(polish.contains(r#"id="paglora-i18n""#));
+        settings.language = "ko".into();
+        assert!(render_site_page(&settings, &[page.clone()], &page, "<p>Original</p>", &[])
+            .contains("문서 탐색"));
+        settings.language = "fr".into();
+        let fallback = render_site_page(&settings, &[page.clone()], &page, "<p>Original</p>", &[]);
+        assert!(fallback.contains("Browse documentation"));
+        assert!(fallback.contains("Skip to content"));
     }
 
     #[test]
