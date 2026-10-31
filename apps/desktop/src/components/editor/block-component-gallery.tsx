@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Check, Copy, Plus } from "lucide-react";
+import { BookOpen, Check, Copy, GripVertical, Plus } from "lucide-react";
 import { marked } from "marked";
 import { toast } from "sonner";
 import { BLOCKS, type BlockKind } from "@/components/editor/block-catalog";
@@ -57,6 +57,20 @@ export function BlockComponentGallery({ disabled, onInsert }: {
   const example = BLOCK_MARKDOWN_EXAMPLES[selected];
   const choose = (kind: BlockKind) => { setSelected(kind); setMode("preview"); };
   const insertSelected = () => { if (!disabled) { onInsert(selected); setOpen(false); } };
+  const dragExample = (event: React.DragEvent<HTMLElement>, kind: BlockKind) => {
+    if (disabled) { event.preventDefault(); return; }
+    // A single native type, validated again by BlockPalette on drop. Never
+    // allow pasted HTML, file:// paths or arbitrary JSON into the editor.
+    event.dataTransfer.setData("application/x-paglora-block", kind);
+    event.dataTransfer.setData("text/plain", "");
+    event.dataTransfer.effectAllowed = "copy";
+  };
+  useEffect(() => {
+    if (!open) return;
+    const closeAfterDrop = () => setOpen(false);
+    document.addEventListener("paglora:gallery-block-dropped", closeAfterDrop);
+    return () => document.removeEventListener("paglora:gallery-block-dropped", closeAfterDrop);
+  }, [open]);
   const blocks = useMemo(() => BLOCKS.filter(item =>
     (item.title + " " + item.description).toLowerCase().includes(filter.toLowerCase().trim())), [filter]);
 
@@ -75,14 +89,14 @@ export function BlockComponentGallery({ disabled, onInsert }: {
 
   const item = BLOCKS.find(block => block.kind === selected)!;
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog modal={false} open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline" className="gap-1.5"><BookOpen className="size-3.5" /> Library</Button>
       </DialogTrigger>
-      <DialogContent className="flex h-[min(84dvh,760px)] max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[min(96vw,980px)]">
+      <DialogContent showOverlay={false} className="flex h-[min(84dvh,760px)] max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[min(96vw,980px)]">
         <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-12">
           <DialogTitle>Documentation component library</DialogTitle>
-          <DialogDescription>Explore reusable Paglora blocks. Use ↑/↓, Home/End to browse, Enter to select, or Ctrl+Enter to insert.</DialogDescription>
+          <DialogDescription>Explore reusable Paglora blocks. Click Insert, or drag a component outside this non-modal Library onto the page. Use ↑/↓, Home/End and Ctrl+Enter with the keyboard.</DialogDescription>
         </DialogHeader>
         <div className="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(0,180px)_minmax(0,1fr)] sm:grid-cols-[240px_minmax(0,1fr)] sm:grid-rows-1">
           <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border-b border-border bg-muted/20 sm:border-b-0 sm:border-r">
@@ -95,7 +109,10 @@ export function BlockComponentGallery({ disabled, onInsert }: {
             <ScrollArea className="min-h-0 flex-1">
               <div className="space-y-1 p-2 pt-0">
                 {blocks.map(({ kind, title, icon: Icon }) => (
-                  <Button type="button" key={kind} data-gallery-kind={kind} variant={selected === kind ? "secondary" : "ghost"}
+                  <Button type="button" key={kind} data-gallery-kind={kind} draggable={!disabled}
+                    onDragStart={event => dragExample(event,kind)}
+                    aria-description="Drag onto the editor, or select and click Insert"
+                    variant={selected === kind ? "secondary" : "ghost"}
                     className="w-full justify-start gap-2 text-left" aria-pressed={selected === kind}
                     onClick={() => choose(kind)} onKeyDown={event => {
                       const next = nextGalleryKind(blocks.map(block => block.kind), kind, event.key);
@@ -105,6 +122,7 @@ export function BlockComponentGallery({ disabled, onInsert }: {
                     <Icon aria-hidden="true" className="size-4 shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{title}</span>
                     {selected === kind && <Check className="size-3.5 text-primary" />}
+                    <GripVertical aria-hidden="true" className="size-3.5 text-muted-foreground/60" />
                   </Button>
                 ))}
                 {blocks.length === 0 && <p className="p-3 text-xs text-muted-foreground">No matching components.</p>}
@@ -114,9 +132,17 @@ export function BlockComponentGallery({ disabled, onInsert }: {
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-border p-4">
               <div className="min-w-0 flex-1"><p className="truncate font-semibold">{item.title}</p><p className="text-xs leading-relaxed text-muted-foreground">{item.description}</p></div>
-              <Button size="sm" disabled={disabled} onClick={insertSelected}>
-                <Plus className="size-3.5" /> Insert
-              </Button>
+              <div className="flex items-center gap-2">
+                <button type="button" disabled={disabled} draggable={!disabled}
+                  onDragStart={event => dragExample(event,selected)}
+                  aria-label={`Drag ${item.title} example into the editor`}
+                  className="flex cursor-grab select-none items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed">
+                  <GripVertical className="size-3.5" /> Drag to page
+                </button>
+                <Button size="sm" disabled={disabled} onClick={insertSelected}>
+                  <Plus className="size-3.5" /> Insert
+                </Button>
+              </div>
             </div>
             <Tabs value={mode} onValueChange={value => setMode(value as "preview" | "markdown")} className="min-h-0 min-w-0 flex-1 gap-0">
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2">
