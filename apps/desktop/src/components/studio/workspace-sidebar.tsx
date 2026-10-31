@@ -29,7 +29,7 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
           <span className="flex size-9 shrink-0 items-center justify-center">
             <img src="/paglora.svg" className="size-9 object-contain" alt="Paglora logo" />
           </span>
-          <span className="truncate text-lg font-semibold tracking-tight group-data-[collapsible=icon]:hidden">paglora<span className="text-muted-foreground">.</span></span>
+          <span className="font-display truncate text-lg font-extrabold tracking-tight group-data-[collapsible=icon]:hidden">paglora<span className="text-muted-foreground">.</span></span>
         </div>
       </SidebarHeader>
       <SidebarContent className="overflow-x-hidden overflow-y-auto">
@@ -69,7 +69,7 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="gap-3 p-3">
-        <div className="rounded-lg bg-muted/70 p-3 group-data-[collapsible=icon]:hidden">
+        <div className="rounded-md border border-sidebar-border bg-card/60 p-3 group-data-[collapsible=icon]:hidden">
           <div className="flex items-center gap-2 text-xs font-medium"><ShieldCheck className="size-4" /> {t("studio.nav.privateByDesign")}</div>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t("studio.nav.privateDescription")}</p>
         </div>
