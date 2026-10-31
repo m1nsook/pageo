@@ -36,6 +36,23 @@ fn stylesheet_chunk_name() -> String {
     let css = SITE_CSS.replace("fonts/geist-latin.woff2", "../../../fonts/geist-latin.woff2");
     format!("_paglora/chunks/css/{}.css", chunk_hash(css.as_bytes()))
 }
+/// Compatibility mirror for modern /pages layout. Keep the canonical root
+/// page accessible for existing Markdown links and configured search results.
+/// Only compact Paglora's wrapper markup; NEVER minify the authored article,
+/// which may contain significant whitespace inside pre/code elements.
+fn minified_page_mirror(html: &str, page_file: &str) -> Result<String, String> {
+    let start = html.find("<article class=\"docs\">").ok_or("Missing article start")?;
+    let end = html[start..].find("</article>").ok_or("Missing article end")? + start + "</article>".len();
+    let compact = |part: &str| part.lines().map(str::trim).collect::<String>();
+    let mut wrapper = compact(&html[..start]);
+    if !wrapper.contains("<head>") { return Err("Missing page head".into()); }
+    // Base points to the existing canonical root page. In-page #anchors,
+    // CSS, assets, and runtime search URLs resolve without broken paths.
+    let base = format!("<head><base href=\"../{page_file}\"><meta name=\"robots\" content=\"noindex,follow\">");
+    wrapper = wrapper.replacen("<head>", &base, 1);
+    Ok(format!("{}{}{}", wrapper, &html[start..end], compact(&html[end..])))
+}
+
 fn site_runtime_script_tags() -> String {
     SITE_RUNTIME_ASSETS.iter()
         .map(|asset| format!("<script defer src=\"{}\"></script>\n", runtime_chunk_name(asset)))
@@ -1839,13 +1856,19 @@ fn build_site_from_disk_progress(dir:&Path,project_name:&str,target:&Path,render
             fs::write(staged.join("sitemap.xml"), sitemap_xml(&settings.site_url, &public_pages))
                 .map_err(|error| error.to_string())?;
         }
+        // /pages/ provides compact HTML shells while the root files remain
+        // canonical, preserving all existing link and sitemap URLs.
+        fs::create_dir_all(staged.join("pages")).map_err(|e| e.to_string())?;
         for (count,page) in public_pages.iter().enumerate() {
             let rendered_page = html_by_id.get(page.id.as_str()).ok_or("Missing public page")?;
             let mut output = render_site_page_with_description(&settings, &pages, page, &rendered_page.html, &rendered_page.toc, Some(&rendered_page.search_text));
             if theme.is_some() {
                 output = output.replace("</head>", "<link rel=\"stylesheet\" href=\"custom.css\">\n</head>");
             }
-            fs::write(staged.join(filename(&page.id)), output).map_err(|e| e.to_string())?;
+            let page_file = filename(&page.id);
+            let mirror = minified_page_mirror(&output, &page_file)?;
+            fs::write(staged.join("pages").join(&page_file), mirror).map_err(|e| e.to_string())?;
+            fs::write(staged.join(page_file), output).map_err(|e| e.to_string())?;
             report("html",count+1,public_pages.len());
         }
         Ok(image_names.len())
@@ -2292,6 +2315,23 @@ mod website_font_tests {
         assert_eq!(site_text_direction("ko"), "ltr");
         assert_eq!(social_locale("sv-SE"), "sv_SE");
         assert_eq!(social_locale("en"), "en_US");
+    }
+
+    #[test]
+    fn compact_pages_mirror_keeps_preformatted_body_and_canonical_root_links() {
+        let page = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Docs".into(),
+        };
+        let settings = default_settings("Docs");
+        let html = render_site_page(&settings, &[page.clone()], &page,
+            "<pre><code>  leading spaces\n\n  next line</code></pre>", &[]);
+        let compact = minified_page_mirror(&html, "index.html").unwrap();
+        assert!(compact.contains("<base href=\"../index.html\">"));
+        assert!(compact.contains("name=\"robots\" content=\"noindex,follow\""));
+        assert!(compact.contains("  leading spaces\n\n  next line"));
+        assert!(compact.contains("href=\"_paglora/chunks/css/"));
+        assert!(!compact.contains("</article>\n</div>"));
     }
 
     #[test]
