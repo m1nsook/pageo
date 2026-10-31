@@ -58,9 +58,9 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Paglora documentation">
+                <SidebarMenuButton asChild tooltip={t("studio.nav.documentation")}>
                   <a href="https://m1nsook.github.io/paglora-docs/" target="_blank" rel="noopener noreferrer">
-                    <BookOpenTextIcon weight="bold" /><span>Documentation</span>
+                    <BookOpenTextIcon weight="bold" /><span>{t("studio.nav.documentation")}</span>
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
