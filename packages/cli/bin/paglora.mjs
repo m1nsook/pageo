@@ -169,8 +169,20 @@ export function run(args, output = process.stdout, errors = process.stderr) {
     errors.write(`Unknown command: ${command}\n\n${HELP}`);
     return 1;
   }
-  const json = rest.includes("--json");
-  const folder = rest.find(value => !value.startsWith("--"));
+  let json = false;
+  let folder;
+  let invalid = false;
+  for (const value of rest) {
+    if (value === "--json" && !json) json = true;
+    else if (value.startsWith("-") || folder !== undefined) {
+      invalid = true;
+      break;
+    } else folder = value;
+  }
+  if (invalid) {
+    errors.write(`Usage: paglora ${command} <project-folder> [--json]\n`);
+    return 1;
+  }
   if (!folder) {
     errors.write("Missing project directory. Example: paglora inspect ./projects/my-docs\n");
     return 1;

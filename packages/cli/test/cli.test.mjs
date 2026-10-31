@@ -214,3 +214,22 @@ test("init rejects missing folders, duplicate flags and extra positional argumen
     }
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test("inspect and validate reject unknown flags, duplicate flags and extra folders", () => fixture(folder => {
+  for (const args of [
+    ["inspect", folder, "--unknown"],
+    ["inspect", folder, "--json", "--json"],
+    ["inspect", folder, "extra-folder"],
+    ["validate", folder, "extra-folder"],
+    ["validate", "--unknown", folder],
+  ]) {
+    let output = "", errors = "";
+    assert.equal(run(args, { write: value => { output += value; } }, { write: value => { errors += value; } }), 1);
+    assert.equal(output, "");
+    assert.match(errors, /Usage: paglora (inspect|validate)/);
+  }
+  let output = "", errors = "";
+  assert.equal(run(["validate", "--json", folder], { write: value => { output += value; } }, { write: value => { errors += value; } }), 0);
+  assert.equal(JSON.parse(output).id, "my-docs");
+  assert.equal(errors, "");
+}));
