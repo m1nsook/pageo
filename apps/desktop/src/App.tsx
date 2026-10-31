@@ -25,6 +25,7 @@ import { editableCanvasText, findCanvasSourcePosition, replacePlainCanvasText, t
 import { preservePagloraMarkers } from "@/lib/markdown-markers";
 import { PageInspector } from "@/components/editor/page-inspector";
 import { WorkspaceSidebar, type WorkspaceView } from "@/components/studio/workspace-sidebar";
+import { StudioQuickFind } from "@/components/studio/studio-quick-find";
 import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { StudioUpdateDialog, useStudioUpdater } from "@/components/studio/studio-updater";
 import { StudioReleaseDialog, LAST_STUDIO_VERSION_KEY } from "@/components/studio/studio-release-dialog";
@@ -72,7 +73,7 @@ function CreateProjectDialog({ open, onOpenChange, onCreate, disabled }: {
   );
 }
 
-function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange, onModify }: { document: ProjectDocument; current: PageDocument; pages: Page[]; onBack: () => void; onSaved: (project: ProjectSummary) => void; onChange: (id: string) => Promise<void>; onModify: (action: PageAction, id?: string, target?: string) => Promise<void> }) {
+function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange, onModify, findOpen, onFindOpenChange }: { document: ProjectDocument; current: PageDocument; pages: Page[]; onBack: () => void; onSaved: (project: ProjectSummary) => void; onChange: (id: string) => Promise<void>; onModify: (action: PageAction, id?: string, target?: string) => Promise<void>; findOpen: boolean; onFindOpenChange: (open: boolean) => void }) {
   const { t } = useTranslation();
   const latest = useRef(current.markdown);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -270,11 +271,14 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           onEditContent={() => void selectView("edit")} />}
         {showBlockTools && viewMode === "edit" && <BlockPalette editor={editor} disabled={leaving} />}
       </div>
+      <StudioQuickFind open={findOpen} onOpenChange={onFindOpenChange}
+        entries={pages.map(page => ({ id: page.id, title: page.title, description: page.navGroup, kind: "page" as const }))}
+        onSelect={id => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }} />
     </main>
   );
 }
 
-function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; onSaved: (project: ProjectSummary) => void }) {
+function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; onSaved: (project: ProjectSummary) => void; findOpen: boolean; onFindOpenChange: (open: boolean) => void }) {
   const { document } = props;
   const [pages, setPages] = useState<Page[]>([{id:"index",title:"Overview",isPublic:true,layout:"docs",navGroup:"Documentation"}]);
   const [current, setCurrent] = useState<PageDocument>({page:{id:"index",title:"Overview",isPublic:true,layout:"docs",navGroup:"Documentation"},markdown:document.markdown});
@@ -330,7 +334,7 @@ function ProjectEditor(props: { document: ProjectDocument; onBack: () => void; o
   };
   return <>{failure && <div role="alert" className="fixed bottom-4 right-4 z-50 rounded-lg bg-red-50 p-3 text-red-600">{failure}</div>}
     <SinglePageEditor key={current.page.id} document={document} current={current} pages={pages}
-      onBack={props.onBack} onSaved={props.onSaved} onChange={change} onModify={modify}/></>;
+      onBack={props.onBack} onSaved={props.onSaved} onChange={change} onModify={modify} findOpen={props.findOpen} onFindOpenChange={props.onFindOpenChange}/></>;
 }
 
 export default function App() {
@@ -339,6 +343,7 @@ export default function App() {
   const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
   const [view, setView] = useState<WorkspaceView>("home");
   const [search, setSearch] = useState("");
+  const [findOpen, setFindOpen] = useState(false);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [active, setActive] = useState<ProjectDocument | null>(null);
   const [creating, setCreating] = useState(false);
@@ -380,6 +385,19 @@ export default function App() {
     window.addEventListener("keydown", preventBrowserCommands, { capture: true });
     return () => window.removeEventListener("keydown", preventBrowserCommands, { capture: true });
   }, [desktop]);
+
+  // Ctrl/Cmd+F locates projects or page titles. Monaco has its own text search.
+  useEffect(() => {
+    function openFinder(event: KeyboardEvent) {
+      if ((!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "f") return;
+      if (event.target instanceof Element && event.target.closest("[data-paglora-source-editor]")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setFindOpen(true);
+    }
+    window.addEventListener("keydown", openFinder, { capture: true });
+    return () => window.removeEventListener("keydown", openFinder, { capture: true });
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!desktop) return;
@@ -429,8 +447,11 @@ export default function App() {
     <SidebarProvider className="h-svh min-h-0 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); void refresh(); }} onSaved={onSaved}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} backupNotice={backupNotice} backupPath={backupPath}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)}/> : <Dashboard projects={projects} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} backupNotice={backupNotice} backupPath={backupPath}/>}
       </SidebarInset>
+      {!active && <StudioQuickFind open={findOpen} onOpenChange={setFindOpen}
+        entries={projects.map(project => ({ id: project.id, title: project.name, description: "Local documentation project", kind: "project" as const }))}
+        onSelect={id => { void open(id); }} />}
       <CreateProjectDialog open={creating} onOpenChange={setCreating} onCreate={create} disabled={!desktop}/>
       <StudioUpdateDialog updater={updater}/>
       <StudioReleaseDialog open={releaseNotesOpen} onClose={closeReleaseNotes}/>
