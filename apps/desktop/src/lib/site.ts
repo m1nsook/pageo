@@ -8,6 +8,8 @@ export type SiteSettings = {
   title: string;
   description: string;
   footerText: string;
+  /** Optional HTTPS root for canonical URLs and public-page sitemap. */
+  siteUrl: string;
   navigationPosition: "left" | "right" | "top";
   headerAlignment: "left" | "center";
   stickyHeader: boolean;

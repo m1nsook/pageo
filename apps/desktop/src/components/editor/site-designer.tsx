@@ -202,6 +202,13 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
                 </TabsContent>
                 <TabsContent value="header" className="space-y-5 p-4">
                   <div className="grid gap-2"><Label htmlFor="designer-site-name">Website title</Label><Input id="designer-site-name" required maxLength={100} value={settings.title} onChange={e => patch("title", e.target.value)}/></div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="designer-site-url">Published site URL (optional)</Label>
+                    <Input id="designer-site-url" type="url" maxLength={240}
+                      placeholder="https://username.github.io/project/"
+                      value={settings.siteUrl} onChange={e => patch("siteUrl", e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Full HTTPS root ending in /, including the GitHub Pages repository path. When set, export includes canonical URLs and a public-only sitemap.xml. Leave empty for offline or unknown hosting.</p>
+                  </div>
                   <div className="grid gap-2"><Label htmlFor="designer-logo">Logo image URL</Label><Input id="designer-logo" placeholder="https://example.com/logo.svg" value={settings.logoUrl} onChange={e => patch("logoUrl", e.target.value)}/><p className="text-xs text-muted-foreground">HTTPS images only for now. Local asset uploads are planned.</p></div>
                   <div className="grid gap-2">
                     <Label>Header alignment</Label>

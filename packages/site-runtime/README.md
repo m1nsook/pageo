@@ -17,3 +17,7 @@ Static search indexes only public pages and loads locally; multilingual UI label
 The exported `paglora-search.js` adds a Ctrl+K / Cmd+K search interface. It lazy-loads `search-index.json`, generated **only from public pages** at build time using sanitized source content. Results link to local `.html` pages; all titles, excerpts and queries are inserted with `textContent`, not raw HTML. No user accounts, external services or JavaScript are required for ordinary page browsing.
 
 Search now bundles **MiniSearch 7.2.0 (MIT)** into the local `paglora-search.js` asset. It ranks title matches, supports word prefixes, and falls back to fuzzy matching for longer Latin queries. A substring fallback preserves CJK queries without spaces. All search is offline; no CDN or search server is contacted. MiniSearch's full license is shipped in `licenses/MiniSearch-MIT.txt` with exported sites.
+
+## Canonical URLs and sitemap
+
+In **Design site → Header**, optionally set the **Published site URL** to the HTTPS site root (for example, `https://username.github.io/project/`). Include the trailing slash and the GitHub Pages repository subpath when applicable. When configured, exported pages include canonical and Open Graph URL metadata, and the exporter writes `sitemap.xml` containing **only public pages**. Leave this field empty for offline or unknown hosting; no canonical URLs or sitemap will be generated. This setting does not change relative navigation or require a backend.
