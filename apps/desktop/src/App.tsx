@@ -43,7 +43,7 @@ import { Dashboard, Settings } from "@/components/studio/workspace-content";
 import { StudioUpdateDialog, useStudioUpdater } from "@/components/studio/studio-updater";
 import { StudioReleaseDialog, LAST_STUDIO_VERSION_KEY } from "@/components/studio/studio-release-dialog";
 import { STUDIO_VERSION } from "@/lib/release-notes";
-import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, listTrashedProjects, loadProject, migrateProjectStorage, projectsDirectory, permanentlyDeleteTrashedProject, restoreTrashedProject, trashProject, updateProjectVisual, type TrashedProject } from "@/lib/projects";
+import { createProject, exportProjectBackup, importProjectBackup, isTauri, listProjects, listTrashedProjects, loadProject, migrateProjectStorage, projectStorageStatus, reconnectProjectStorage, type ProjectStorageStatus, projectsDirectory, permanentlyDeleteTrashedProject, restoreTrashedProject, trashProject, updateProjectVisual, type TrashedProject } from "@/lib/projects";
 import { listPages, loadPage, createPage, renamePage, duplicatePage, deletePage, reorderPages, savePage, setPageVisibility, setPageLayout, setPageNavigationGroup, type Page, type PageDocument } from "@/lib/pages";
 
 function friendlyError(error: unknown) { return error instanceof Error ? error.message : String(error); }
@@ -417,6 +417,7 @@ export default function App() {
   const [location, setLocation] = useState("");
   const [storageMigrating, setStorageMigrating] = useState(false);
   const [storageError, setStorageError] = useState("");
+  const [storageStatus, setStorageStatus] = useState<ProjectStorageStatus | null>(null);
   const [backupNotice, setBackupNotice] = useState("");
   const [backupPath, setBackupPath] = useState("");
   const { t } = useTranslation();
@@ -512,7 +513,16 @@ export default function App() {
     finally { setLoading(false); }
   }, [desktop]);
 
-  useEffect(() => { void refresh(); if (desktop) void projectsDirectory().then(setLocation).catch(() => undefined); }, [refresh, desktop]);
+  const inspectStorage = useCallback(async () => {
+    if (!desktop) return;
+    try {
+      const next=await projectStorageStatus();
+      setStorageStatus(next);
+      setLocation(next.available ? next.configuredPath : "");
+    } catch(error) { setStorageError(friendlyError(error)); }
+  }, [desktop]);
+  useEffect(() => { void refresh(); void inspectStorage(); }, [refresh, inspectStorage]);
+
 
   async function create(name: string) {
     const doc = await createProject(name);
@@ -608,6 +618,7 @@ export default function App() {
     try {
       const next = await migrateProjectStorage(destination);
       setLocation(next);
+      await inspectStorage();
       await refresh();
       toast.success("Projects copied to new location", {
         description: "Every source file was verified. Original files were preserved for recovery.",
@@ -621,6 +632,27 @@ export default function App() {
       setStorageMigrating(false);
     }
   }
+  async function reconnectStorage(destination: string, confirmation: string) {
+    if (storageMigrating || active) return;
+    setStorageMigrating(true);
+    setStorageError("");
+    try {
+      const next=await reconnectProjectStorage(destination,confirmation);
+      setLocation(next);
+      await inspectStorage();
+      await refresh();
+      toast.success("Existing workspace reconnected", { description: "Your projects are accessible at the selected location." });
+    } catch(error) {
+      const message=friendlyError(error);
+      setStorageError(message);
+      toast.error("Workspace was not reconnected", { description:message });
+      throw error;
+    } finally {setStorageMigrating(false);}
+  }
+  async function checkStorageAgain() {
+    await inspectStorage();
+    await refresh();
+  }
   const onSaved = useCallback((updated: ProjectSummary) => {
     setProjects((previous) => previous.map((p) => p.id === updated.id ? updated : p));
   }, []);
@@ -632,7 +664,7 @@ export default function App() {
       <SidebarProvider className="min-h-0 min-w-0 flex-1 overflow-hidden" defaultOpen>
       {!active && <WorkspaceSidebar view={view} onNavigate={navigate} editing={false}/>}
       <SidebarInset className="h-full min-w-0 overflow-hidden">
-        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} trashItems={trashItems} restoringTrashId={restoringTrashId || deletingTrashId} onRestoreProject={(trashId) => void restoreProject(trashId)} onDeleteTrashedProject={(trashId, confirmation) => void deleteTrashedProject(trashId, confirmation)} onUpdateVisual={customizeProject} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
+        {active ? <ProjectEditor key={active.project.id} document={active} onBack={() => { setActive(null); setFindOpen(false); void refresh(); }} onSaved={onSaved} findOpen={findOpen} onFindOpenChange={setFindOpen} findShortcut={shortcutLabel(shortcuts.find)}/> : view === "settings" ? <Settings desktop={desktop} location={location} storageStatus={storageStatus} onCheckStorage={() => void checkStorageAgain()} onReconnectStorage={reconnectStorage} updater={updater} onOpenReleaseNotes={() => setReleaseNotesOpen(true)} shortcuts={shortcuts} onAssignShortcut={assignShortcut} onResetShortcuts={resetShortcuts} onMigrateStorage={moveStorage} storageMigrating={storageMigrating} storageError={storageError}/> : <Dashboard projects={projects} trashItems={trashItems} restoringTrashId={restoringTrashId || deletingTrashId} onRestoreProject={(trashId) => void restoreProject(trashId)} onDeleteTrashedProject={(trashId, confirmation) => void deleteTrashedProject(trashId, confirmation)} onUpdateVisual={customizeProject} view={view} loading={loading} error={error} desktop={desktop} search={search} setSearch={setSearch} openCreate={() => setCreating(true)} openProject={(id) => void open(id)} onExportBackup={(id) => void exportBackup(id)} onImportBackup={(file) => void importBackup(file)} onTrashProject={(id) => void removeProject(id)} backupNotice={backupNotice} backupPath={backupPath}/>}
       </SidebarInset>
       {!active && <StudioQuickFind open={findOpen} onOpenChange={setFindOpen} shortcut={shortcutLabel(shortcuts.find)}
         entries={projects.map(project => ({ id: project.id, title: project.name, description: "Local documentation project", kind: "project" as const }))}

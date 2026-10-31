@@ -62,6 +62,25 @@ export async function permanentlyDeleteTrashedProject(trashId: string, confirmat
   return invoke<void>("permanently_delete_trashed_project", { trashId, confirmation });
 }
 
+export type ProjectStorageStatus = {
+  configuredPath: string;
+  available: boolean;
+  isCustom: boolean;
+  error: string | null;
+};
+
+/** Read configured path even when the drive is offline; never fall back. */
+export async function projectStorageStatus(): Promise<ProjectStorageStatus> {
+  requireDesktop();
+  return invoke<ProjectStorageStatus>("project_storage_status");
+}
+
+/** Explicitly reconnect a missing custom drive to a validated EXISTING workspace. */
+export async function reconnectProjectStorage(destination: string, confirmation: string): Promise<string> {
+  requireDesktop();
+  return invoke<string>("reconnect_project_storage", { destination, confirmation });
+}
+
 /** Copy and verify all projects into a new, nonexistent directory; originals are retained. */
 export async function migrateProjectStorage(destination: string): Promise<string> {
   requireDesktop();
