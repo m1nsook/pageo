@@ -29,3 +29,14 @@ test("Studio font and icon roles remain explicit", () => {
   assert.match(read("components/studio/brand-icon.tsx"), /from "simple-icons"/);
   assert.match(read("components/editor/monaco-code-editor.tsx"), /JetBrains Mono Variable/);
 });
+
+test("native titlebar follows Studio appearance without disabling decorations", () => {
+  const config = JSON.parse(readFileSync(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"));
+  const capabilities = JSON.parse(readFileSync(new URL("../src-tauri/capabilities/default.json", import.meta.url), "utf8"));
+  const windowConfig = config.app.windows.find((item) => item.label === "main");
+  assert.equal(windowConfig.theme, "Dark");
+  assert.notEqual(windowConfig.decorations, false);
+  assert.ok(capabilities.permissions.includes("core:window:allow-set-theme"));
+  assert.match(read("main.tsx"), /getCurrentWindow\(\)/);
+  assert.match(read("main.tsx"), /setTheme\(resolvedTheme === "dark" \? "dark" : "light"\)/);
+});
