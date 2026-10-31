@@ -12,6 +12,7 @@ Paglora is in early development. Desktop milestone numbers are separate from the
 - The Blocks outline now supports duplicating and deleting complete source-owned Markdown blocks, Alt+Up/Down reordering, explicit Undo/Redo, and caret-aware selection after changes. All actions use undoable ProseMirror transactions and existing autosave; no project schema changes.
 
 ### Published documentation navigation
+- Code example groups now remember the reader's selected language per deployed site path, synchronize matching examples on the current page and across browser tabs, and retain accessible keyboard controls. Unmatched groups, unrelated content tabs and script-disabled previews keep their existing behavior.
 - Improved small-screen Browse navigation with a scrollable, sticky, RTL-aware panel that overlays content rather than pushing long articles down. Native `<details>` keeps page links usable without scripts; progressive enhancement adds Escape dismissal, outside-click closing, and header-height tracking for wrapped headers.
 
 ### Documentation authoring
