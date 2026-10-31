@@ -60,7 +60,7 @@ function ProjectCard({ project, onOpen, onExportBackup }: { project: ProjectSumm
     </Card>
       </ContextMenuTrigger>
       <ContextMenuContent className="min-w-48">
-        <ContextMenuItem onSelect={onOpen}><BookOpen /> Open project</ContextMenuItem>
+        <ContextMenuItem onSelect={onOpen}><BookOpenIcon weight="bold" /> Open project</ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={onExportBackup}><Archive /> {t("studio.backup.export")}</ContextMenuItem>
         <ContextMenuItem onSelect={() => {
