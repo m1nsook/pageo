@@ -17,11 +17,11 @@ globalThis.localStorage = {
 
 test("source and website widths default to a balanced split", () => {
   memory.clear();
-  assert.deepEqual(layout.readStudioSplitLayout(), { source: "45%", preview: "55%" });
+  assert.deepEqual(layout.readStudioSplitLayout(), { source: 45, preview: 55 });
 });
 test("persisted panel widths restore without changing project files", () => {
   memory.set(layout.STUDIO_SPLIT_LAYOUT_KEY, JSON.stringify({ source: "38%", preview: "62%" }));
-  assert.deepEqual(layout.readStudioSplitLayout(), { source: "38%", preview: "62%" });
+  assert.deepEqual(layout.readStudioSplitLayout(), { source: 38, preview: 62 });
   assert.match(layout.STUDIO_SPLIT_LAYOUT_KEY, /studio-split/);
 });
 test("corrupted, unsafe and too-narrow layouts revert to defaults", () => {
