@@ -271,7 +271,20 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           </Button>}
           <AssetLibrary projectId={document.project.id} canInsert={viewMode !== "site" && !leaving && !switchingView && Boolean(editor)}
             onInsertImage={(src, alt) => Boolean(editor?.chain().focus().insertContent({ type: "pagloraImage", attrs: { src, alt } }).run())} />
-          <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"} onBeforePreview={persist} />
+          <ThemeSourceEditor projectId={document.project.id} currentPageId={current.page.isPublic ? current.page.id : "index"}
+            pages={pages} onBeforePreview={persist} onPageSourceSaved={(pageId, markdown) => {
+              if (pageId === current.page.id && editor) {
+                // An explicit Monaco save is authoritative. Suppress Tiptap's
+                // onUpdate so its old debounced autosave cannot overwrite it.
+                if (saveTimer.current) clearTimeout(saveTimer.current);
+                latest.current = markdown;
+                revision.current += 1;
+                editor.commands.setContent(markdown, { contentType: "markdown", emitUpdate: false });
+                setSaveState("saved");
+                setSaveError("");
+              }
+              setSiteRevision(value => value + 1);
+            }} />
           <SiteDesigner projectId={document.project.id} onBeforePreview={persist} />
           <SitePreview projectId={document.project.id} onBeforePreview={persist} />
           <SiteBuilder projectId={document.project.id} onBeforeBuild={persist} />
