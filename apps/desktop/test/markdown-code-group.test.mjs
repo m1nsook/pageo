@@ -31,7 +31,7 @@ test("Studio inserts a round-trippable CODEGROUP with two fenced examples", () =
 
 test("code groups are constructed after sanitization in both preview and export", () => {
   assert.match(site, /container\.innerHTML = renderSafeMarkdown\(markdownHtml\);\s*enhanceCallouts\(container, language\)/);
-  assert.match(site, /WARNING\|CAUTION\|CARD\|STEPS\|CODEGROUP/);
+  assert.match(site, /WARNING\|CAUTION\|CARD\|STEPS\|TABS\|CODEGROUP/);
   assert.match(site, /if \(type === "CODEGROUP"\)/);
   assert.match(site, /blocks\.length < 2 \|\| blocks\.length > 12/);
   assert.match(site, /child\.tagName !== "PRE" \|\| child\.firstElementChild\?\.tagName !== "CODE"/);

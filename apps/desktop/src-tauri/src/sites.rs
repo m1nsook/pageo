@@ -180,6 +180,25 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
 .docs .paglora-code-group-enhanced .paglora-code-group-item[hidden]{display:none}
 .docs .paglora-code-group-enhanced .paglora-code-group-item+.paglora-code-group-item{border-top:0}
 
+/* Content tabs use nested Markdown blockquotes. In script-disabled previews
+   and static HTML without JS, every labeled panel stays visible and readable. */
+.docs .paglora-tabs{min-width:0;margin:28px 0}
+.docs .paglora-tabs-title{font-size:15px;font-weight:720;letter-spacing:-.015em;margin-bottom:12px;color:var(--fg)}
+.docs .paglora-tabs-panels{min-width:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
+.docs .paglora-tabs-item{min-width:0;padding:17px 20px}
+.docs .paglora-tabs-item+.paglora-tabs-item{border-top:1px solid var(--line)}
+.docs .paglora-tabs-item>:last-child{margin-bottom:0}
+.docs .paglora-tabs-label{margin-bottom:10px;color:var(--muted);font-size:12px;font-weight:700}
+.docs .paglora-tabs-tablist{display:flex;gap:4px;overflow-x:auto;padding:7px 9px;border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;background:var(--subtle);scrollbar-width:thin}
+.docs .paglora-tabs-tablist>button{flex:0 0 auto;appearance:none;border:0;border-bottom:2px solid transparent;border-radius:5px 5px 0 0;background:transparent;padding:8px 12px;color:var(--muted);font:inherit;font-size:13px;font-weight:650;cursor:pointer}
+.docs .paglora-tabs-tablist>button:hover{color:var(--fg);background:color-mix(in srgb,var(--brand) 6%,transparent)}
+.docs .paglora-tabs-tablist>button[aria-selected="true"]{border-bottom-color:var(--brand);color:var(--fg)}
+.docs .paglora-tabs-tablist>button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.docs .paglora-tabs-enhanced .paglora-tabs-panels{border-radius:0 0 12px 12px}
+.docs .paglora-tabs-enhanced .paglora-tabs-label{display:none}
+.docs .paglora-tabs-enhanced .paglora-tabs-item[hidden]{display:none}
+.docs .paglora-tabs-enhanced .paglora-tabs-item+.paglora-tabs-item{border-top:0}
+
 /* Markdown callouts — sanitized in the shared preview/build pipeline. */
 .docs .paglora-callout{--callout-accent:var(--brand);position:relative;display:block;margin:25px 0;padding:16px 19px 17px;border:1px solid color-mix(in srgb,var(--callout-accent) 38%,var(--line));border-left:3px solid var(--callout-accent);border-radius:11px;background:color-mix(in srgb,var(--callout-accent) 7%,var(--bg));box-shadow:0 1px 2px rgba(0,0,0,.025)}
 .docs .paglora-callout-title{display:flex;align-items:center;gap:9px;margin:0 0 6px;color:var(--fg);font-size:13px;font-weight:730;line-height:1.5}
