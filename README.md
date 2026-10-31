@@ -9,157 +9,57 @@
 [![GitHub Actions CI](https://img.shields.io/github/actions/workflow/status/m1nsook/paglora/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/m1nsook/paglora/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/github/license/m1nsook/paglora?style=flat-square)](LICENSE)
 
-Paglora is a **free, open-source, local-first documentation studio** built with Tauri 2, Rust, React, and TypeScript. Edit Markdown, design a responsive documentation website on a visual canvas, and export static files to host wherever you choose.
+Paglora is a free, open-source, **local-first documentation studio** powered by Tauri, Rust, React and TypeScript. Write Markdown, organize pages, design a responsive documentation website and export static files you can host anywhere. Your projects stay on your computer; no account or hosted Paglora backend is required.
 
 > [!IMPORTANT]
-> **Early development.** The Windows desktop Studio is currently run from source; there is no stable desktop installer release. The published [`paglora` npm package](https://www.npmjs.com/package/paglora) is an **alpha CLI** for creating, inspecting, and validating projects. It does **not** build websites or install the desktop app.
+> **Early development.** Paglora Studio is currently available to run from source on Windows; there is no stable desktop installer yet. The published [`paglora` npm package](https://www.npmjs.com/package/paglora) is an **alpha command-line tool** for creating and checking projects. The CLI does not build websites or install Studio.
 
-## Current desktop milestone
+## What you can do
 
-**Paglora Desktop 0.2.0 (development source)** expands the 0.1.0 foundation with offline MiniSearch, local image imports, RTL/language metadata, public-only SEO exports, reusable document elements, and a new **website publishing report**. After each build, Studio reports public/private page counts, bundled image count, and warnings for links to missing or private pages.
+### Create in Studio
 
-The version is synchronized across the workspace, Windows Tauri app, and Rust package. **This is not an installer release**; Windows desktop and exported browser interactions still require hands-on testing. The independent npm CLI remains `paglora@0.0.1-alpha.3`. See [CHANGELOG.md](CHANGELOG.md).
+- **Write and organize:** edit Markdown with autosave, manage multiple pages, arrange navigation groups and choose Docs, Wide or Landing page layouts.
+- **Design visually:** switch between Edit, Split and Canvas views, select content in the live site canvas, and preview desktop, tablet and phone sizes.
+- **Customize your site:** adjust branding, navigation, fonts, appearance, colors and project-owned CSS.
+- **Keep files local:** use local images, choose public or private pages, and export or import portable `.paglora` project backups.
+- **Work in your language:** Studio has an expanding set of translations, while published websites can use a separately selected document language.
 
-## Features
+### Publish anywhere
 
-### Desktop Studio
+Paglora exports a portable static documentation website with no required server-side runtime. Published sites support:
 
-- **Local projects:** create and reopen documentation projects without accounts or a hosted backend.
-- **Markdown editing:** Tiptap rich-text editor with local autosave and multi-page management (create, rename, duplicate, reorder, and delete).
-- **Canvas-first workflow:** switch between **Edit**, **Split**, and **Canvas**; preview the actual site at desktop, tablet, and phone sizes with zoom and Fit.
-- **Source-aware editing:** select rendered blocks, edit simple unformatted headings/paragraphs, and use the full editor for rich Markdown. The canvas is not yet a freeform layout designer.
-- **Blocks outline:** in Edit mode, open **Visual editor → Blocks** to select, drag, move (Alt+↑/↓), duplicate, or delete complete Markdown blocks. Undo/Redo are available in the outline; all changes use the normal local autosave.
-- **Page organization:** collapsible navigation groups, page visibility, and Docs / Wide / Landing layouts.
-- **Site design:** customize header, navigation position, links, article width, accent, appearance, optional Google Fonts, and project-owned CSS via the Monaco editor.
+- Responsive navigation, headings, table of contents and light/dark appearance.
+- Offline-capable search, keyboard navigation and code copying.
+- Callouts, cards, guided steps, content tabs, code groups, FAQ accordions, task lists and tables.
+- Optional canonical URLs, sitemaps and page-specific metadata.
+- Public-page-only output: pages marked private are excluded from the website, search index and sitemap.
 
-### Exported websites
-
-- **Static and portable:** responsive HTML, CSS, bundled Geist font files, and two minified browser runtime scripts; no Paglora backend or account required for visitors.
-- **Documentation navigation:** grouped/collapsible sidebars, public-page-only links, and active table-of-contents headings.
-- **Offline MiniSearch:** Ctrl+K / Cmd+K opens an accessible search dialog backed by a bundled MiniSearch index, with prefix matching, typo-tolerant fallback, and Korean/Japanese/Chinese substring support. `search-index.json` contains **only public pages**.
-- **Appearance:** Light / Dark / System switching with a remembered browser preference where storage is available.
-- **Content features:** callouts (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`), responsive cards, guided steps, accessible FAQ accordions, content tabs, keyboard-accessible code groups, code-block Copy buttons, Unicode heading permalinks, task lists, collapsible disclosures, and Markdown tables.
-- **Local images:** import PNG, JPEG, WebP, and GIF files into a project; only images referenced by public pages or the site logo are copied into the static export.
-- **Multilingual foundations:** choose among 18 built-in document languages plus any newly synchronized and reviewed community language packs. Right-to-left direction can come from package metadata (Arabic remains RTL by default). This does not automatically translate content.
-- **SEO for static hosts:** optional HTTPS site root produces per-page canonical URLs and a public-page-only `sitemap.xml`, with page-specific descriptions and social metadata.
-- **Safe publication:** Markdown HTML is sanitized before export; pages marked private are excluded from the published site, search index, and sitemap.
-
-**Current limitations:** Studio's inline preview deliberately disables site scripts, so browser interactions must be checked in the exported site. There is no automatic content translation, arbitrary TSX/MDX component execution, one-click hosting deployment, or fully freeform Figma-style canvas yet. The Windows Studio still needs hands-on UI verification.
-
-### Guided steps in Markdown
-
-Use the **Steps** block in Studio's Insert palette, or write standard Markdown with a `[!STEPS]` blockquote marker. The ordered list remains accessible and renders without JavaScript in both Studio preview and static exports:
-
-```md
-> [!STEPS] Getting started
->
-> 1. Install the dependencies.
-> 2. Run your first build.
-```
-
-The marker only enhances blockquotes containing a real ordered list; other blockquotes remain unchanged. The source stays editable Markdown with no proprietary component schema.
-
-
-### Content tabs in Markdown
-
-Use **Tabs** from Studio's Insert palette, or nest `[!TAB]` blockquotes inside a `[!TABS]` blockquote. Each tab accepts normal Markdown, including links, lists and fenced code:
-
-```md
-> [!TABS] Choose a platform
->
-> > [!TAB] Windows
-> >
-> > Download the Windows installer.
->
-> > [!TAB] macOS
-> >
-> > Install using your preferred package manager.
-```
-
-Studio preview (where scripts are disabled) and visitors without JavaScript see **all labeled panels** in order. Exported sites add accessible tabs with arrow keys, Home/End, RTL support and visible focus. Only groups containing 2–8 nonempty nested panels are enhanced; malformed groups stay ordinary Markdown. All content remains in project-owned Markdown.
-
-### Code groups in Markdown
-
-Choose **Code group** from Studio's Insert palette, or group two or more fenced code blocks inside a Markdown blockquote headed by `[!CODEGROUP]`:
-
-````md
-> [!CODEGROUP] Install
->
-> ```bash
-> bun install
-> ```
->
-> ```powershell
-> bun install
-> ```
-````
-
-Studio's script-disabled preview shows **all examples with language labels**, so no content is hidden while editing. Published websites progressively enhance the same safe HTML into tabs, with Left/Right arrows, Home/End, RTL-aware arrow direction, visible keyboard focus and working code-copy buttons. Without JavaScript every example remains readable. Only groups containing 2–12 fenced code blocks are enhanced; malformed markers remain ordinary blockquotes. This is standard Markdown, not executable MDX.
-
-### FAQ accordions in Markdown
-
-Choose **Accordion** from Studio's Insert palette or write a blockquote beginning with `[!ACCORDION]` followed by a question and at least one answer block:
-
-```md
-> [!ACCORDION] Can I publish without a server?
->
-> Yes. Paglora exports plain HTML, CSS, images and optional browser scripts.
-
-> [!ACCORDION] Are private pages included?
->
-> No. Only explicitly public pages are exported.
-```
-
-Each question becomes a native HTML `<details><summary>` disclosure, so mouse, touch and keyboard expansion works **without JavaScript**, including in the script-disabled Studio preview. Adjacent questions receive a compact FAQ group; headings or other content separate groups. Answers can contain ordinary Markdown links, lists and code. Invalid or empty questions remain visible blockquotes rather than silently hiding content. The original `docs/*.md` stays portable and editable.
-
-## Localization and translations
-
-Paglora now has a community translation source: **[m1nsook/paglora-lang](https://github.com/m1nsook/paglora-lang)**. You can fork it, translate reviewed UTF-8 JSON message values, and submit a pull request. English remains the fallback for untranslated strings, and CI checks placeholder syntax and catalog structure.
-
-- **Studio language:** choose **Settings → Studio language**. Initial offline language packs are English, Polish and Korean; only the migrated Studio screens are translated so far.
-- **Website language:** configure **Design site → Document language** separately for each project. Its built-in navigation, appearance/copy controls and documentation callout labels use the relevant reviewed pack when available. Other language choices use English interface text until translated.
-- **Document content:** Paglora never automatically translates your `docs/*.md` writing, page titles, navigation groups or custom labels. Authors can write those in their own language.
-
-For a new language, fork [`paglora-lang`](https://github.com/m1nsook/paglora-lang), create a blank language file using `node scripts/new-locale.mjs fr "Français" "French"`, translate the values you know, and open a pull request. A coverage command (`node scripts/coverage.mjs`) reports translated catalog keys; untranslated messages fall back to English. The repository has issue templates for coordination and automated translation labels. After human review, update a local Paglora checkout from a local clone of the translations repository:
-
-```powershell
-node scripts/sync-translations.mjs ../paglora-lang
-bun run check
-```
-
-Translation snapshots are bundled locally with Studio and exported websites. No hosted translation API or account is required, and no untrusted translator code is executed.
+**Current limitations:** the Studio canvas is a preview rather than a freeform Figma-style layout designer. Interactive site features should be tested in the exported website. The CLI cannot yet build sites, and one-click hosting deployment and automatic content translation are not available.
 
 ## Get started
 
-### Run the desktop Studio
+### Windows desktop Studio
 
-Paglora Desktop is currently developed and checked on **Windows**. You'll need [Bun](https://bun.sh/), [Rust](https://rustup.rs/), and the required Windows C++ tools and WebView2 dependencies listed in the [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/). Install [Node.js 20+](https://nodejs.org/) if you also want to run the standalone Node test commands below.
+To run Studio from source, install [Bun](https://bun.sh/), [Rust](https://rustup.rs/) and the Windows dependencies described in the [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/).
 
-Open the repository in GitHub Desktop, then from the repository root:
+Open the project with GitHub Desktop and run these commands from the repository folder:
 
 ```powershell
 bun install
 bun run desktop
 ```
 
-Frontend-only development (without Tauri filesystem access):
+The frontend can also run without the Tauri filesystem backend:
 
 ```powershell
 bun run dev
 ```
 
-Run frontend checks and tests:
+Nightly Windows installers may be available as **experimental test artifacts** under [GitHub Actions](https://github.com/m1nsook/paglora/actions/workflows/nightly-studio.yml). They are not stable releases or automatic updates. Check [Releases](https://github.com/m1nsook/paglora/releases) for published versions when available.
 
-```powershell
-bun run check
-bun run build
-node --test apps/desktop/test/*.test.mjs
-node --test packages/site-runtime/test/*.test.mjs
-```
+### npm CLI (alpha)
 
-### Use the npm CLI
-
-The public alpha package supports `init`, `inspect`, and `validate`:
+Use the CLI to initialize, inspect or validate a project:
 
 ```powershell
 bunx --bun paglora@alpha init .\my-docs --name "My Docs"
@@ -167,113 +67,27 @@ bunx --bun paglora@alpha inspect .\my-docs
 bunx --bun paglora@alpha validate .\my-docs
 ```
 
-The new directory must not already exist. The CLI never overwrites existing folders. It creates the canonical `paglora.json`, `pages.json`, `docs/index.md`, and `theme/custom.css` files.
+The CLI is separate from the desktop Studio and does not export websites.
 
-> [!NOTE]
-> Studio currently discovers projects in its own application data `projects/` directory, shown under **Settings → Local project storage**. A project created elsewhere with the CLI will not appear in Studio automatically. Project import is planned.
+## Build and publish
 
-CLI checks and package preview from the repository root:
+In Studio, open a project, write your pages, configure **Design site**, then select **Website → Build static site**. Upload the entire generated output folder to a static hosting service such as GitHub Pages.
 
-```powershell
-cd packages/cli
-bun run test
-npm.cmd pack --dry-run
-```
+Paglora-built sites include the static HTML, CSS and browser scripts needed for navigation, search and appearance switching. Serve the export over HTTP(S) rather than opening HTML through `file://`, which may block the search index.
 
-On Windows, use `npm.cmd` when PowerShell blocks `npm.ps1` under the system's execution policy. This does not require changing security settings. On macOS/Linux use `npm` instead.
+Project backups are different from published website exports: a `.paglora` backup can contain **private pages and source files**. Only share backups with people who should have access to all of their contents.
 
-## Portable .paglora backups
+## Documentation and translations
 
-Projects can be backed up and shared **without a hosted account**. On the Projects screen, open a project's context menu and choose **Export .paglora backup**. A timestamped file is saved in the application's `backups/` directory, outside project storage. Its path is shown in Studio for copying into File Explorer.
+- **[Paglora Docs](https://m1nsook.github.io/paglora-docs/)** — documentation built and published using Paglora itself.
+- **[paglora-docs](https://github.com/m1nsook/paglora-docs)** — documentation source.
+- **[paglora-lang](https://github.com/m1nsook/paglora-lang)** — community translations and language contributions.
+- **[Changelog](CHANGELOG.md)** — development history and notable changes.
 
-Choose **Import .paglora** on the Projects screen to restore an editable project. Import never overwrites a project; duplicate IDs are imported under a new ID.
+Documentation language settings do not machine-translate your Markdown. Content translation remains under the author's control.
 
-The version 1 `.paglora` format is a portable JSON + base64 archive, not a ZIP. It contains the editable `paglora.json` and `pages.json`, optional `site.json`, Markdown files (including private pages), CSS, and local PNG/JPEG/WebP/GIF images. It excludes generated website exports and trash. Every archive has an explicit version so future formats can evolve.
+## Contributing
 
-Only regular allowlisted source files are accepted; unsafe paths, symlinks, duplicates and invalid manifests are rejected. The limit is 64 MiB of original source or 96 MiB per archive.
+Paglora is in active development. Contributions, bug reports and focused feature requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), [Issues](https://github.com/m1nsook/paglora/issues) and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
-**Backups can contain private documentation.** Never put a `.paglora` archive in a public website's `site/` folder or commit it to a public GitHub repository unless you intentionally want to disclose every page.
-## Build and publish a website
-
-1. Open a project in **Paglora Desktop**, write your pages, and set their visibility.
-2. Configure the site in **Design site**; review it in **Preview site**.
-3. Select **Website → Build static site**.
-4. Upload the **entire contents** of the generated output folder to your static host (for example, GitHub Pages).
-
-Typical output:
-
-```text
-index.html
-getting-started.html
-styles.css
-paglora.js
-paglora-search.js
-search-index.json
-sitemap.xml           (if an HTTPS site URL is configured)
-custom.css            (if configured)
-assets/               (if public pages or logo reference local images)
-fonts/                (Geist font and license)
-licenses/             (MiniSearch MIT license)
-```
-
-The site can be read without JavaScript, but search, appearance switching, code copying, and active heading highlighting need the shipped runtime files. Serve the **entire export** over **HTTP(S)** rather than opening `file://` HTML directly: local file restrictions can prevent the search index from loading. For GitHub Pages project sites, configure the canonical HTTPS URL with its repository path (for example, `https://username.github.io/repository/`). The current Studio canvas is a **script-disabled preview**; test interactive features in the exported site.
-
-## Release readiness
-
-**Published npm CLI:** [`paglora@0.0.1-alpha.3`](https://www.npmjs.com/package/paglora?activeTab=versions) is available under the `alpha` dist-tag (confirmed October 31, 2026). Install it with `bun add --global paglora@alpha` or run `bunx --bun paglora@alpha --help`. The npm `latest` tag is intentionally separate and currently points to the original `0.0.1-alpha.0` preview; use `@alpha` for the newer CLI. This release includes stricter argument validation, Unicode-safe project labels, public Overview enforcement, and package checks on Windows and Ubuntu. **Static site builds still require Paglora Desktop**; the CLI does not create websites. Automated tests passed, but Windows Studio and exported site interactions still require hands-on smoke testing. Future prereleases require a new package version and authenticated npm publication; CI does not automatically publish.
-
-## Local project format
-
-Paglora stores its project files locally under the Tauri app identifier `com.m1nsook.paglora`:
-
-```text
-paglora.json           Project ID, name, and format version
-pages.json             Page order, titles, groups, layouts, visibility
-site.json              Site settings (created when saved)
-docs/index.md          Public Overview page
-docs/<page-id>.md      Additional Markdown pages
-theme/custom.css       User-owned CSS overrides
-```
-
-**Early-alpha format break:** the old Pageo manifest and application identifier are no longer supported. Existing prototype folders are **not deleted**, but they are not automatically imported into Paglora. Back up earlier test projects before upgrading.
-
-## Repository layout
-
-```text
-apps/desktop/          React Studio and Tauri/Rust desktop backend
-packages/core/         Shared project format helpers
-packages/cli/          Public `paglora` npm alpha CLI
-packages/site-runtime/ Browser-side enhancements for exported sites
-```
-
-## Windows Studio release channels
-
-**Nightly (testing):** Actions → **Studio nightly installer** runs automatically each day or manually. It builds an NSIS Windows installer as a **14-day GitHub Actions artifact**, not a versioned release or an auto-update. Use nightlies only for testing.
-
-**Stable (versioned):** Actions → **Studio versioned release** is manual, requires a real SemVer matching Cargo, Tauri, Desktop and workspace manifests, and requires a matching curated `.github/releases/vX.Y.Z.md` containing Added, Improved, Fixed, Deprecated, Removed and Known limitations. The workflow builds a Windows installer and creates a **draft GitHub Release** for review. No commit automatically publishes a stable release. Run `node scripts/check-desktop-release.mjs 0.2.0` to validate locally.
-
-### Required one-time setup for secure auto-updates
-
-Tauri **requires signature verification** for automatic updates. Generate and retain a permanent signing key pair on your own computer. From `apps/desktop`, generate the signing pair **once only** using `bun tauri signer generate -w "%USERPROFILE%\\.tauri\\paglora.key"` in **Windows CMD** (or use `$env:USERPROFILE` in PowerShell). Never regenerate the signing keys after distributing a signed release. Store the private `.key` safely outside your repository; the `.key.pub` is **public** and can be used to configure the updater. Never put the private key into a PR, chat message, log, or `.paglora` backup.
-
-In GitHub **Settings → Secrets and variables → Actions**, create a secret named `TAURI_SIGNING_PRIVATE_KEY` containing the private signing key text, plus `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if one was used. The public key from the project's reviewed signing pair is embedded in `tauri.conf.json`. The Rust updater and locked dependency are installed, and the UI checks for stable releases at launch with a manual check in Settings. Do not confuse this with successful installer testing: a signed v0.2.0 installer and subsequent update still require end-to-end Windows verification. The stable workflow **fails closed** until signed updater support is fully configured; `latest.json` must be generated by the Tauri Release Action and point only to a signed stable release.
-
-**Updates:** Installed Studio builds use the signed Tauri updater, checking **only versioned stable GitHub Releases**, never nightly artifacts. Updates are offered with release notes and require user confirmation before downloading and installing. The stable release workflow fails if GitHub Actions is missing `TAURI_SIGNING_PRIVATE_KEY`. The first release remains a **draft** until the owner verifies signing and publishes it; no release is published automatically on every commit. Nightlies explicitly disable updater artifact signing.
-
-## Official repositories and documentation
-
-| Repository | Purpose |
-| --- | --- |
-| **[m1nsook/paglora](https://github.com/m1nsook/paglora)** | Paglora Desktop, Rust renderer, npm CLI, development, issues and releases |
-| **[m1nsook/paglora-docs](https://github.com/m1nsook/paglora-docs)** | Public documentation source project `project/paglora-docs/` and deployed static export `site/` |
-| **[m1nsook/paglora-lang](https://github.com/m1nsook/paglora-lang)** | Community translation catalogs, language requests, translation PRs and validation |
-
-**Live website:** [Paglora Docs](https://m1nsook.github.io/paglora-docs/), built using Paglora itself. The source is public, and its `site/` export is hosted through GitHub Pages.
-
-**Important publishing distinction:** Editing documentation Markdown or changing **Design site** in Studio modifies your **local Paglora project only**. GitHub Pages deploys `paglora-docs/site/`, not your local Studio preview or `project/` folder. To update the public website, sync the saved local project to `paglora-docs/project/paglora-docs/`, rebuild in Desktop, copy the **complete static export** to `paglora-docs/site/`, and push both through GitHub Desktop. See the [docs synchronization guide](https://github.com/m1nsook/paglora-docs/blob/main/project/README.md). **Sync the newest repository source into Studio before editing** to avoid overwriting documentation changes with an older local copy.
-
-Use [paglora-lang](https://github.com/m1nsook/paglora-lang) for translation pull requests. The editor language and each generated site's document language are separate settings; neither machine-translates project Markdown.
-
-## Contributing and license
-
-Paglora is MIT-licensed — see [LICENSE](LICENSE). Created by [m1nsook](https://github.com/m1nsook). Contributions and focused issue reports are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md), [open an issue](https://github.com/m1nsook/paglora/issues), or see [SECURITY.md](SECURITY.md) for private vulnerability reporting.
+**License:** [MIT](LICENSE). Created by [m1nsook](https://github.com/m1nsook).
