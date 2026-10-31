@@ -2,6 +2,7 @@ mod projects;
 mod pages;
 mod sites;
 mod source;
+mod backup;
 
 pub fn run() {
     tauri::Builder::default()
@@ -11,6 +12,7 @@ pub fn run() {
             projects::load_project,
             projects::save_document,
             projects::projects_directory,
+            backup::export_project_backup, backup::import_project_backup,
             pages::list_pages, pages::load_page, pages::create_page,
             pages::rename_page, pages::duplicate_page, pages::delete_page,
             pages::reorder_pages, pages::save_page, pages::set_page_visibility,
