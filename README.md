@@ -211,6 +211,14 @@ packages/cli/          Public `paglora` npm alpha CLI
 packages/site-runtime/ Browser-side enhancements for exported sites
 ```
 
+## Windows Studio release channels
+
+**Nightly (testing):** Actions → **Studio nightly installer** runs automatically each day or manually. It builds an NSIS Windows installer as a **14-day GitHub Actions artifact**, not a versioned release or an auto-update. Use nightlies only for testing.
+
+**Stable (versioned):** Actions → **Studio versioned release** is manual, requires a real SemVer matching Cargo, Tauri, Desktop and workspace manifests, and requires a matching curated `.github/releases/vX.Y.Z.md` containing Added, Improved, Fixed, Deprecated, Removed and Known limitations. The workflow builds a Windows installer and creates a **draft GitHub Release** for review. No commit automatically publishes a stable release. Run `node scripts/check-desktop-release.mjs 0.2.0` to validate locally.
+
+**Updates:** Tauri's trusted auto-updater requires a permanent signing key pair, the public key embedded in Studio, signed installer artifacts and updater endpoints. **These are not yet configured.** Do not publish this unsigned draft as an auto-update-ready installer; signing credentials and real updater installation must be implemented before the first stable rollout.
+
 ## Official repositories and documentation
 
 | Repository | Purpose |
