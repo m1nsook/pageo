@@ -272,6 +272,9 @@ pub struct SiteSettings {
     title: String,
     description: String,
     footer_text: String,
+    // Optional canonical site root, including a GitHub Pages repository path.
+    #[serde(default)]
+    site_url: String,
     #[serde(default = "nav_default")]
     navigation_position: String,
     #[serde(default = "align_default")]
@@ -346,6 +349,7 @@ fn default_settings(name: &str) -> SiteSettings {
         title: name.into(),
         description: format!("Documentation for {name}"),
         footer_text: format!("{name} · Built with Paglora"),
+        site_url: String::new(),
         navigation_position: nav_default(),
         header_alignment: align_default(),
         sticky_header: true,
@@ -384,7 +388,42 @@ fn google_font_markup(value: &str) -> String {
     )
 }
 
+// Accept only a canonical HTTPS root, with an optional static-hosting path.
+// Reject credentials, ports, escapes, queries, fragments and traversal so
+// canonical tags and sitemap entries cannot point to ambiguous destinations.
+fn valid_site_url(value: &str) -> bool {
+    if value.is_empty() { return true; }
+    if value.len() > 240 || !value.starts_with("https://") || !value.ends_with('/') {
+        return false;
+    }
+    let tail = &value["https://".len()..];
+    let Some((host, path)) = tail.split_once('/') else { return false; };
+    if host.is_empty() || host.len() > 253 || host.starts_with('.') || host.ends_with('.') ||
+        host.contains("..") || !host.bytes().all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, b'.' | b'-')) {
+        return false;
+    }
+    if host.split('.').any(|label| label.is_empty() || label.starts_with('-') || label.ends_with('-')) {
+        return false;
+    }
+    !path.starts_with('/') &&
+        !path.split('/').any(|segment| segment == "." || segment == "..") &&
+        !path.contains("//") &&
+        path.bytes().all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, b'/' | b'-' | b'_' | b'.' | b'~'))
+}
+
+fn sitemap_xml(site_url: &str, public_pages: &[&crate::pages::Page]) -> String {
+    let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
+    for page in public_pages {
+        xml.push_str(&format!("<url><loc>{}{}</loc></url>\n", escape(site_url), filename(&page.id)));
+    }
+    xml.push_str("</urlset>\n");
+    xml
+}
+
 fn validate_settings(settings: &SiteSettings) -> Result<(), String> {
+    if !valid_site_url(&settings.site_url) {
+        return Err("Published site URL must be an HTTPS site root ending in /, without credentials, ports, query, or fragments".into());
+    }
     for (value, field, max) in [
         (&settings.title, "Site title", 100),
         (&settings.description, "Site description", 240),
@@ -635,6 +674,10 @@ fn render_site_page_with_description(
     // Hex color was checked by validate_settings for both preview and build.
     let accent_style = format!("<style>:root{{--brand:{};--brand-light:color-mix(in srgb,var(--brand) 13%,var(--bg))}}</style>", settings.accent_color);
     let page_title = escape(&page_title);
+    let canonical = if settings.site_url.is_empty() { String::new() } else {
+        let url = escape(&format!("{}{}", settings.site_url, filename(&page.id)));
+        format!("<link rel=\"canonical\" href=\"{url}\">\n<meta property=\"og:url\" content=\"{url}\">")
+    };
     let brand_title = escape(&settings.title);
     let breadcrumb_title = escape(&page.title);
     let header_links = link_html(&settings.header_links, "header-links");
@@ -648,6 +691,7 @@ fn render_site_page_with_description(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{description}">
+{canonical}
 <meta property="og:type" content="article">
 <meta property="og:locale" content="{og_locale}">
 <meta property="og:title" content="{page_title}">
@@ -784,6 +828,11 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
             serde_json::to_vec(&index)
                 .map_err(|error| error.to_string())?)
             .map_err(|error| error.to_string())?;
+        if !settings.site_url.is_empty() {
+            // Only explicitly public pages receive canonical sitemap URLs.
+            fs::write(staged.join("sitemap.xml"), sitemap_xml(&settings.site_url, &public_pages))
+                .map_err(|error| error.to_string())?;
+        }
         for page in &public_pages {
             let rendered_page = html_by_id.get(page.id.as_str()).ok_or("Missing public page")?;
             let mut output = render_site_page_with_description(&settings, &pages, page, &rendered_page.html, &rendered_page.toc, Some(&rendered_page.search_text));
@@ -809,6 +858,49 @@ pub fn build_site(app: AppHandle, project_id: String, rendered: Vec<RenderedPage
 #[cfg(test)]
 mod website_font_tests {
     use super::*;
+
+    #[test]
+    fn canonical_urls_and_sitemap_include_only_public_pages() {
+        let mut settings = default_settings("Docs");
+        assert_eq!(settings.site_url, "");
+        let mut legacy = serde_json::to_value(&settings).unwrap();
+        legacy.as_object_mut().unwrap().remove("siteUrl");
+        let restored: SiteSettings = serde_json::from_value(legacy).unwrap();
+        assert_eq!(restored.site_url, "");
+        settings.site_url = "https://m1nsook.github.io/paglora/".into();
+        assert!(validate_settings(&settings).is_ok());
+        let home = crate::pages::Page {
+            id: "index".into(), title: "Overview".into(), is_public: true,
+            layout: "docs".into(), nav_group: "Docs".into(),
+        };
+        let private = crate::pages::Page {
+            id: "draft".into(), title: "Private".into(), is_public: false,
+            layout: "docs".into(), nav_group: "Docs".into(),
+        };
+        let html = render_site_page(&settings, &[home.clone(), private.clone()], &home, "<p>Docs</p>", &[]);
+        assert!(html.contains(r#"<link rel="canonical" href="https://m1nsook.github.io/paglora/index.html">"#));
+        assert!(html.contains(r#"<meta property="og:url" content="https://m1nsook.github.io/paglora/index.html">"#));
+        let xml = sitemap_xml(&settings.site_url, &[&home]);
+        assert!(xml.contains("<loc>https://m1nsook.github.io/paglora/index.html</loc>"));
+        assert!(!xml.contains("draft.html"));
+        settings.site_url.clear();
+        assert!(!render_site_page(&settings, &[home.clone()], &home, "<p>Docs</p>", &[]).contains("rel=\"canonical\""));
+    }
+
+    #[test]
+    fn published_site_root_rejects_ambiguous_or_unsafe_urls() {
+        for url in [
+            "http://example.com/", "https://example.com", "https://user@example.com/",
+            "https://example.com:443/", "https://example.com/../draft/",
+            "https://example.com/%2e%2e/", "https://example.com/path?query=1/",
+            "https://example.com/path#fragment/", "https://example..com/",
+            "https://example.com//other/", "https://example.com/./",
+        ] {
+            assert!(!valid_site_url(url), "{url}");
+        }
+        assert!(valid_site_url("https://docs.example.com/"));
+        assert!(valid_site_url("https://m1nsook.github.io/paglora/"));
+    }
 
     #[test]
     fn theme_color_metadata_tracks_the_configured_appearance() {
