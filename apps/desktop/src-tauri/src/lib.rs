@@ -38,7 +38,9 @@ pub fn run() {
             sites::load_site_settings, sites::save_site_settings, sites::build_site,
             sites::preview_site_page, sites::import_site_asset,
             sites::list_site_assets, sites::preview_site_asset,
-            source::load_theme_css, source::save_theme_css
+            source::load_theme_css, source::save_theme_css,
+            source::list_theme_styles, source::load_theme_style, source::save_theme_style,
+            source::create_theme_style, source::reorder_theme_styles
         ])
         .run(tauri::generate_context!())
         .expect("error while running Paglora");

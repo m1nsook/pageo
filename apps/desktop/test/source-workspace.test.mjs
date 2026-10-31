@@ -9,6 +9,8 @@ test("Monaco source tree uses only pages from project manifest", () => {
   assert.match(workspace, /pages\.some\(page => page\.id === id\)/);
   assert.match(workspace, /loadPage\(projectId, id\)/);
   assert.match(workspace, /loadThemeCss\(projectId\)/);
+  assert.match(workspace, /listThemeStyles\(projectId\)/);
+  assert.match(workspace, /loadThemeStyle\(projectId,next\.slice\(6\)\)/);
   assert.match(workspace, /loadSiteSettings\(projectId\)/);
   assert.match(workspace, /aria-label="Project source files"/);
 });
