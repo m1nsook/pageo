@@ -23,6 +23,7 @@ test("nightly creates no releases; stable always dispatches and drafts",()=>{
   assert.doesNotMatch(release,/on:\s*\n\s*push:/);
   assert.match(release,/releaseDraft: true/);
   assert.match(release,/check-desktop-release\.mjs/);
+  assert.match(release,/check-updater-ready\.mjs/);
 });
 test("What's New shows actual curated release notes, including deprecated and removed",()=>{
   const info=read("../src/lib/release-notes.ts");
