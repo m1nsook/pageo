@@ -37,13 +37,26 @@ The version is synchronized across the workspace, Windows Tauri app, and Rust pa
 - **Documentation navigation:** grouped/collapsible sidebars, public-page-only links, and active table-of-contents headings.
 - **Offline MiniSearch:** Ctrl+K / Cmd+K opens an accessible search dialog backed by a bundled MiniSearch index, with prefix matching, typo-tolerant fallback, and Korean/Japanese/Chinese substring support. `search-index.json` contains **only public pages**.
 - **Appearance:** Light / Dark / System switching with a remembered browser preference where storage is available.
-- **Content features:** callouts (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`), code-block Copy buttons, Unicode heading permalinks, task lists, collapsible disclosures, and Markdown tables.
+- **Content features:** callouts (`NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`), responsive cards, guided steps, code-block Copy buttons, Unicode heading permalinks, task lists, collapsible disclosures, and Markdown tables.
 - **Local images:** import PNG, JPEG, WebP, and GIF files into a project; only images referenced by public pages or the site logo are copied into the static export.
 - **Multilingual foundations:** choose the document language from 18 options (including Korean, Polish, Japanese, Chinese, and Arabic); Arabic exports use RTL layout. This does not automatically translate content.
 - **SEO for static hosts:** optional HTTPS site root produces per-page canonical URLs and a public-page-only `sitemap.xml`, with page-specific descriptions and social metadata.
 - **Safe publication:** Markdown HTML is sanitized before export; pages marked private are excluded from the published site, search index, and sitemap.
 
 **Current limitations:** Studio's inline preview deliberately disables site scripts, so browser interactions must be checked in the exported site. There is no automatic content translation, arbitrary TSX/MDX component execution, one-click hosting deployment, or fully freeform Figma-style canvas yet. The Windows Studio still needs hands-on UI verification.
+
+### Guided steps in Markdown
+
+Use the **Steps** block in Studio's Insert palette, or write standard Markdown with a `[!STEPS]` blockquote marker. The ordered list remains accessible and renders without JavaScript in both Studio preview and static exports:
+
+```md
+> [!STEPS] Getting started
+>
+> 1. Install the dependencies.
+> 2. Run your first build.
+```
+
+The marker only enhances blockquotes containing a real ordered list; other blockquotes remain unchanged. The source stays editable Markdown with no proprietary component schema.
 
 ## Get started
 

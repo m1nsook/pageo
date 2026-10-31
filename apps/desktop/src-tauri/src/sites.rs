@@ -149,6 +149,15 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-off
   :root[data-card-layout="grid"] .docs .paglora-card-grid>.paglora-card{transition:none}
   :root[data-card-layout="grid"] .docs .paglora-card-grid>.paglora-card:hover{transform:none}
 }
+/* Semantic Markdown steps: no JavaScript, portable to static HTML and safe previews. */
+.docs .paglora-steps{margin:28px 0}
+.docs .paglora-steps-title{font-size:17px;font-weight:740;letter-spacing:-.025em;margin-bottom:18px;color:var(--fg)}
+.docs .paglora-steps-list{list-style:none;counter-reset:paglora-step;margin:0;padding:0}
+.docs .paglora-steps-list>li{position:relative;counter-increment:paglora-step;margin:0;margin-inline-start:16px;padding:0;padding-inline-start:35px;padding-bottom:27px;border-inline-start:2px solid var(--line);min-height:50px}
+.docs .paglora-steps-list>li:last-child{border-inline-start-color:transparent;padding-bottom:0}
+.docs .paglora-steps-list>li::before{content:counter(paglora-step);position:absolute;inset-inline-start:-17px;top:0;display:grid;place-items:center;width:32px;height:32px;border:2px solid var(--bg);border-radius:50%;background:var(--brand);color:#fff;font-size:12px;font-weight:750;line-height:1}
+.docs .paglora-steps-list>li>:last-child{margin-bottom:0}
+
 /* Markdown callouts — sanitized in the shared preview/build pipeline. */
 .docs .paglora-callout{--callout-accent:var(--brand);position:relative;display:block;margin:25px 0;padding:16px 19px 17px;border:1px solid color-mix(in srgb,var(--callout-accent) 38%,var(--line));border-left:3px solid var(--callout-accent);border-radius:11px;background:color-mix(in srgb,var(--callout-accent) 7%,var(--bg));box-shadow:0 1px 2px rgba(0,0,0,.025)}
 .docs .paglora-callout-title{display:flex;align-items:center;gap:9px;margin:0 0 6px;color:var(--fg);font-size:13px;font-weight:730;line-height:1.5}

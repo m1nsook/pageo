@@ -1,12 +1,12 @@
 import type { JSONContent } from "@tiptap/core";
 import {
   AlignLeft, Heading1, Heading2, List, ListOrdered, MessageSquareQuote,
-  Code2, Minus, CreditCard, type LucideIcon,
+  Code2, Minus, CreditCard, ListChecks, type LucideIcon,
 } from "lucide-react";
 
 export type BlockKind =
   | "paragraph" | "heading1" | "heading2" | "bulletList"
-  | "orderedList" | "blockquote" | "card" | "codeBlock" | "horizontalRule";
+  | "orderedList" | "blockquote" | "card" | "steps" | "codeBlock" | "horizontalRule";
 
 export const BLOCKS: { kind: BlockKind; title: string; description: string; icon: LucideIcon }[] = [
   { kind: "paragraph", title: "Paragraph", description: "Normal text", icon: AlignLeft },
@@ -16,6 +16,7 @@ export const BLOCKS: { kind: BlockKind; title: string; description: string; icon
   { kind: "orderedList", title: "Numbered list", description: "Steps and instructions", icon: ListOrdered },
   { kind: "blockquote", title: "Quote", description: "Highlight a passage", icon: MessageSquareQuote },
   { kind: "card", title: "Card", description: "Titled documentation panel", icon: CreditCard },
+  { kind: "steps", title: "Steps", description: "Numbered tutorial timeline", icon: ListChecks },
   { kind: "codeBlock", title: "Code block", description: "Commands or examples", icon: Code2 },
   { kind: "horizontalRule", title: "Divider", description: "Separate sections", icon: Minus },
 ];
@@ -43,6 +44,16 @@ export function createMarkdownBlock(kind: BlockKind): JSONContent {
     case "card": return {
       type: "blockquote",
       content: [paragraph("[!CARD] Card title"), paragraph("Describe this feature or link to a guide.")],
+    };
+    case "steps": return {
+      type: "blockquote",
+      content: [
+        paragraph("[!STEPS] Getting started"),
+        { type: "orderedList", content: [
+          { type: "listItem", content: [paragraph("Install the dependencies")] },
+          { type: "listItem", content: [paragraph("Run your first build")] },
+        ] },
+      ],
     };
     case "codeBlock": return { type: "codeBlock", content: text("Your code here") };
     case "horizontalRule": return { type: "horizontalRule" };
