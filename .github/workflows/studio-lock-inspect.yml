@@ -1,0 +1,20 @@
+name: Temporary Studio dependency integrity check
+on:
+  push:
+    branches:
+      - design/studio-epic-inspired-ui
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+      - name: Resolve locked dependencies
+        run: bun install
+      - name: Print only new Studio lock entries
+        run: |
+          grep -E '("^    "(@fontsource-variable/(inter|manrope|jetbrains-mono)|@phosphor-icons/react|simple-icons)")' bun.lock || true
