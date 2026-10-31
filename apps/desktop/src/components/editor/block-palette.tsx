@@ -109,7 +109,7 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
                   onPointerCancel={cancel}
                   onClick={(event) => { if (event.detail === 0) insert(kind); }}
                   aria-label={`Insert ${title}`}
-                  title="Click to insert, or drag onto the page"
+                  aria-description="Click to insert, or drag onto the page"
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><Icon className="size-4" /></span>
                   <span className="min-w-0 flex-1"><span className="block text-sm font-medium">{title}</span><span className="block truncate text-[11px] text-muted-foreground">{description}</span></span>
