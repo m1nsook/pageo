@@ -40,6 +40,6 @@ test("Studio settings have compact appearance, keybinds, storage and docs", () =
   assert.match(src, /<ThemeSwitcher showLabel \/>/);
   assert.match(src, /Keyboard shortcuts/);
   assert.match(src, /Copy path/);
-  assert.match(src, /Documentation<\/a>/);
+  assert.match(src, /<ExternalLink className="size-3\.5" \/> Documentation/);
   assert.match(read("src/components/studio/theme-switcher.tsx"), /aria-pressed=\{theme === value\}/);
 });
