@@ -146,7 +146,7 @@ fn search_pages_at(dir: &Path, raw_query: &str) -> Result<Vec<PageSearchHit>, St
                     match_line = markdown.lines()
                         .find(|line| line.to_lowercase().contains(&needle))
                         .map(|line| {
-                            let clean = line.trim().trim_start_matches(|c: char| "#>\\`*- ".contains(c));
+                            let clean = line.trim().trim_start_matches(|c: char| "#>`*- ".contains(c));
                             clean.chars().take(180).collect::<String>()
                         });
                 }
