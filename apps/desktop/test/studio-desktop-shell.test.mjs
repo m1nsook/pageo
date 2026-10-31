@@ -84,7 +84,12 @@ test("Milestone A avoids native title tooltips and dead navigation promises", ()
   assert.doesNotMatch(card, /title=\{project\.name\}/);
   const sidebar = read("src/components/studio/workspace-sidebar.tsx");
   assert.doesNotMatch(sidebar, /Templates are planned|studio\.nav\.soon/);
-  assert.match(sidebar, /Paglora documentation/);
+  assert.match(sidebar, /studio\\.nav\\.documentation/);
+  for (const locale of ["en", "ko", "pl"]) {
+    const messages = JSON.parse(read(`src/i18n/locales/${locale}.json`)).messages;
+    assert.equal(typeof messages["studio.nav.documentation"], "string");
+    assert.doesNotMatch(messages["studio.settings.storageFuture"], /planned|future releases|예정|przyszłych wydań/i);
+  }
   const config = JSON.parse(read("src-tauri/tauri.conf.json"));
   assert.equal(config.app.windows[0].decorations, true);
   assert.match(read("src/main.tsx"), /setTheme\(resolvedTheme === "dark" \? "dark" : "light"\)/);
