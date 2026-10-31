@@ -65,7 +65,7 @@ export function MonacoCodeEditor({
       const instance = monaco.editor.create(root.current, {
         model: nextModel,
         theme: resolvedTheme === "dark" ? "vs-dark" : "vs",
-        fontFamily: '"Cascadia Code", "JetBrains Mono", Consolas, monospace',
+        fontFamily: '"JetBrains Mono Variable", "Cascadia Code", Consolas, monospace',
         fontSize: 13,
         lineHeight: 21,
         minimap: { enabled: false },
