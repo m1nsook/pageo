@@ -422,7 +422,7 @@ test("search highlights Unicode ligatures and dotted I without losing display te
   assert.equal(title.textContent, "ﬃ Guide");
   assert.equal(title.children[0].tag, "mark");
   assert.equal(title.children[0].textContent, "ﬃ");
-  input.value = "istanbul";
+  input.value = "İstanbul";
   input.events.input();
   const summary = results.children[0].children[1];
   assert.equal(summary.children.find(child => child.tag === "mark")?.textContent, "İstanbul");
