@@ -105,7 +105,7 @@ export function BlockOutline({ editor, disabled }: { editor: Editor | null; disa
               key={row.index}
               data-outline-index={row.index}
               onKeyDown={(event) => {
-                if (disabled || !editor || !event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
+                if (disabled || !editor || !event.altKey || event.ctrlKey || event.metaKey || event.nativeEvent.isComposing) return;
                 if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
                 event.preventDefault();
                 event.stopPropagation();

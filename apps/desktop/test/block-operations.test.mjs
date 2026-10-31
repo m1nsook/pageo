@@ -98,7 +98,7 @@ test("outline exposes keyboard, pointer and accessible action controls", () => {
   const ui = readFileSync(new URL("../src/components/editor/block-outline.tsx", import.meta.url), "utf8");
   assert.match(ui, /onPointerUp=\{end\}/);
   assert.match(ui, /event\.altKey/);
-  assert.match(ui, /event\.isComposing/);
+  assert.match(ui, /event\.nativeEvent\.isComposing/);
   assert.match(ui, /duplicateBlock\(editor, row\.index\)/);
   assert.match(ui, /deleteBlock\(editor, row\.index\)/);
   assert.match(ui, /editor\?\.chain\(\)\.undo\(\)\.run\(\)/);
