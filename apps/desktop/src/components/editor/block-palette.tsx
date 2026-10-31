@@ -86,20 +86,20 @@ export function BlockPalette({ editor, disabled, onInvalidDocument }: { editor: 
       if (!zone) { setDropLine(null); return; }
 
       const boundary = blockDropBoundary(editor, y);
-      let target: HTMLElement | null = null;
-      let last: HTMLElement | null = null;
+      // Gather DOM block rectangles instead of narrowing variables assigned
+      // inside a ProseMirror callback (which TypeScript treats as unchanged).
+      const visible: HTMLElement[] = [];
       editor.state.doc.forEach((_node, offset, index) => {
         let el: Node | null = null;
         try { el = editor.view.nodeDOM(offset); } catch { /* optional view */ }
         if (!(el instanceof HTMLElement)) el = editor.view.dom?.children[index] ?? null;
-        if (el instanceof HTMLElement) {
-          last = el;
-          if (index === boundary) target = el;
-        }
+        if (el instanceof HTMLElement) visible[index] = el;
       });
+      const target = visible[boundary];
+      const last = visible.filter(Boolean).at(-1);
       const zoneRect = zone.getBoundingClientRect();
-      const yLine = (target as HTMLElement | null) ? (target as HTMLElement).getBoundingClientRect().top
-        : last ? (last as HTMLElement).getBoundingClientRect().bottom : zoneRect.top + 16;
+      const yLine = target ? target.getBoundingClientRect().top
+        : last ? last.getBoundingClientRect().bottom : zoneRect.top + 16;
       setDropLine({ left: zoneRect.left, top: yLine, width: zoneRect.width });
     };
     const move = (event: PointerEvent) => {
