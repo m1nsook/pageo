@@ -310,11 +310,11 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
       </header>
       <StudioNavigationLayout mode={viewMode}
         left={showPages ? <PageNavigation pages={pages} currentId={current.page.id} busy={leaving} onNavigate={(id) => { if (id !== current.page.id) void runAfterSave(() => onChange(id)); }} onAction={modify}/> : undefined}
-        center={{viewMode === "split"
+        center={viewMode === "split"
           ? <StudioResizableSplit source={editorPane} preview={previewPane} resetToken={splitResetToken} />
           : viewMode === "edit"
             ? editorPane
-            : <><div className="hidden" aria-hidden="true">{editorPane}</div>{previewPane}</>}}
+            : <><div className="hidden" aria-hidden="true">{editorPane}</div>{previewPane}</>}
         right={viewMode === "site" && showInspector ? <PageInspector page={current.page} busy={leaving || switchingView}
           selectedBlock={selectedBlock}
           allowTextEdit={Boolean(editor && selectedBlock && selectedBlock.pageId === current.page.id && editableCanvasText(editor, selectedBlock))}
