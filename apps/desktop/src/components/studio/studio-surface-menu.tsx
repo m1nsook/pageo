@@ -10,11 +10,12 @@ import {
  * authoritative, and editable fields retain browser editing actions for now.
  * The documentation preview runs in an isolated iframe and is never intercepted.
  */
-export function StudioSurfaceMenu({ onFind, onHome, onSettings, editing }: {
+export function StudioSurfaceMenu({ onFind, onHome, onSettings, editing, findShortcut }: {
   onFind: () => void;
   onHome: () => void;
   onSettings: () => void;
   editing: boolean;
+  findShortcut: string;
 }) {
   const [open, setOpen] = useState(false);
   const [point, setPoint] = useState({ x: 0, y: 0 });
@@ -61,7 +62,7 @@ export function StudioSurfaceMenu({ onFind, onHome, onSettings, editing }: {
         }}>
         <DropdownMenuLabel>Paglora Studio</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onFind}><Search /> Find projects or pages <DropdownMenuShortcut>Ctrl+F</DropdownMenuShortcut></DropdownMenuItem>
+        <DropdownMenuItem onSelect={onFind}><Search /> Find projects or pages <DropdownMenuShortcut>{findShortcut}</DropdownMenuShortcut></DropdownMenuItem>
         <DropdownMenuItem onSelect={onHome} disabled={editing}><House /> Home</DropdownMenuItem>
         <DropdownMenuItem onSelect={onSettings} disabled={editing}><Settings2 /> Settings</DropdownMenuItem>
         <DropdownMenuSeparator />
