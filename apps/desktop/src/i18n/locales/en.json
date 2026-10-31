@@ -303,6 +303,13 @@
     "studio.storage.migrationError": "Project storage was not changed",
     "studio.storage.reconnected": "Existing workspace reconnected",
     "studio.storage.reconnectedDetail": "Projects are available at the selected location.",
-    "studio.storage.reconnectError": "Workspace was not reconnected"
+    "studio.storage.reconnectError": "Workspace was not reconnected",
+    "studio.storage.returnButton": "Return to previous drive…",
+    "studio.storage.returnTitle": "Safely return to the previous drive",
+    "studio.storage.returnDescription": "Paglora will copy your CURRENT projects into a new verified folder beside {path}, then switch the active location. Your old folder and your current files remain untouched. This will not overwrite stale backups.",
+    "studio.storage.returnConfirm": "Type RETURN to confirm",
+    "studio.storage.returned": "Projects returned to previous drive",
+    "studio.storage.returnedDetail": "The latest files were verified in a new folder; the old copies remain untouched.",
+    "studio.storage.returnError": "Unable to return to previous drive"
   }
 }

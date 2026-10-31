@@ -303,6 +303,13 @@
     "studio.storage.migrationError": "Lokalizacja projektów nie została zmieniona",
     "studio.storage.reconnected": "Ponownie połączono istniejący obszar roboczy",
     "studio.storage.reconnectedDetail": "Projekty są dostępne w wybranej lokalizacji.",
-    "studio.storage.reconnectError": "Nie udało się ponownie połączyć obszaru roboczego"
+    "studio.storage.reconnectError": "Nie udało się ponownie połączyć obszaru roboczego",
+    "studio.storage.returnButton": "Wróć na poprzedni dysk…",
+    "studio.storage.returnTitle": "Bezpieczny powrót na poprzedni dysk",
+    "studio.storage.returnDescription": "Paglora skopiuje OBECNE projekty do nowego, zweryfikowanego folderu obok {path}, a następnie zmieni aktywną lokalizację. Stary folder i obecne pliki pozostaną nienaruszone; stare kopie nie zostaną nadpisane.",
+    "studio.storage.returnConfirm": "Wpisz RETURN, aby potwierdzić",
+    "studio.storage.returned": "Projekty przeniesiono z powrotem na poprzedni dysk",
+    "studio.storage.returnedDetail": "Najnowsze pliki zweryfikowano w nowym folderze. Poprzednie kopie pozostały nienaruszone.",
+    "studio.storage.returnError": "Nie udało się wrócić na poprzedni dysk"
   }
 }

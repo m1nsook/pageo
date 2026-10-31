@@ -221,12 +221,14 @@ export function Dashboard({ projects, trashItems, restoringTrashId, onRestorePro
   );
 }
 
-export function Settings({ location, desktop, storageStatus, onCheckStorage, onReconnectStorage, updater, onOpenReleaseNotes, shortcuts, onAssignShortcut, onResetShortcuts, onMigrateStorage, storageMigrating, storageError }: { location: string; desktop: boolean; storageStatus: import("@/lib/projects").ProjectStorageStatus | null; onCheckStorage: () => void; onReconnectStorage: (destination: string, confirmation: string) => Promise<void>; updater: StudioUpdaterControls; onOpenReleaseNotes: () => void; shortcuts: ShortcutBindings; onAssignShortcut: (command: StudioCommand, stroke: string) => string | null; onResetShortcuts: () => void; onMigrateStorage: (destination: string) => Promise<void>; storageMigrating: boolean; storageError: string }) {
+export function Settings({ location, desktop, storageStatus, onCheckStorage, onReconnectStorage, onReturnStorage, updater, onOpenReleaseNotes, shortcuts, onAssignShortcut, onResetShortcuts, onMigrateStorage, storageMigrating, storageError }: { location: string; desktop: boolean; storageStatus: import("@/lib/projects").ProjectStorageStatus | null; onCheckStorage: () => void; onReconnectStorage: (destination: string, confirmation: string) => Promise<void>; onReturnStorage: (confirmation: string) => Promise<void>; updater: StudioUpdaterControls; onOpenReleaseNotes: () => void; shortcuts: ShortcutBindings; onAssignShortcut: (command: StudioCommand, stroke: string) => string | null; onResetShortcuts: () => void; onMigrateStorage: (destination: string) => Promise<void>; storageMigrating: boolean; storageError: string }) {
   const { locale, setLocale, t } = useTranslation();
   const [storageDestination, setStorageDestination] = useState("");
   const [recoverPath, setRecoverPath] = useState("");
   const [recoverConfirmation, setRecoverConfirmation] = useState("");
   const [folderPicking, setFolderPicking] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnConfirmation, setReturnConfirmation] = useState("");
   async function browseFolder(mode: "new" | "existing") {
     if (!desktop || storageMigrating || folderPicking) return;
     setFolderPicking(true);
@@ -323,6 +325,34 @@ export function Settings({ location, desktop, storageStatus, onCheckStorage, onR
                     {storageMigrating ? t("studio.storage.copying") : t("studio.storage.move")}
                   </Button>
                 </form>}
+                {desktop && storageStatus?.available && storageStatus.previousLocation && (
+                  <>
+                    <Button type="button" variant="ghost" size="sm" className="w-fit" disabled={storageMigrating}
+                      onClick={() => { setReturnConfirmation(""); setReturnOpen(true); }}>
+                      {t("studio.storage.returnButton")}
+                    </Button>
+                    <AlertDialog open={returnOpen} onOpenChange={open => { setReturnOpen(open); if (!open) setReturnConfirmation(""); }}>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{t("studio.storage.returnTitle")}</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {t("studio.storage.returnDescription", { path: storageStatus.previousLocation })}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <Label htmlFor="storage-return-confirm">{t("studio.storage.returnConfirm")}</Label>
+                        <Input id="storage-return-confirm" value={returnConfirmation} autoComplete="off" spellCheck={false}
+                          onChange={event => setReturnConfirmation(event.target.value)} />
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{t("studio.shortcuts.cancel")}</AlertDialogCancel>
+                          <AlertDialogAction disabled={storageMigrating || returnConfirmation !== "RETURN"}
+                            onClick={() => { void onReturnStorage(returnConfirmation).catch(() => undefined); }}>
+                            {t("studio.storage.returnButton")}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
+                )}
                 {storageError && <p role="alert" className="text-xs text-destructive">{storageError}</p>}
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   {t("studio.storage.migrationHelp")}
