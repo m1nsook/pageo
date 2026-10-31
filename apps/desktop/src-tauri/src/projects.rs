@@ -43,9 +43,7 @@ fn now() -> Result<u64, String> {
 }
 
 fn root(app: &AppHandle) -> Result<PathBuf, String> {
-    let path = app.path().app_data_dir().map_err(|e| e.to_string())?.join("projects");
-    fs::create_dir_all(&path).map_err(|e| format!("Unable to access project storage: {e}"))?;
-    Ok(path)
+    crate::storage::projects_root(app)
 }
 
 fn check_id(id: &str) -> Result<(), String> {
