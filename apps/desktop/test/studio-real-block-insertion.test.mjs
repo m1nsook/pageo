@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
 import { Schema } from "@tiptap/pm/model";
-import { EditorState } from "@tiptap/pm/state";
+import { EditorState, TextSelection } from "@tiptap/pm/state";
 import { history, undo, redo } from "@tiptap/pm/history";
 
 const require = createRequire(import.meta.url);
@@ -35,49 +35,38 @@ const schema = new Schema({
     bulletList: { content: "listItem+", group: "block" },
     orderedList: { content: "listItem+", group: "block" },
     listItem: { content: "paragraph block*" },
+    codeBlock: { content: "text*", group: "block", code: true, attrs: { language: { default: null } } },
+    horizontalRule: { group: "block", atom: true },
     text: { group: "inline" },
   },
 });
 const p = value => schema.nodes.paragraph.create(null, schema.text(value));
-function realDocument() {
-  let state = EditorState.create({
-    doc: schema.nodes.doc.create(null, [p("Before"), p("After")]),
-    plugins: [history()],
-  });
+function realDocument(initialDoc = schema.nodes.doc.create(null, [p("Before"), p("After")])) {
+  let state = EditorState.create({ doc: initialDoc, plugins: [history()] });
   let scrolls = 0;
   let changed = 0;
+  let focuses = 0;
   const editor = {
     isEditable: true,
     isDestroyed: false,
     get state() { return state; },
-    view: { nodeDOM(offset) {
-      const rects = { 0: [100, 30], [p("Before").nodeSize]: [180, 30] };
-      const [top, height] = rects[offset] ?? [1000, 30];
-      return Object.assign(new globalThis.HTMLElement(), {
-        getBoundingClientRect: () => ({ top, height }),
-      });
-    } },
-    chain() {
-      let position, json;
-      const chain = {
-        focus() { return chain; },
-        insertContentAt(at, block) {
-          position = at;
-          json = block;
-          return chain;
-        },
-        scrollIntoView() { scrolls++; return chain; },
-        run() {
-          if (position === undefined || !json) return false;
-          const previous = state.doc;
-          const tr = state.tr.replaceWith(position, position, schema.nodeFromJSON(json));
-          state = state.apply(tr);
-          if (!state.doc.eq(previous)) changed++;
-          return true;
-        },
-      };
-      return chain;
+    view: {
+      nodeDOM(offset) {
+        const rects = { 0: [100, 30], [p("Before").nodeSize]: [180, 30] };
+        const [top, height] = rects[offset] ?? [1000, 30];
+        return Object.assign(new globalThis.HTMLElement(), {
+          getBoundingClientRect: () => ({ top, height }),
+        });
+      },
+      dispatch(tr) {
+        const previous = state.doc;
+        if (tr.scrolledIntoView) scrolls++;
+        state = state.apply(tr);
+        if (!state.doc.eq(previous)) changed++;
+      },
+      focus() { focuses++; },
     },
+    chain() { throw new Error("Legacy insertContentAt must never run for palette blocks"); },
   };
   return {
     editor,
@@ -85,10 +74,12 @@ function realDocument() {
     get texts() { return state.doc.content.content.map(node => node.textContent); },
     get scrolls() { return scrolls; },
     get changed() { return changed; },
+    get focuses() { return focuses; },
     undo() { return undo(state, tr => { state = state.apply(tr); }); },
     redo() { return redo(state, tr => { state = state.apply(tr); }); },
   };
 }
+
 const oldHTMLElement = globalThis.HTMLElement;
 globalThis.HTMLElement = class HTMLElement {};
 
@@ -160,9 +151,51 @@ test("contradictory external payloads and OS file drags are never inserted", () 
   assert.equal(drag.readBlockDrop(mismatch), null);
   drag.finishBlockDrag();
 });
+test("every offered palette block is structurally valid, editable, and undoable", () => {
+  for (const { kind } of catalog.BLOCKS) {
+    const ctx = realDocument();
+    const failure = [];
+    assert.equal(insertion.insertBlockIntoEditor(ctx.editor, kind, undefined, reason => failure.push(reason)),
+      true, kind + ": " + failure.join(", "));
+    assert.equal(ctx.state.doc.childCount, 3, kind);
+    assert.doesNotThrow(() => ctx.state.doc.check(), kind);
+    assert.equal(ctx.changed, 1, kind);
+    assert.equal(ctx.undo(), true, kind);
+    assert.deepEqual(ctx.texts, ["Before", "After"], kind);
+    assert.equal(ctx.redo(), true, kind);
+    assert.doesNotThrow(() => ctx.state.doc.check(), kind);
+  }
+});
+test("nested block selection inserts AFTER the complete parent and retains existing text", () => {
+  const nested = schema.nodes.blockquote.create(null, [p("Inside")]);
+  const ctx = realDocument(schema.nodes.doc.create(null, [nested, p("After")]));
+  ctx.editor.view.dispatch(ctx.state.tr.setSelection(TextSelection.create(ctx.state.doc, 2)));
+  assert.equal(insertion.insertBlockIntoEditor(ctx.editor, "heading2"), true);
+  assert.equal(ctx.state.doc.child(0).type.name, "blockquote");
+  assert.equal(ctx.state.doc.child(0).textContent, "Inside");
+  assert.equal(ctx.state.doc.child(1).type.name, "heading");
+  assert.equal(ctx.state.doc.child(2).textContent, "After");
+  assert.doesNotThrow(() => ctx.state.doc.check());
+});
+test("already-invalid document is rejected without an uncaught contentMatchAt error or data loss", () => {
+  // A malformed markdown parser can produce a listItem as a document child.
+  // ProseMirror lets the invalid node be constructed, but throws on edits.
+  const malformed = schema.nodes.doc.create(null, [
+    schema.nodes.listItem.create(null, [p("Original content")]), p("After"),
+  ]);
+  assert.throws(() => malformed.check());
+  const ctx = realDocument(malformed);
+  const failures = [];
+  assert.doesNotThrow(() => {
+    assert.equal(insertion.insertBlockIntoEditor(ctx.editor, "card", undefined, reason => failures.push(reason)), false);
+  });
+  assert.match(failures.join(" "), /invalid editor structure.*Source view/i);
+  assert.equal(ctx.changed, 0);
+  assert.equal(ctx.state.doc.child(0).textContent, "Original content");
+});
 test("both click and drag flows share the same persistent source-owned insertion pipeline", () => {
   const source = read("src/components/editor/block-palette.tsx");
-  assert.match(source, /insertBlockIntoEditor\(editor, kind, point\?\.y\)/);
+  assert.match(source, /insertBlockIntoEditor\(editor, kind, point\?\.y, reason =>/);
   assert.match(source, /document\.addEventListener\("drop", drop, true\)/);
   assert.match(source, /window\.addEventListener\("pointerup", onPointerUp, true\)/);
   assert.match(source, /document\.addEventListener\("dragend", endNative, true\)/);

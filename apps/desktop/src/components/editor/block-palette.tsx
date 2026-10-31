@@ -40,11 +40,12 @@ export function BlockPalette({ editor, disabled }: { editor: Editor | null; disa
 
   function insert(kind: BlockKind, point?: { y: number }): boolean {
     if (!editor || disabled) return false;
-    const success = insertBlockIntoEditor(editor, kind, point?.y);
     const title = BLOCKS.find(item => item.kind === kind)?.title ?? "Block";
+    let explanation = "The document was not changed.";
+    const success = insertBlockIntoEditor(editor, kind, point?.y, reason => { explanation = reason; });
     if (!success) {
-      setInsertionStatus("Unable to insert " + title + ". The document was not changed.");
-      toast.error("Could not insert " + title);
+      setInsertionStatus("Unable to insert " + title + ". " + explanation);
+      toast.error("Could not insert " + title, { description: explanation });
       return false;
     }
     setInsertionStatus("Inserted " + title + " into the document.");

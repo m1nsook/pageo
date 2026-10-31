@@ -23,10 +23,12 @@ test("gallery drag uses a closed native payload and editor-only destination vali
  assert.match(palette,/new Event\("paglora:gallery-block-dropped"\)/);
  assert.match(gallery,/setOpen\(false\)/);
 });
-test("source insertion reuses undoable Tiptap pipeline without an HTML parser",()=>{
+test("source insertion uses a validated native ProseMirror transaction without an HTML parser",()=>{
  const palette=read("src/components/editor/block-palette.tsx");
  assert.match(read("src/lib/block-insertion.ts"),/createMarkdownBlock\(kind\)/);
- assert.match(read("src/lib/block-insertion.ts"),/insertContentAt\(position, createMarkdownBlock\(kind\)\)/);
+ assert.match(read("src/lib/block-insertion.ts"),/state\.schema\.nodeFromJSON\(createMarkdownBlock\(kind\)\)/);
+ assert.match(read("src/lib/block-insertion.ts"),/transaction\.doc\.check\(\)/);
+ assert.doesNotMatch(read("src/lib/block-insertion.ts"),/\.insertContentAt\(/);
  assert.match(read("src/lib/block-insertion.ts"),/scrollIntoView\(\)/);
  assert.match(palette,/draggable=\{!disabled && Boolean\(editor\)\}/);
  assert.match(palette,/onClick=\{\(\) => click\(kind\)\}/);
