@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { Editor } from "@tiptap/core";
 import { formatInlineCitation } from "@/lib/inline-citation";
+import { BibliographyPopover } from "@/components/editor/bibliography-popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -80,6 +81,7 @@ export function FormatToolbar({ editor }: { editor: Editor | null }) {
       <FormatButton name="Bold" active={editor?.isActive("bold")} onClick={() => editor?.chain().focus().toggleBold().run()}><Bold /></FormatButton>
       <FormatButton name="Italic" active={editor?.isActive("italic")} onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic /></FormatButton>
       <CitationPopover editor={editor} />
+      <BibliographyPopover editor={editor} />
       <Separator orientation="vertical" className="mx-1 h-5" />
       <FormatButton name="Bulleted list" active={editor?.isActive("bulletList")} onClick={() => editor?.chain().focus().toggleBulletList().run()}><List /></FormatButton>
       <FormatButton name="Numbered list" active={editor?.isActive("orderedList")} onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered /></FormatButton>
