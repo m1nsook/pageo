@@ -30,7 +30,8 @@ export type SiteSettings = {
   headerLinks: SiteLink[];
   footerLinks: SiteLink[];
   themeMode: "system" | "light" | "dark";
-  language: "en" | "ko" | "pl" | "de" | "fr" | "es" | "ja" | "zh-CN" | "zh-TW" | "pt-BR" | "ru" | "uk" | "ar" | "tr" | "it" | "cs" | "hu" | "th";
+  /** Built-in languages plus reviewed community locale packs; Rust strictly validates selected codes. */
+  language: string;
   accentColor: string;
   /** The generated HTML layout; legacy projects default to classic. */
   siteLayout: "classic" | "inset" | "reading";
