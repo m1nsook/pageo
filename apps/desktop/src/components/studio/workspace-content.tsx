@@ -14,6 +14,7 @@ import type { WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { ThemeSwitcher } from "@/components/studio/theme-switcher";
 import { LANGUAGES, useTranslation } from "@/i18n";
 import { STUDIO_VERSION, RELEASE_NOTES, RELEASE_URL } from "@/lib/release-notes";
+import type { StudioUpdaterControls } from "@/components/studio/studio-updater";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const formatter = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -148,7 +149,7 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
   );
 }
 
-export function Settings({ location, desktop }: { location: string; desktop: boolean }) {
+export function Settings({ location, desktop, updater }: { location: string; desktop: boolean; updater: StudioUpdaterControls }) {
   const { locale, setLocale, t } = useTranslation();
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden">
@@ -193,6 +194,18 @@ export function Settings({ location, desktop }: { location: string; desktop: boo
               ))}
               <a href={RELEASE_URL} target="_blank" rel="noopener noreferrer"
                 className="text-sm text-primary underline underline-offset-4">View versions and release downloads on GitHub</a>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Studio updates · Stable channel</CardTitle>
+              <CardDescription>Only signed, versioned releases are installed. Nightly build artifacts are excluded.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button variant="outline" disabled={!desktop || updater.checking || updater.installing} onClick={() => void updater.check(true)}>
+                {updater.checking ? "Checking stable releases…" : "Check for updates"}
+              </Button>
+              {updater.message && <p role="status" className="text-sm text-muted-foreground">{updater.message}</p>}
             </CardContent>
           </Card>
           <Card><CardHeader><CardTitle>{t("studio.settings.about")}</CardTitle><CardDescription>{t("studio.settings.aboutDescription")}</CardDescription></CardHeader></Card>
