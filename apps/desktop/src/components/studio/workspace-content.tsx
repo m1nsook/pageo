@@ -7,6 +7,7 @@ import { ProjectTrashPanel } from "@/components/studio/project-trash-panel";
 import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import { DEFAULT_PROJECT_VISUAL, PROJECT_ACCENTS, ProjectAppearanceDialog, ProjectIcon } from "@/components/studio/project-appearance";
 import type { TrashedProject } from "@/lib/projects";
+import { backupTaskMessage, type BackupTask } from "@/lib/backup-task";
 import { pickStorageFolder } from "@/lib/projects";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -48,7 +49,7 @@ function WorkspaceHeader({ section }: { section: string }) {
   );
 }
 
-function ProjectCard({ project, onOpen, onExportBackup, onTrash, onVisualSave }: { project: ProjectSummary; onOpen: () => void; onExportBackup: () => void; onTrash: () => void; onVisualSave: (visual: ProjectVisual) => Promise<void> }) {
+function ProjectCard({ project, onOpen, onExportBackup, onTrash, onVisualSave, backupBusy, exporting }: { project: ProjectSummary; onOpen: () => void; onExportBackup: () => void; onTrash: () => void; onVisualSave: (visual: ProjectVisual) => Promise<void>; backupBusy: boolean; exporting: boolean }) {
   const { t } = useTranslation();
   const [confirmTrash, setConfirmTrash] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -57,7 +58,7 @@ function ProjectCard({ project, onOpen, onExportBackup, onTrash, onVisualSave }:
     <ContextMenu>
       <ContextMenuTrigger asChild>
     <Card className="group relative gap-0 py-0 transition-[background-color,border-color,box-shadow] duration-150 hover:bg-muted/50 hover:ring-primary/45">
-      <button className="flex h-full min-h-48 flex-col rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
+      <button disabled={backupBusy} className="flex h-full min-h-48 flex-col rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait" onClick={onOpen}>
         <CardHeader className="w-full pt-5">
           <div className="flex items-center justify-between">
             <ProjectIcon visual={project.visual} />
@@ -72,13 +73,13 @@ function ProjectCard({ project, onOpen, onExportBackup, onTrash, onVisualSave }:
           <Clock3 className="size-3.5" /> Updated {displayDate(project.updatedAt)}
         </CardFooter>
       </button>
-      <Button type="button" variant="ghost" size="icon-sm" className="absolute right-3 top-4 z-10" aria-label={`Customize ${project.name}`} onClick={() => setAppearanceOpen(true)}><Settings2 className="size-4" /></Button>
+      <Button type="button" variant="ghost" size="icon-sm" className="absolute right-3 top-4 z-10" aria-label={`Customize ${project.name}`} disabled={backupBusy} onClick={() => setAppearanceOpen(true)}><Settings2 className="size-4" /></Button>
     </Card>
       </ContextMenuTrigger>
       <ContextMenuContent className="min-w-48">
-        <ContextMenuItem onSelect={onOpen}><BookOpenIcon weight="bold" /> Open project</ContextMenuItem>
+        <ContextMenuItem disabled={backupBusy} onSelect={onOpen}><BookOpenIcon weight="bold" /> Open project</ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onSelect={onExportBackup}><Archive /> {t("studio.backup.export")}</ContextMenuItem>
+        <ContextMenuItem disabled={backupBusy} onSelect={onExportBackup}>{exporting ? <LoaderCircle className="size-4 animate-spin" /> : <Archive />} {exporting ? "Saving backup…" : t("studio.backup.export")}</ContextMenuItem>
         <ContextMenuItem onSelect={() => {
           if (navigator.clipboard?.writeText) {
             void navigator.clipboard.writeText(project.name).catch((error: unknown) => {
@@ -86,9 +87,9 @@ function ProjectCard({ project, onOpen, onExportBackup, onTrash, onVisualSave }:
             });
           }
         }}><Copy /> Copy project name</ContextMenuItem>
-        <ContextMenuItem onSelect={() => setAppearanceOpen(true)}><Settings2 /> Customize project…</ContextMenuItem>
+        <ContextMenuItem disabled={backupBusy} onSelect={() => setAppearanceOpen(true)}><Settings2 /> Customize project…</ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem variant="destructive" onSelect={() => setConfirmTrash(true)}><Trash2 /> Remove project…</ContextMenuItem>
+        <ContextMenuItem variant="destructive" disabled={backupBusy} onSelect={() => setConfirmTrash(true)}><Trash2 /> Remove project…</ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
     <ProjectAppearanceDialog project={project} open={appearanceOpen} onOpenChange={setAppearanceOpen} onSave={onVisualSave} />
@@ -103,7 +104,7 @@ function ProjectCard({ project, onOpen, onExportBackup, onTrash, onVisualSave }:
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Keep project</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={onTrash}>Move to trash</AlertDialogAction>
+          <AlertDialogAction variant="destructive" disabled={backupBusy} onClick={onTrash}>Move to trash</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -111,9 +112,9 @@ function ProjectCard({ project, onOpen, onExportBackup, onTrash, onVisualSave }:
   );
 }
 
-export function Dashboard({ projects, trashItems, restoringTrashId, onRestoreProject, onDeleteTrashedProject, onUpdateVisual, openCreate, openProject, onExportBackup, onImportBackup, onTrashProject, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
+export function Dashboard({ projects, trashItems, restoringTrashId, onRestoreProject, onDeleteTrashedProject, onUpdateVisual, openCreate, openProject, onExportBackup, onImportBackup, onTrashProject, backupNotice, backupPath, backupTask, view, loading, search, setSearch, desktop, error }: {
   projects: ProjectSummary[]; trashItems: TrashedProject[]; restoringTrashId: string | null; onRestoreProject: (trashId: string) => void; onDeleteTrashedProject: (trashId: string, confirmation: string) => void; onUpdateVisual: (id: string, visual: ProjectVisual) => Promise<void>; openCreate: () => void; openProject: (id: string) => void;
-  onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; onTrashProject: (id: string) => void; backupNotice: string; backupPath: string;
+  onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; onTrashProject: (id: string) => void; backupNotice: string; backupPath: string; backupTask: BackupTask | null;
   view: WorkspaceView; loading: boolean; search: string; setSearch: (value: string) => void; desktop: boolean; error: string;
 }) {
   const { t } = useTranslation();
@@ -148,7 +149,7 @@ export function Dashboard({ projects, trashItems, restoringTrashId, onRestorePro
                   <Badge variant="outline" className="mb-5 gap-1.5 bg-background/80"><SparkleIcon weight="fill" className="size-3.5" /> Your documentation studio</Badge>
                   <h1 className="font-display max-w-lg text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl">Create documentation you'll be proud to share.</h1>
                   <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">Write, organize, and design documentation locally. Your files always belong to you.</p>
-                  <Button className="mt-6" onClick={openCreate}><Plus /> New project</Button>
+                  <Button className="mt-6" onClick={openCreate} disabled={backupTask !== null}><Plus /> New project</Button>
                 </div>
                 <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-primary/7 via-transparent to-transparent" />
               </CardContent>
@@ -161,18 +162,22 @@ export function Dashboard({ projects, trashItems, restoringTrashId, onRestorePro
                 onChange={event => {
                   const file = event.currentTarget.files?.[0];
                   event.currentTarget.value = "";
-                  if (file) onImportBackup(file);
+                  if (file && !backupTask) onImportBackup(file);
                 }} />
-              <Button variant="outline" onClick={() => backupInput.current?.click()} disabled={!desktop}>
-                <Archive /> {t("studio.backup.import")}
+              <Button variant="outline" onClick={() => backupInput.current?.click()} disabled={!desktop || backupTask !== null}>
+                {backupTask?.kind === "import" ? <LoaderCircle className="size-4 animate-spin" /> : <Archive />} {t("studio.backup.import")}
               </Button>
               <div className="relative"><Search className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" />
                 <Input aria-label="Search projects" className="w-52 pl-9" placeholder="Search projects" value={search} onChange={e => setSearch(e.target.value)} /></div>
-              {view === "projects" && <Button onClick={openCreate}><Plus /> New project</Button>}
+              {view === "projects" && <Button onClick={openCreate} disabled={backupTask !== null}><Plus /> New project</Button>}
             </div>
           </div>
           {!desktop && <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Browser preview only. Run <code>bun run desktop</code> to access local projects.</div>}
           {error && <p role="alert" className="mt-6 rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+          {backupTask && <div role="status" aria-live="polite" className="mt-6 flex items-center gap-3 rounded-lg border border-primary/25 bg-primary/5 p-3 text-sm text-foreground">
+            <LoaderCircle aria-hidden="true" className="size-4 shrink-0 animate-spin text-primary" />
+            <span>{backupTaskMessage(backupTask)}</span>
+          </div>}
           {backupNotice && <div role="status" className="mt-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 text-sm">
             <span className="min-w-0 break-all">{backupNotice}</span>
             {backupPath && <Button variant="outline" size="sm" aria-label={t("studio.backup.copyPath")}
@@ -196,7 +201,8 @@ export function Dashboard({ projects, trashItems, restoringTrashId, onRestorePro
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                       {items.map(p => <ProjectCard key={p.id} project={p} onOpen={() => openProject(p.id)}
                         onExportBackup={() => onExportBackup(p.id)} onTrash={() => onTrashProject(p.id)}
-                        onVisualSave={visual => onUpdateVisual(p.id, visual)} />)}
+                        onVisualSave={visual => onUpdateVisual(p.id, visual)} backupBusy={backupTask !== null}
+                        exporting={backupTask?.kind === "export" && backupTask.label === p.name} />)}
                     </div>
                   </section>
                 );
@@ -209,7 +215,7 @@ export function Dashboard({ projects, trashItems, restoringTrashId, onRestorePro
                 <EmptyTitle>{search ? "No matching projects" : "Your workspace is ready"}</EmptyTitle>
                 <EmptyDescription>{search ? `Nothing matches “${search}”. Try another search.` : "Create your first project to start writing and organizing documentation."}</EmptyDescription>
               </EmptyHeader>
-              {!search && <EmptyContent><Button onClick={openCreate}><Plus /> Create project</Button></EmptyContent>}
+              {!search && <EmptyContent><Button onClick={openCreate} disabled={backupTask !== null}><Plus /> Create project</Button></EmptyContent>}
             </Empty>
           )}
           {desktop && <ProjectTrashPanel items={trashItems} busy={restoringTrashId} onRestore={onRestoreProject} onDelete={onDeleteTrashedProject} />}
