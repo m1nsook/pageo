@@ -7,11 +7,13 @@ const gallery=read("src/components/editor/block-component-gallery.tsx");
 test("Gallery and Palette use pointer gestures, never forbidden native browser drag",()=>{
  assert.match(palette,/beginPointerBlock\(kind, event\.pointerId/);
  assert.match(palette,/window\.addEventListener\("pointerup", release, true\)/);
- assert.match(palette,/editorDropZone\(event\.clientX, event\.clientY\)/);
+ assert.match(palette,/editorDropZone\(x, y\)/);
  assert.match(gallery,/beginPointerBlock\(kind, event\.pointerId/);
  assert.match(gallery,/beginPointerBlock\(kind, event\.pointerId/);
- assert.doesNotMatch(gallery,/onDragStart|dataTransfer/);
- assert.doesNotMatch(palette,/onDragStart|dataTransfer/);
+ assert.match(gallery,/onDragStart=\{event => event\.preventDefault\(\)\}/);
+ assert.doesNotMatch(gallery,/dataTransfer/);
+ assert.match(palette,/onDragStart=\{event => event\.preventDefault\(\)\}/);
+ assert.doesNotMatch(palette,/dataTransfer/);
  assert.match(gallery,/draggable=\{false\}/);
  assert.match(palette,/draggable=\{false\}/);
 });

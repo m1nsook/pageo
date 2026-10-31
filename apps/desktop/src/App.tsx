@@ -20,7 +20,8 @@ import { PageNavigation, type PageAction } from "@/components/editor/page-naviga
 import { FormatToolbar } from "@/components/editor/format-toolbar";
 import { BlockPalette } from "@/components/editor/block-palette";
 import type { BlockKind } from "@/components/editor/block-catalog";
-import { appendComponentToMarkdown } from "@/lib/source-block-append";
+import { insertComponentAtMarkdownBoundary } from "@/lib/source-block-insert";
+import { blockDropBoundary, selectionBlockBoundary } from "@/lib/block-insertion";
 import { SiteBuilder } from "@/components/editor/site-builder";
 import { SitePreview } from "@/components/editor/site-preview";
 import { SiteDesigner } from "@/components/editor/site-designer";
@@ -152,12 +153,18 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
     },
   });
 
-  function appendInvalidPageBlock(kind: BlockKind): boolean {
+  function insertAtSourcePosition(kind: BlockKind, point?: { y: number }): boolean {
     if (leaving || switchingView || !editor || editor.isDestroyed) return false;
     try {
-      // Append to the current unsaved source, never getMarkdown() from an
-      // invalid ProseMirror document or silently replace any existing bytes.
-      const next = appendComponentToMarkdown(latest.current, kind);
+      // The visible editor's caret or release point identifies a top-level
+      // boundary. Match it to the ORIGINAL Markdown tokens, not getMarkdown()
+      // from a malformed Tiptap parse. Never silently append to the page end.
+      const boundary = point === undefined
+        ? selectionBlockBoundary(editor)
+        : blockDropBoundary(editor, point.y);
+      const visibleBlocks: { text: string }[] = [];
+      editor.state.doc.forEach(node => { visibleBlocks.push({ text: node.textContent }); });
+      const next = insertComponentAtMarkdownBoundary(latest.current, kind, visibleBlocks, boundary);
       if (next === latest.current) return false;
       latest.current = next;
       revision.current += 1;
@@ -165,20 +172,20 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
       if (saveTimer.current) clearTimeout(saveTimer.current);
       setSaveState("unsaved");
 
-      // Best effort rehydrate Edit. If Tiptap is still invalid, the original
-      // source plus the new block is already queued for an exact native save.
+      // Rehydrate the editor without emitting an autosave of its potentially
+      // malformed parse. Persist the exact original source with one added block.
       try {
         editor.commands.setContent(next, { contentType: "markdown", emitUpdate: false });
         editor.state.doc.check();
         rawSourceFallbackActive.current = false;
-      } catch {
-        // Keep the raw-source guard active to prevent destructive autosaves.
-      }
+      } catch { /* Preserve original Markdown when parser remains invalid. */ }
       void persist().catch(() => undefined);
       return true;
     } catch (error) {
-      setSaveState("error");
-      setSaveError(friendlyError(error));
+      // Position ambiguity is not an excuse to append at the end.
+      const reason = friendlyError(error);
+      setSaveError(reason);
+      toast.error("Could not place component here", { description: reason });
       return false;
     }
   }
@@ -411,7 +418,7 @@ function SinglePageEditor({ document, current, pages, onBack, onSaved, onChange,
           onEditBlock={() => { if (selectedBlock) editCanvasBlock(selectedBlock); }}
           onClearBlock={() => setSelectedBlock(null)}
           onChange={(action, id, value) => modify(action, id, value)}
-          onEditContent={() => void selectView("edit")} /> : viewMode === "edit" && showBlockTools ? <BlockPalette editor={editor} disabled={leaving} onInvalidDocument={appendInvalidPageBlock} /> : undefined}
+          onEditContent={() => void selectView("edit")} /> : viewMode === "edit" && showBlockTools ? <BlockPalette editor={editor} disabled={leaving} onInvalidDocument={insertAtSourcePosition} /> : undefined}
       />
       <StudioQuickFind open={findOpen} onOpenChange={onFindOpenChange}
         projectId={document.project.id} shortcut={findShortcut} entries={pages.map(page => ({ id: page.id, title: page.title, description: page.navGroup, kind: "page" as const }))}

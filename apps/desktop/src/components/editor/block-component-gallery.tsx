@@ -110,9 +110,11 @@ export function BlockComponentGallery({ disabled, onInsert }: {
                 {blocks.map(({ kind, title, icon: Icon }) => (
                   <Button type="button" key={kind} data-gallery-kind={kind} draggable={false}
                     onPointerDown={event => startPointer(event, kind)}
+                    onDragStart={event => event.preventDefault()}
+                    style={{ touchAction: "none" }}
                     aria-description="Drag onto the editor, or select and click Insert"
                     variant={selected === kind ? "secondary" : "ghost"}
-                    className="w-full justify-start gap-2 text-left" aria-pressed={selected === kind}
+                    className="w-full cursor-grab select-none justify-start gap-2 text-left active:cursor-grabbing" aria-pressed={selected === kind}
                     onClick={() => choose(kind)} onKeyDown={event => {
                       const next = nextGalleryKind(blocks.map(block => block.kind), kind, event.key);
                       if (next) { event.preventDefault(); choose(next); document.querySelector<HTMLButtonElement>('[data-gallery-kind="'+next+'"]')?.focus(); }
@@ -134,6 +136,8 @@ export function BlockComponentGallery({ disabled, onInsert }: {
               <div className="flex items-center gap-2">
                 <button type="button" disabled={disabled} draggable={false}
                   onPointerDown={event => startPointer(event, selected)}
+                  onDragStart={event => event.preventDefault()}
+                  style={{ touchAction: "none" }}
                   aria-label={`Drag ${item.title} example into the editor`}
                   className="flex cursor-grab select-none items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed">
                   <GripVertical className="size-3.5" /> Drag to page

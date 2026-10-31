@@ -18,6 +18,34 @@ export function blockDropPosition(editor: Editor, clientY: number): number {
   return position;
 }
 
+/** Index of the top-level Markdown block boundary for a pointer release.
+ * This index is stable even when the in-memory ProseMirror tree is malformed.
+ * The release position is found from actual rendered block rectangles.
+ */
+export function blockDropBoundary(editor: Editor, clientY: number): number {
+  let result = editor.state.doc.childCount;
+  editor.state.doc.forEach((_node, offset, index) => {
+    let element: Node | null = null;
+    try { element = editor.view.nodeDOM(offset); } catch { /* Detached node view. */ }
+    if (typeof HTMLElement === "undefined" || !(element instanceof HTMLElement)) {
+      element = editor.view.dom?.children[index] ?? null;
+    }
+    if (typeof HTMLElement === "undefined" || !(element instanceof HTMLElement)) return;
+    const bounds = element.getBoundingClientRect();
+    if (result === editor.state.doc.childCount && clientY < bounds.top + bounds.height / 2) {
+      result = index;
+    }
+  });
+  return result;
+}
+
+/** A click uses the last caret position, not the end of the source file. */
+export function selectionBlockBoundary(editor: Editor): number {
+  const { $from } = editor.state.selection;
+  if ($from.depth === 0) return editor.state.doc.childCount;
+  return Math.min(editor.state.doc.childCount, $from.index(0) + 1);
+}
+
 /** Click inserts after the whole top-level block containing the selection. */
 export function selectionBlockEnd(editor: Editor): number {
   const selection = editor.state.selection.$from;
