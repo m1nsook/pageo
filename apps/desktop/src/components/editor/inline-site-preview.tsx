@@ -26,6 +26,18 @@ function selectedSourceBlock(article: Element | null, target: EventTarget | null
   const index = Array.from(article.children).indexOf(node);
   return index >= 0 ? { index, block: node } : null;
 }
+/** Capture only direct, simple blocks. Complex or transformed structures
+ * never use ordinal targeting and retain the existing conservative fallback.
+ */
+function plainRenderedOrder(article: Element): CanvasBlockSelection["renderedOrder"] {
+  const children = Array.from(article.children);
+  if (!children.length || children.length > 500 ||
+      !children.every(block => /^(h[1-6]|p|hr)$/.test(block.tagName.toLowerCase()))) return undefined;
+  return children.map(block => ({
+    tagName: block.tagName.toLowerCase(),
+    text: normalizeCanvasText(block.textContent ?? ""),
+  }));
+}
 function paintSelection(doc: Document, selected: CanvasBlockSelection | null): void {
   const article = doc.querySelector("article.docs");
   article?.querySelector(".paglora-studio-selected")?.classList.remove("paglora-studio-selected");
@@ -343,6 +355,7 @@ export function InlineSitePreview({
           pageId: page.id, index: source.index,
           tagName: source.block.tagName.toLowerCase(),
           text: normalizeCanvasText(source.block.textContent ?? ""),
+          renderedOrder: article ? plainRenderedOrder(article) : undefined,
         };
         onBlockSelect(selected);
         paintSelection(doc, selected);
@@ -380,6 +393,7 @@ export function InlineSitePreview({
         pageId: page.id, index: source.index,
         tagName: source.block.tagName.toLowerCase(),
         text: normalizeCanvasText(source.block.textContent ?? ""),
+        renderedOrder: article ? plainRenderedOrder(article) : undefined,
       };
       if (!beginInlineText(source.block as HTMLElement, selected)) onBlockEdit(selected);
     });

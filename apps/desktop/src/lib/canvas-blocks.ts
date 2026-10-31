@@ -1,10 +1,13 @@
 import type { Editor } from "@tiptap/react";
 
+/** Optional full rendered block order; only trusted after exact whole-page comparison. */
+export type SourceBlockFingerprint = { tagName: string; text: string };
 export type CanvasBlockSelection = {
   pageId: string;
   index: number;
   tagName: string;
   text: string;
+  renderedOrder?: SourceBlockFingerprint[];
 };
 
 const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
@@ -14,6 +17,37 @@ const types: Record<string, string[]> = {
   p: ["paragraph"], ul: ["bulletList"], ol: ["orderedList"],
   blockquote: ["blockquote"], pre: ["codeBlock"], hr: ["horizontalRule"],
 };
+
+/** Resolve duplicates only when EVERY top-level rendered block matches the
+ * source document in order, type and full text. Generated site-only elements,
+ * complex Markdown, a changed/unsaved document and stale preview frames all
+ * fail the check. The selected block index alone is never enough.
+ */
+function alignedSourcePosition(editor: Editor, selection: CanvasBlockSelection): number | null {
+  const order = selection.renderedOrder;
+  if (!order || !order.length || order.length > 500 ||
+      selection.index < 0 || selection.index >= order.length) return null;
+  const selected = order[selection.index];
+  if (selected.tagName !== selection.tagName || selected.text !== selection.text) return null;
+  const doc = editor.state.doc;
+  if (doc.childCount !== order.length) return null;
+  let position: number | null = null;
+  let exact = true;
+  doc.forEach((node, offset, index) => {
+    const expected = order[index];
+    const tagName = node.type.name === "paragraph" ? "p"
+      : node.type.name === "heading" && Number.isInteger(node.attrs.level) &&
+        node.attrs.level >= 1 && node.attrs.level <= 6 ? `h${node.attrs.level}`
+      : node.type.name === "horizontalRule" ? "hr" : null;
+    if (!tagName || !expected || expected.tagName !== tagName ||
+        expected.text !== normalize(node.textContent)) {
+      exact = false;
+      return;
+    }
+    if (index === selection.index) position = offset + 1;
+  });
+  return exact ? position : null;
+}
 
 /** Determine the Tiptap block represented by a sanitized, rendered site
  * element. We never blindly edit based on an element's array index: the
@@ -42,10 +76,13 @@ export function findCanvasSourcePosition(
     if (normalize(node.textContent) !== selection.text) return;
     candidates.push({ position: offset + 1, index });
   });
-  // Duplicate rendered headings/paragraphs are indistinguishable without
-  // stable per-block source IDs. Never target any of them automatically.
-  if (candidates.length !== 1) return null;
-  return candidates[0].position;
+  if (candidates.length === 1) return candidates[0].position;
+  if (candidates.length > 1) {
+    const aligned = alignedSourcePosition(editor, selection);
+    // The full-page proof must agree with an otherwise valid type/text match.
+    if (aligned !== null && candidates.some(candidate => candidate.position === aligned)) return aligned;
+  }
+  return null;
 }
 
 export function canvasBlockName(tagName: string): string {
