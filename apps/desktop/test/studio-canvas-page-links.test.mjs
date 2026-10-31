@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
+import ts from "typescript";
 // Runtime checks exercise the actual TypeScript resolver through Bun's native TS loader.
-const { resolveCanvasLink } = await import("../src/lib/site-preview-links.ts");
+const javascript = ts.transpileModule(readFileSync(new URL("../src/lib/site-preview-links.ts", import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+const { resolveCanvasLink } = await import("data:text/javascript;base64," + Buffer.from(javascript).toString("base64"));
 const publicIds = ["index", "intro", "foo-bar"];
 test("local public links and encoded anchors resolve", () => {
  assert.deepEqual(resolveCanvasLink("intro.html", publicIds), {kind:"page",pageId:"intro",fragment:""});
