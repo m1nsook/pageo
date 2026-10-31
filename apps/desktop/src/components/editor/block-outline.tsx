@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { ArrowDown, ArrowUp, GripVertical, ListTree } from "lucide-react";
+import { deleteBlock, duplicateBlock, moveBlock } from "@/lib/block-operations";
+import { ArrowDown, ArrowUp, Copy, GripVertical, ListTree, Redo2, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -25,18 +26,6 @@ function labelBlock(node: ProseMirrorNode): string {
     : "Text";
   const text = node.textContent.trim().replace(/\s+/g, " ").slice(0, 56);
   return text ? `${name} · ${text}` : name;
-}
-
-/** Reordering existing document blocks emits a real ProseMirror transaction.
- * The existing editor onUpdate handler then autosaves the new Markdown order.
- */
-function moveBlock(editor: Editor, from: number, to: number) {
-  const blocks: ProseMirrorNode[] = [];
-  editor.state.doc.forEach((node) => blocks.push(node));
-  if (from < 0 || from >= blocks.length || to < 0 || to >= blocks.length || from === to) return;
-  const [picked] = blocks.splice(from, 1);
-  blocks.splice(to, 0, picked);
-  editor.view.dispatch(editor.state.tr.replaceWith(0, editor.state.doc.content.size, blocks));
 }
 
 export function BlockOutline({ editor, disabled }: { editor: Editor | null; disabled: boolean }) {
@@ -102,19 +91,26 @@ export function BlockOutline({ editor, disabled }: { editor: Editor | null; disa
     const active = pointer.current;
     const destination = target.current;
     clearDrag();
-    if (editor && active?.active && destination !== null) moveBlock(editor, active.index, destination);
+    if (!disabled && editor && active?.active && destination !== null) moveBlock(editor, active.index, destination);
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <p className="px-4 py-3 text-xs leading-relaxed text-muted-foreground">Reorder content in this page. Drag the grip or use the arrow buttons. Every change autosaves.</p>
+      <p className="px-4 py-3 text-xs leading-relaxed text-muted-foreground">Select, reorder, duplicate or delete Markdown blocks. Drag the grip, use the buttons or press Alt+↑/↓ on a row. Undo restores changes; edits autosave.</p>
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-1 px-2 pb-4" onPointerMove={move} onPointerUp={end} onPointerCancel={clearDrag}>
           {!editor && <p className="p-3 text-xs text-muted-foreground">Loading editor...</p>}
           {rows.map(row => (
             <div
-              key={`${row.index}-${row.type}`}
+              key={row.index}
               data-outline-index={row.index}
+              onKeyDown={(event) => {
+                if (disabled || !editor || !event.altKey || event.ctrlKey || event.metaKey || event.nativeEvent.isComposing) return;
+                if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+                event.preventDefault();
+                event.stopPropagation();
+                moveBlock(editor, row.index, row.index + (event.key === "ArrowUp" ? -1 : 1));
+              }}
               className={cn(
                 "group flex min-w-0 items-center gap-1 rounded-lg p-1 transition-colors duration-150",
                 activeIndex === row.index ? "bg-accent" : "hover:bg-muted",
@@ -131,6 +127,7 @@ export function BlockOutline({ editor, disabled }: { editor: Editor | null; disa
               <button type="button" disabled={disabled}
                 className="min-w-0 flex-1 truncate rounded-md py-1 text-left text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 title={row.label}
+                aria-current={activeIndex === row.index ? "true" : undefined}
                 onClick={() => editor?.chain().focus().setTextSelection(Math.min(row.offset + 1, editor.state.doc.content.size)).run()}>
                 {row.label}
               </button>
@@ -142,11 +139,30 @@ export function BlockOutline({ editor, disabled }: { editor: Editor | null; disa
                 disabled={disabled || !editor || row.index === rows.length - 1} onClick={() => editor && moveBlock(editor, row.index, row.index + 1)}>
                 <ArrowDown />
               </Button>
+              <Button type="button" variant="ghost" size="icon-xs" aria-label={`Duplicate block ${row.index + 1}`}
+                title="Duplicate block" disabled={disabled || !editor}
+                onClick={() => editor && duplicateBlock(editor, row.index)}>
+                <Copy />
+              </Button>
+              <Button type="button" variant="ghost" size="icon-xs" aria-label={`Delete block ${row.index + 1}`}
+                title="Delete block (Undo to restore)" disabled={disabled || !editor}
+                onClick={() => editor && deleteBlock(editor, row.index)}>
+                <Trash2 />
+              </Button>
             </div>
           ))}
         </div>
       </ScrollArea>
-      <div className="flex items-center gap-2 border-t border-border px-3 py-2 text-[11px] text-muted-foreground"><ListTree className="size-3.5" /> {rows.length} blocks in this page</div>
+      <div className="flex items-center gap-1 border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
+        <ListTree className="size-3.5 shrink-0" />
+        <span className="mr-auto">{rows.length} blocks</span>
+        <Button type="button" variant="ghost" size="icon-xs" aria-label="Undo editor change"
+          title="Undo" disabled={disabled || !editor?.can().undo()}
+          onClick={() => editor?.chain().undo().run()}><Undo2 /></Button>
+        <Button type="button" variant="ghost" size="icon-xs" aria-label="Redo editor change"
+          title="Redo" disabled={disabled || !editor?.can().redo()}
+          onClick={() => editor?.chain().redo().run()}><Redo2 /></Button>
+      </div>
     </div>
   );
 }

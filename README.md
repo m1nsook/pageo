@@ -28,6 +28,7 @@ The version is synchronized across the workspace, Windows Tauri app, and Rust pa
 - **Markdown editing:** Tiptap rich-text editor with local autosave and multi-page management (create, rename, duplicate, reorder, and delete).
 - **Canvas-first workflow:** switch between **Edit**, **Split**, and **Canvas**; preview the actual site at desktop, tablet, and phone sizes with zoom and Fit.
 - **Source-aware editing:** select rendered blocks, edit simple unformatted headings/paragraphs, and use the full editor for rich Markdown. The canvas is not yet a freeform layout designer.
+- **Blocks outline:** in Edit mode, open **Visual editor → Blocks** to select, drag, move (Alt+↑/↓), duplicate, or delete complete Markdown blocks. Undo/Redo are available in the outline; all changes use the normal local autosave.
 - **Page organization:** collapsible navigation groups, page visibility, and Docs / Wide / Landing layouts.
 - **Site design:** customize header, navigation position, links, article width, accent, appearance, optional Google Fonts, and project-owned CSS via the Monaco editor.
 

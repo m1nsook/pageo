@@ -4,6 +4,9 @@ Paglora is in early development. Desktop milestone numbers are separate from the
 
 ## Unreleased — desktop source (after 0.2.0)
 
+### Studio visual editing
+- The Blocks outline now supports duplicating and deleting complete source-owned Markdown blocks, Alt+Up/Down reordering, explicit Undo/Redo, and caret-aware selection after changes. All actions use undoable ProseMirror transactions and existing autosave; no project schema changes.
+
 ### Documentation authoring
 - Added nested Markdown `[!TABS]` / `[!TAB]` content panels with Studio insertion, safe preview/export parity, script-free readable fallback, and keyboard-accessible published tabs (including RTL navigation).
 - Added Markdown `[!CODEGROUP]` fenced-code examples with Studio insertion, safe language labels, script-free stacked fallback, and progressively enhanced accessible tabs in published sites. No new project schema.
