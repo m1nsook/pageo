@@ -4,6 +4,7 @@ import { marked } from "marked";
 import { toast } from "sonner";
 import { BLOCKS, type BlockKind } from "@/components/editor/block-catalog";
 import { BLOCK_MARKDOWN_EXAMPLES } from "@/lib/block-examples";
+import { nextGalleryKind } from "@/lib/gallery-navigation";
 import { renderPageContent } from "@/lib/site";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -46,6 +47,8 @@ export function BlockComponentGallery({ disabled, onInsert }: {
   const [filter, setFilter] = useState("");
   const [rendered, setRendered] = useState("");
   const example = BLOCK_MARKDOWN_EXAMPLES[selected];
+  const choose = (kind: BlockKind) => { setSelected(kind); setMode("preview"); };
+  const insertSelected = () => { if (!disabled) { onInsert(selected); setOpen(false); } };
   const blocks = useMemo(() => BLOCKS.filter(item =>
     (item.title + " " + item.description).toLowerCase().includes(filter.toLowerCase().trim())), [filter]);
 
@@ -71,21 +74,26 @@ export function BlockComponentGallery({ disabled, onInsert }: {
       <DialogContent className="flex h-[min(84dvh,760px)] max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[min(96vw,980px)]">
         <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-12">
           <DialogTitle>Documentation component library</DialogTitle>
-          <DialogDescription>Explore reusable Paglora blocks with a safe rendered example and portable Markdown source.</DialogDescription>
+          <DialogDescription>Explore reusable Paglora blocks. Use ↑/↓, Home/End to browse, Enter to select, or Ctrl+Enter to insert.</DialogDescription>
         </DialogHeader>
         <div className="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(0,180px)_minmax(0,1fr)] sm:grid-cols-[240px_minmax(0,1fr)] sm:grid-rows-1">
           <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border-b border-border bg-muted/20 sm:border-b-0 sm:border-r">
             <div className="p-3">
               <input value={filter} onChange={event => setFilter(event.target.value)}
                 placeholder="Filter components…" aria-label="Filter documentation components"
+                onKeyDown={event => { if (event.key === "ArrowDown") { event.preventDefault(); const first = blocks[0]; if (first) choose(first.kind); const item = document.querySelector<HTMLButtonElement>('[data-gallery-kind="'+ (first?.kind ?? "") +'"]'); item?.focus(); } }}
                 className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
             </div>
             <ScrollArea className="min-h-0 flex-1">
               <div className="space-y-1 p-2 pt-0">
                 {blocks.map(({ kind, title, icon: Icon }) => (
-                  <Button type="button" key={kind} variant={selected === kind ? "secondary" : "ghost"}
+                  <Button type="button" key={kind} data-gallery-kind={kind} variant={selected === kind ? "secondary" : "ghost"}
                     className="w-full justify-start gap-2 text-left" aria-pressed={selected === kind}
-                    onClick={() => { setSelected(kind); setMode("preview"); }}>
+                    onClick={() => choose(kind)} onKeyDown={event => {
+                      const next = nextGalleryKind(blocks.map(block => block.kind), kind, event.key);
+                      if (next) { event.preventDefault(); choose(next); document.querySelector<HTMLButtonElement>('[data-gallery-kind="'+next+'"]')?.focus(); }
+                      else if (event.ctrlKey && event.key === "Enter") { event.preventDefault(); insertSelected(); }
+                    }}>
                     <Icon aria-hidden="true" className="size-4 shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{title}</span>
                     {selected === kind && <Check className="size-3.5 text-primary" />}
@@ -98,7 +106,7 @@ export function BlockComponentGallery({ disabled, onInsert }: {
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-border p-4">
               <div className="min-w-0 flex-1"><p className="truncate font-semibold">{item.title}</p><p className="text-xs leading-relaxed text-muted-foreground">{item.description}</p></div>
-              <Button size="sm" disabled={disabled} onClick={() => { onInsert(selected); setOpen(false); }}>
+              <Button size="sm" disabled={disabled} onClick={insertSelected}>
                 <Plus className="size-3.5" /> Insert
               </Button>
             </div>
