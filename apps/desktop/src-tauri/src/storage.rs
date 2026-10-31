@@ -177,6 +177,96 @@ pub fn migrate_project_storage(app: AppHandle, destination: String) -> Result<St
     Ok(target.to_string_lossy().into_owned())
 }
 
+
+/// Status inspection never activates a new workspace or recreates a missing
+/// custom storage root. The configured path remains the source of truth.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectStorageStatus {
+    configured_path: String,
+    available: bool,
+    is_custom: bool,
+    error: Option<String>,
+}
+fn status_at(data_dir: &Path) -> Result<ProjectStorageStatus, String> {
+    let prefs=data_dir.join(SETTINGS);
+    if prefs.exists() {
+        if !fs::symlink_metadata(&prefs).map_err(|e|e.to_string())?.file_type().is_file() {
+            return Err("Unsafe project storage configuration".into());
+        }
+        let config: StorageSettings=serde_json::from_str(&fs::read_to_string(&prefs).map_err(|e|e.to_string())?)
+            .map_err(|e|format!("Invalid storage preferences: {e}"))?;
+        if config.version!=1 || config.root.trim().is_empty() {
+            return Err("Unsupported project storage preferences".into());
+        }
+        let path=PathBuf::from(&config.root);
+        if !path.is_absolute() {return Err("Configured storage path is not absolute".into());}
+        let check=checked_existing_folder(&path);
+        return Ok(ProjectStorageStatus {
+            configured_path:config.root,available:check.is_ok(),is_custom:true,error:check.err()
+        });
+    }
+    let root=root_at(data_dir)?;
+    Ok(ProjectStorageStatus {
+        configured_path:root.to_string_lossy().into_owned(),available:true,is_custom:false,error:None
+    })
+}
+#[tauri::command]
+pub fn project_storage_status(app: AppHandle) -> Result<ProjectStorageStatus, String> {
+    let data=app.path().app_data_dir().map_err(|e|e.to_string())?;
+    status_at(&data)
+}
+
+/// Reconnect an EXISTING workspace after the configured custom drive became
+/// unavailable. Never create a new empty workspace, overwrite a healthy one,
+/// or accept files outside a real validated directory.
+fn reconnect_at(data_dir: &Path, requested: &Path, confirmation: &str) -> Result<PathBuf, String> {
+    if confirmation!="RECONNECT" {return Err("Type RECONNECT to confirm the workspace switch.".into());}
+    let status=status_at(data_dir)?;
+    if !status.is_custom || status.available {
+        return Err("Reconnection is only available when the configured custom workspace is offline.".into());
+    }
+    if !requested.is_absolute(){return Err("Enter an existing absolute directory path.".into());}
+    let resolved=checked_existing_folder(requested)?;
+    if resolved==PathBuf::from(&status.configured_path) {
+        return Err("This workspace path is still unavailable.".into());
+    }
+    validate_project_folders(&resolved)?;
+    let mut count=0;
+    let mut bytes=0;
+    safe_tree(&resolved,0,&mut count,&mut bytes)?;
+    if fs::read_dir(&resolved).map_err(|e|e.to_string())?.next().is_none() {
+        return Err("An empty folder is not an existing Paglora workspace. No changes made.".into());
+    }
+    let manifest=StorageSettings {version:1,root:resolved.to_string_lossy().into_owned()};
+    let contents=serde_json::to_vec_pretty(&manifest).map_err(|e|e.to_string())?;
+    let stamp=SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e|e.to_string())?.as_nanos();
+    let old=data_dir.join(SETTINGS);
+    let previous=data_dir.join(format!("project-storage.pre-reconnect-{stamp}.json"));
+    // Retain original absolute-path record for manual recovery of an offline drive.
+    fs::copy(&old,&previous).map_err(|e|format!("Could not preserve previous storage location: {e}"))?;
+    let tmp=data_dir.join(format!("project-storage.reconnect-{stamp}.tmp"));
+    let update=(|| -> Result<(),String> {
+        use std::io::Write;
+        let mut file=fs::OpenOptions::new().create_new(true).write(true).open(&tmp).map_err(|e|e.to_string())?;
+        file.write_all(&contents).map_err(|e|e.to_string())?;
+        file.sync_all().map_err(|e|e.to_string())?;
+        // On Windows, destination replacement must be checked; if it fails the
+        // previous configuration remains authoritative.
+        fs::rename(&tmp,&old).map_err(|e|format!("Could not activate reconnected storage: {e}"))
+    })();
+    if let Err(error)=update {
+        let _=fs::remove_file(&tmp);
+        return Err(format!("Reconnection failed; original path is unchanged: {error}"));
+    }
+    Ok(resolved)
+}
+#[tauri::command]
+pub fn reconnect_project_storage(app: AppHandle, destination: String, confirmation: String) -> Result<String,String> {
+    let data=app.path().app_data_dir().map_err(|e|e.to_string())?;
+    Ok(reconnect_at(&data,Path::new(destination.trim()),&confirmation)?.to_string_lossy().into_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,6 +316,42 @@ mod tests {
         assert!(!data.join("projects").exists());
         fs::remove_dir_all(tmp).unwrap();
     }
+
+    #[test]
+    fn missing_drive_requires_real_existing_workspace_and_exact_confirmation() {
+        let tmp=temporary("reconnect");
+        let data=tmp.join("data"); fs::create_dir(&data).unwrap();
+        let offline=tmp.join("missing-drive");
+        let prefs=StorageSettings {version:1,root:offline.to_string_lossy().into_owned()};
+        fs::write(data.join(SETTINGS),serde_json::to_vec(&prefs).unwrap()).unwrap();
+        let active=tmp.join("existing-projects");fs::create_dir(&active).unwrap();sample_project(&active);
+        assert!(!status_at(&data).unwrap().available);
+        assert!(reconnect_at(&data,&active,"").is_err());
+        assert!(reconnect_at(&data,&tmp.join("unknown"),"RECONNECT").is_err());
+        assert_eq!(status_at(&data).unwrap().configured_path,prefs.root);
+        assert_eq!(reconnect_at(&data,&active,"RECONNECT").unwrap(),fs::canonicalize(&active).unwrap());
+        assert_eq!(root_at(&data).unwrap(),fs::canonicalize(active).unwrap());
+        assert!(status_at(&data).unwrap().available);
+        assert!(reconnect_at(&data,&tmp.join("another"),"RECONNECT").is_err());
+        assert!(!data.join("projects").exists());
+        assert!(fs::read_dir(&data).unwrap().any(|e|e.unwrap().file_name().to_string_lossy().starts_with("project-storage.pre-reconnect-")));
+        fs::remove_dir_all(tmp).unwrap();
+    }
+    #[test]
+    fn recovery_rejects_empty_and_unsafe_workspaces_without_mutating_config() {
+        let tmp=temporary("recovery-guards");
+        let data=tmp.join("data");fs::create_dir(&data).unwrap();
+        let offline=tmp.join("offline");
+        let prefs=StorageSettings {version:1,root:offline.to_string_lossy().into_owned()};
+        fs::write(data.join(SETTINGS),serde_json::to_vec(&prefs).unwrap()).unwrap();
+        let candidate=tmp.join("candidate");fs::create_dir(&candidate).unwrap();
+        assert!(reconnect_at(&data,&candidate,"RECONNECT").is_err());
+        fs::create_dir(candidate.join("malicious!")).unwrap();
+        assert!(reconnect_at(&data,&candidate,"RECONNECT").is_err());
+        assert_eq!(status_at(&data).unwrap().configured_path,prefs.root);
+        fs::remove_dir_all(tmp).unwrap();
+    }
+
     #[test]
     fn symlinks_and_invalid_manifests_block_migration() {
         let tmp = temporary("invalid");
