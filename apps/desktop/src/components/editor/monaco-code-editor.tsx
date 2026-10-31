@@ -16,13 +16,14 @@ type SourceLanguage = "css" | "json" | "typescript" | "javascript" | "html" | "m
  * Monaco is imported on demand when a source file is actually opened.
  */
 export function MonacoCodeEditor({
-  value, onChange, onSave, language = "css", label = "Source code",
+  value, onChange, onSave, language = "css", label = "Source code", readOnly = false,
 }: {
   value: string;
   onChange: (next: string) => void;
   onSave?: () => void;
   language?: SourceLanguage;
   label?: string;
+  readOnly?: boolean;
 }) {
   const root = useRef<HTMLDivElement | null>(null);
   const editor = useRef<CodeEditorInstance | null>(null);
@@ -64,6 +65,7 @@ export function MonacoCodeEditor({
       model.current = nextModel;
       const instance = monaco.editor.create(root.current, {
         model: nextModel,
+        readOnly,
         theme: resolvedTheme === "dark" ? "vs-dark" : "vs",
         fontFamily: '"JetBrains Mono Variable", "Cascadia Code", Consolas, monospace',
         fontSize: 13,
@@ -93,7 +95,7 @@ export function MonacoCodeEditor({
     };
     // Opening a new file changes language and creates a separate Monaco model.
     // Value, theme and handlers are synchronized in the effects below.
-  }, [language, label]);
+  }, [language, label, readOnly]);
 
   useEffect(() => {
     const instance = editor.current;
@@ -121,11 +123,12 @@ export function MonacoCodeEditor({
           <textarea
             aria-label={label}
             spellCheck={false}
+            readOnly={readOnly}
             className="min-h-0 w-full flex-1 resize-none rounded-md border border-border bg-background p-3 font-mono text-sm text-foreground"
             value={value}
-            onChange={event => onChange(event.target.value)}
+            onChange={event => { if (!readOnly) onChange(event.target.value); }}
             onKeyDown={event => {
-              if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+              if (!readOnly && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
                 event.preventDefault();
                 event.stopPropagation();
                 onSaveRef.current?.();
