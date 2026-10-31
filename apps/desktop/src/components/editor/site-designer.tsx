@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useTranslation } from "@/i18n";
 import { ArrowRight, Eye, LayoutTemplate, LoaderCircle, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -13,26 +14,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { importSiteAsset, loadSiteSettings, previewPublicPage, saveSiteSettings, type SiteLink, type SiteSettings } from "@/lib/site";
 
 const SITE_LAYOUTS: { id: SiteSettings["siteLayout"]; name: string; detail: string }[] = [
-  { id: "classic", name: "Classic", detail: "Familiar edge-to-edge documentation" },
-  { id: "inset", name: "Inset", detail: "Floating header and framed content" },
-  { id: "reading", name: "Reading", detail: "Quiet layout with spacious typography" },
+  { id: "classic", name: "studio.design.layoutClassic", detail: "studio.design.layoutClassicDetail" },
+  { id: "inset", name: "studio.design.layoutInset", detail: "studio.design.layoutInsetDetail" },
+  { id: "reading", name: "studio.design.layoutReading", detail: "studio.design.layoutReadingDetail" },
 ];
 
 const CARD_LAYOUTS: { id: SiteSettings["cardLayout"]; name: string; detail: string }[] = [
-  { id: "stacked", name: "Stacked", detail: "One card per row; preserves existing sites" },
-  { id: "grid", name: "Responsive grid", detail: "Neighboring cards share balanced columns" },
+  { id: "stacked", name: "studio.design.cardStacked", detail: "studio.design.cardStackedDetail" },
+  { id: "grid", name: "studio.design.cardGrid", detail: "studio.design.cardGridDetail" },
 ];
 
 const SITE_PALETTES: {
   id: SiteSettings["sitePalette"]; name: string; light: string; dark: string;
 }[] = [
-  { id: "original", name: "Original", light: "#ffffff", dark: "#11151d" },
-  { id: "graphite", name: "Graphite", light: "#ffffff", dark: "#101114" },
-  { id: "lavender", name: "Lavender", light: "#fdfcff", dark: "#17121e" },
-  { id: "linen", name: "Linen", light: "#fffdf9", dark: "#1c1915" },
+  { id: "original", name: "studio.design.paletteOriginal", light: "#ffffff", dark: "#11151d" },
+  { id: "graphite", name: "studio.design.paletteGraphite", light: "#ffffff", dark: "#101114" },
+  { id: "lavender", name: "studio.design.paletteLavender", light: "#fdfcff", dark: "#17121e" },
+  { id: "linen", name: "studio.design.paletteLinen", light: "#fffdf9", dark: "#1c1915" },
 ];
 
 function LinkEditor({ label, links, onChange }: { label: string; links: SiteLink[]; onChange: (next: SiteLink[]) => void }) {
+  const { t } = useTranslation();
   function update(index: number, key: keyof SiteLink, value: string) {
     onChange(links.map((link, i) => i === index ? { ...link, [key]: value } : link));
   }
@@ -53,6 +55,7 @@ function LinkEditor({ label, links, onChange }: { label: string; links: SiteLink
 }
 
 export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string; onBeforePreview: () => Promise<void> }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [preview, setPreview] = useState("");
