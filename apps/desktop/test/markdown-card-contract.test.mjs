@@ -13,7 +13,7 @@ test("card insertion uses a Markdown-round-trippable blockquote, not a custom pr
 });
 
 test("cards are enhanced only after HTML sanitization for preview and export", () => {
-  assert.match(site, /container\.innerHTML = renderSafeMarkdown\(markdownHtml\);\s*enhanceCallouts\(container\)/);
+  assert.match(site, /container\.innerHTML = renderSafeMarkdown\(markdownHtml\);\s*enhanceCallouts\(container, language\)/);
   assert.match(site, /WARNING\|CAUTION\|CARD/);
   assert.match(site, /if \(type === "CARD"\) \{/);
   assert.match(site, /heading\.textContent = text\.slice\(match\[0\]\.length\)\.trim\(\) \|\| "Card"/);
