@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Check, FileCode2, FilePenLine, LayoutTemplate, LockKeyhole, MousePointer2, PanelRight, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -69,8 +70,8 @@ export function PageInspector({
                   <MousePointer2 className="size-4 text-primary" />
                   {canvasBlockName(selectedBlock.tagName)}
                 </div>
-                <Button size="icon-xs" variant="ghost" aria-label="Clear block selection" title="Clear selection"
-                  onClick={onClearBlock}><X className="size-3.5" /></Button>
+                <StudioTooltip label="Clear selection"><Button size="icon-xs" variant="ghost" aria-label="Clear block selection"
+                  onClick={onClearBlock}><X className="size-3.5" /></Button></StudioTooltip>
               </div>
               <p className="line-clamp-4 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                 {selectedBlock.text || "Empty block"}
@@ -121,10 +122,10 @@ export function PageInspector({
               disabled={busy}
               onChange={event => setTitle(event.target.value)}
             />
-            <Button type="submit" size="icon" variant="outline" title="Save page title" aria-label="Save page title"
+            <StudioTooltip label="Save page title"><Button type="submit" size="icon" variant="outline" aria-label="Save page title"
               disabled={busy || !dirty || !trimmed}>
               <Save className="size-4" />
-            </Button>
+            </Button></StudioTooltip>
           </form>
           <p className="break-all font-mono text-[11px] text-muted-foreground">
             docs/{page.id}.md

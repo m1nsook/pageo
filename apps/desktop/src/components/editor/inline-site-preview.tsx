@@ -4,6 +4,7 @@ import {
   Plus, RefreshCw, Smartphone, Tablet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import type { Page } from "@/lib/pages";
 import { normalizeCanvasText, type CanvasBlockSelection } from "@/lib/canvas-blocks";
 import { previewPublicPage } from "@/lib/site";
@@ -326,30 +327,39 @@ export function InlineSitePreview({
           {(["desktop", "tablet", "phone"] as const).map(option => {
             const Icon = option === "desktop" ? Monitor : option === "tablet" ? Tablet : Smartphone;
             return (
-              <Button key={option} variant={device === option ? "secondary" : "ghost"} size="icon-xs"
-                title={`${deviceNames[option]} · ${deviceWidths[option]} px`}
-                aria-label={`${deviceNames[option]} canvas · ${deviceWidths[option]} pixels`}
-                aria-pressed={device === option}
-                onClick={() => { setDevice(option); setFit(true); }}>
-                <Icon className="size-3.5" />
-              </Button>
+              <StudioTooltip key={option} label={`${deviceNames[option]} · ${deviceWidths[option]} px`}>
+                <Button variant={device === option ? "secondary" : "ghost"} size="icon-xs"
+                  aria-label={`${deviceNames[option]} canvas · ${deviceWidths[option]} pixels`}
+                  aria-pressed={device === option}
+                  onClick={() => { setDevice(option); setFit(true); }}>
+                  <Icon className="size-3.5" />
+                </Button>
+              </StudioTooltip>
             );
           })}
         </div>
         <div role="group" aria-label="Canvas zoom" className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
-          <Button variant="ghost" size="icon-xs" title="Zoom out" aria-label="Zoom out"
-            disabled={percentage <= 25} onClick={() => changeZoom(-10)}><Minus className="size-3.5" /></Button>
+          <StudioTooltip label="Zoom out">
+            <Button variant="ghost" size="icon-xs" aria-label="Zoom out"
+              disabled={percentage <= 25} onClick={() => changeZoom(-10)}><Minus className="size-3.5" /></Button>
+          </StudioTooltip>
           <span aria-live="polite" className="min-w-10 text-center font-mono text-[11px] tabular-nums">{percentage}%</span>
-          <Button variant="ghost" size="icon-xs" title="Zoom in" aria-label="Zoom in"
-            disabled={percentage >= 200} onClick={() => changeZoom(10)}><Plus className="size-3.5" /></Button>
-          <Button variant={fit ? "secondary" : "ghost"} size="icon-xs"
-            title="Fit canvas to window" aria-label="Fit canvas to window" aria-pressed={fit}
-            onClick={() => setFit(true)}><Maximize2 className="size-3.5" /></Button>
+          <StudioTooltip label="Zoom in">
+            <Button variant="ghost" size="icon-xs" aria-label="Zoom in"
+              disabled={percentage >= 200} onClick={() => changeZoom(10)}><Plus className="size-3.5" /></Button>
+          </StudioTooltip>
+          <StudioTooltip label="Fit canvas to window">
+            <Button variant={fit ? "secondary" : "ghost"} size="icon-xs"
+              aria-label="Fit canvas to window" aria-pressed={fit}
+              onClick={() => setFit(true)}><Maximize2 className="size-3.5" /></Button>
+          </StudioTooltip>
         </div>
-        <Button variant="ghost" size="icon-xs" onClick={() => void refresh()} disabled={busy}
-          title="Save and refresh site" aria-label="Save and refresh site preview">
-          <RefreshCw className="size-3.5" />
-        </Button>
+        <StudioTooltip label="Save and refresh site">
+          <Button variant="ghost" size="icon-xs" onClick={() => void refresh()} disabled={busy}
+            aria-label="Save and refresh site preview">
+            <RefreshCw className="size-3.5" />
+          </Button>
+        </StudioTooltip>
       </div>
       {!page.isPublic && (
         <p className="shrink-0 border-b border-border bg-amber-500/10 px-4 py-2 text-xs text-muted-foreground">
