@@ -1,4 +1,10 @@
 export const PAGLORA_PROJECT_FORMAT_VERSION = 1 as const;
+export type ProjectVisual = {
+  category: string;
+  accent: "blue" | "violet" | "cyan" | "green" | "amber" | "rose";
+  icon: "book" | "code" | "package" | "rocket" | "globe" | "folder";
+};
+
 export type ProjectSummary = {
   id: string;
   name: string;
