@@ -17,5 +17,5 @@ test("Gallery remains a non-modal portal and closes only after successful drop",
   assert.match(gallery, /<DialogContent showOverlay=\{false\}/);
   assert.match(gallery, /paglora:component-library-dropped/);
   assert.match(palette, /new Event\("paglora:component-library-dropped"\)/);
-  assert.match(gallery, /if \(onInsert\(selected\)\) setOpen\(false\)/);
+  assert.match(gallery, /if \(!disabled && onInsert\(selected\)\) setOpen\(false\)/);
 });
