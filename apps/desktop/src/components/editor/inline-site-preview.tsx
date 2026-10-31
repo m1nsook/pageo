@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { StudioTooltip } from "@/components/studio/studio-tooltip";
 import type { Page } from "@/lib/pages";
 import { normalizeCanvasText, type CanvasBlockSelection } from "@/lib/canvas-blocks";
-import { previewPublicPage } from "@/lib/site";
+import { loadSiteSettings, previewPublicPage, type SiteSettings } from "@/lib/site";
 import { resolveCanvasLink } from "@/lib/site-preview-links";
 
 type Device = "desktop" | "tablet" | "phone";
@@ -69,6 +69,7 @@ export function InlineSitePreview({
   const previewRequest = useRef(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [siteThemeMode, setSiteThemeMode] = useState<SiteSettings["themeMode"] | null>(null);
   const [reload, setReload] = useState(0);
   const [device, setDevice] = useState<Device>("desktop");
   const [fit, setFit] = useState(true);
@@ -134,6 +135,10 @@ export function InlineSitePreview({
     pendingFrame.current = null;
     setBusy(true);
     setError("");
+    setSiteThemeMode(null);
+    void loadSiteSettings(projectId).then(settings => {
+      if (active && revision === previewRequest.current) setSiteThemeMode(settings.themeMode);
+    }).catch(() => undefined);
     void previewPublicPage(projectId, previewPageId)
       .then(result => {
         if (!active || revision !== previewRequest.current) return;
@@ -358,6 +363,9 @@ export function InlineSitePreview({
         <div className="mr-auto flex min-w-0 items-center gap-2">
           <Globe2 className="size-4 shrink-0 text-muted-foreground" />
           <span className="truncate text-xs font-semibold">Website canvas</span>
+          <span className="hidden text-[11px] text-muted-foreground sm:inline" data-canvas-site-theme>
+            · Site {siteThemeMode ?? "loading"} · Studio appearance is separate
+          </span>
           {busy && <LoaderCircle className="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-label="Rendering preview" />}
         </div>
         <div role="group" aria-label="Canvas device width" className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
@@ -410,11 +418,10 @@ export function InlineSitePreview({
         ref={viewportRef}
         tabIndex={0}
         aria-label="Website design canvas viewport"
-        className="min-h-0 flex-1 overflow-auto bg-muted/40 p-6 focus-visible:outline-2 focus-visible:outline-ring"
-        style={{ backgroundImage: "radial-gradient(circle, var(--border) 1px, transparent 1px)", backgroundSize: "22px 22px" }}
+        className="paglora-preview-stage min-h-0 flex-1 overflow-auto p-6 focus-visible:outline-2 focus-visible:outline-ring"
       >
         {frames.some(frame => frame.html) ? (
-          <div data-canvas-artboard className="relative mx-auto shrink-0" style={{ width: frameWidth * scale, height: frameHeight * scale }}>
+          <div data-canvas-artboard className="paglora-preview-artboard relative mx-auto shrink-0" style={{ width: frameWidth * scale, height: frameHeight * scale }}>
             {frames.map((frame, index) => frame.html ? (
               <iframe
                 key={`${index}-${frame.revision}`}
@@ -431,7 +438,7 @@ export function InlineSitePreview({
                   opacity: visibleSlot === index ? 1 : 0,
                   pointerEvents: visibleSlot === index && !busy ? "auto" : "none",
                 }}
-                className="absolute left-0 top-0 block rounded-md border border-border bg-white shadow-xl"
+                className="paglora-preview-frame absolute left-0 top-0 block rounded-md border bg-white"
               />
             ) : null)}
             {busy && !frames[visibleSlot].html && <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -443,7 +450,7 @@ export function InlineSitePreview({
         </div>}
       </div>
       <p className="shrink-0 border-t border-border bg-card px-4 py-2 text-[11px] text-muted-foreground">
-        {deviceNames[device]} · {frameWidth} px · Wheel on canvas or Ctrl+wheel over page to zoom · Ctrl+plus/minus to zoom, Ctrl+0 to fit · Double-click plain text to edit · Esc to cancel
+        {deviceNames[device]} · {frameWidth} px · Published site colors are not modified · Wheel or Ctrl+wheel to zoom · Ctrl+0 to fit · Double-click plain text to edit · Esc to cancel
       </p>
     </section>
   );

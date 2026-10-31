@@ -384,19 +384,20 @@ export function SiteDesigner({ projectId, onBeforePreview }: { projectId: string
             </div>
           </form>}
         </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-muted/60">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
           <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-3 py-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground"><Eye className="size-4" /> {t("studio.design.liveWebsite")}</div>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground"><Eye className="size-4" /> {t("studio.design.liveWebsite")}
+              <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px]">Site: {settings?.themeMode ?? "loading"}</span></div>
             <div className="flex gap-1">
               <Button type="button" aria-pressed={width === "desktop"} variant={width === "desktop" ? "secondary" : "ghost"} size="sm" onClick={() => setWidth("desktop")}>{t("studio.design.desktop")}</Button>
               <Button type="button" aria-pressed={width === "tablet"} variant={width === "tablet" ? "secondary" : "ghost"} size="sm" onClick={() => setWidth("tablet")}>{t("studio.design.tablet")}</Button>
               <Button type="button" aria-pressed={width === "mobile"} variant={width === "mobile" ? "secondary" : "ghost"} size="sm" onClick={() => setWidth("mobile")}>{t("studio.design.mobile")}</Button>
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 justify-center overflow-auto p-3">
+          <div className="paglora-preview-stage flex min-h-0 flex-1 justify-center overflow-auto p-3 sm:p-6">
             {preview ? <iframe title={t("studio.design.previewTitle")} sandbox="allow-same-origin" srcDoc={preview}
               style={{ width: width === "desktop" ? "100%" : width === "tablet" ? "min(100%,768px)" : "min(100%,390px)" }}
-              className="h-full min-h-72 rounded-md border border-border bg-white shadow-md transition-[width] duration-200 motion-reduce:transition-none"/> :
+              className="paglora-preview-frame h-full min-h-72 rounded-md border bg-white transition-[width] duration-200 motion-reduce:transition-none"/> :
               <p className="flex items-center gap-2 self-center text-xs text-muted-foreground"><LoaderCircle className="size-4 animate-spin"/> {t("studio.design.rendering")}</p>}
           </div>
           <p className="flex shrink-0 items-center gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground"><ArrowRight className="size-3.5"/> {t("studio.design.rendererHelp")}</p>
