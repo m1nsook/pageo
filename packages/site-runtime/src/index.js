@@ -32,7 +32,7 @@
   const codePreferenceKey = "paglora:code-language:" + siteRoot;
   const codeGroups = [];
   function codeLabel(value) {
-    if (typeof value !== "string") return null;
+    if (typeof value !== "string" || value.length > 100) return null;
     const normalized = value.trim().normalize("NFKC").toLocaleLowerCase();
     return normalized && normalized.length <= 80 && !/[\u0000-\u001f\u007f]/u.test(normalized)
       ? normalized : null;
@@ -238,6 +238,9 @@
     }
     container.before(tablist);
     codeGroups.push({ activateLabel });
+    // Always establish a valid initial tab before applying a saved preference.
+    // A different page may not offer the preferred language at all.
+    activate(0);
     activateLabel(preferredCodeLabel);
     group.classList.add("paglora-code-group-enhanced");
   }
