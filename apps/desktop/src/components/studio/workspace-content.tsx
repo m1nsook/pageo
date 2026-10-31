@@ -40,8 +40,8 @@ function ProjectCard({ project, onOpen, onExportBackup }: { project: ProjectSumm
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-    <Card className="group gap-0 py-0 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-lg">
-      <button className="flex h-full min-h-48 flex-col rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
+    <Card className="group gap-0 py-0 transition-[box-shadow,ring-color] duration-150 hover:ring-primary/40 hover:shadow-md">
+      <button className="flex h-full min-h-48 flex-col rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
         <CardHeader className="w-full pt-5">
           <div className="flex items-center justify-between">
             <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><BookOpen className="size-5" /></span>
@@ -89,7 +89,7 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl animate-in fade-in-0 px-5 py-8 duration-200 lg:px-10 lg:py-10">
           {view === "home" && (
-            <Card className="relative mb-9 overflow-hidden border-0 bg-gradient-to-br from-muted via-card to-card py-0 ring-1 ring-border">
+            <Card className="relative mb-9 overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/40 py-0 ring-1 ring-border">
               <CardContent className="relative min-h-56 px-7 py-8 sm:px-9">
                 <div className="relative z-10 max-w-xl">
                   <Badge variant="outline" className="mb-5 gap-1.5 bg-background/80"><Sparkles className="size-3.5" /> Your documentation studio</Badge>
@@ -97,7 +97,7 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
                   <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">Write, organize, and design documentation locally. Your files always belong to you.</p>
                   <Button className="mt-6" onClick={openCreate}><Plus /> New project</Button>
                 </div>
-                <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-40 size-96 rounded-full border-[54px] border-primary/5" />
+                <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-primary/5 to-transparent" />
               </CardContent>
             </Card>
           )}
