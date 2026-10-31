@@ -87,8 +87,10 @@ CLI checks and package preview from the repository root:
 ```powershell
 cd packages/cli
 bun run test
-npm pack --dry-run
+npm.cmd pack --dry-run
 ```
+
+On Windows, use `npm.cmd` when PowerShell blocks `npm.ps1` under the system's execution policy. This does not require changing security settings. On macOS/Linux use `npm` instead.
 
 ## Build and publish a website
 
@@ -117,7 +119,7 @@ The site can be read without JavaScript, but search, appearance switching, code 
 
 ## Release readiness
 
-The npm package is still **`0.0.1-alpha.2`** on the alpha channel; the repository may contain newer unreleased CLI changes. Merging a PR or passing CI **does not publish** a new npm package. Before the next prerelease, confirm the required Ubuntu/Windows frontend and Windows Rust checks are green, test the packed CLI on both platforms, and manually verify Windows Studio behavior and a generated website. An authenticated maintainer must choose the next version and publish it to npm; this repository does not auto-publish or store npm credentials.
+**Published npm CLI:** [`paglora@0.0.1-alpha.3`](https://www.npmjs.com/package/paglora?activeTab=versions) is available under the `alpha` dist-tag (confirmed October 31, 2026). Install it with `bun add --global paglora@alpha` or run `bunx --bun paglora@alpha --help`. The npm `latest` tag is intentionally separate and currently points to the original `0.0.1-alpha.0` preview; use `@alpha` for the newer CLI. This release includes stricter argument validation, Unicode-safe project labels, public Overview enforcement, and package checks on Windows and Ubuntu. **Static site builds still require Paglora Desktop**; the CLI does not create websites. Automated tests passed, but Windows Studio and exported site interactions still require hands-on smoke testing. Future prereleases require a new package version and authenticated npm publication; CI does not automatically publish.
 
 ## Local project format
 
