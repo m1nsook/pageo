@@ -24,6 +24,8 @@ import type { WorkspaceView } from "@/components/studio/workspace-sidebar";
 import { ThemeSwitcher } from "@/components/studio/theme-switcher";
 import { LANGUAGES, useTranslation } from "@/i18n";
 import { STUDIO_VERSION } from "@/lib/release-notes";
+import { openDocumentation } from "@/lib/external-links";
+import { toast } from "sonner";
 import type { StudioUpdaterControls } from "@/components/studio/studio-updater";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -313,9 +315,9 @@ export function Settings({ location, desktop, updater, onOpenReleaseNotes, short
                 <CardDescription>Paglora Studio v{STUDIO_VERSION} · local-first documentation builder</CardDescription></CardHeader>
               <CardContent className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={onOpenReleaseNotes}>{t("studio.release.open")}</Button>
-                <Button variant="outline" size="sm" asChild>
-                  <a href="https://m1nsook.github.io/paglora-docs/" target="_blank" rel="noopener noreferrer"><ExternalLink className="size-3.5" /> Documentation</a>
-                </Button>
+                <Button variant="outline" size="sm" onClick={() => void openDocumentation().catch(error => toast.error("Could not open documentation", { description: String(error) }))}>
+                    <ExternalLink className="size-3.5" /> Documentation
+                  </Button>
               </CardContent>
             </Card>
           </div>
