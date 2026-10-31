@@ -7,8 +7,10 @@ test("local search enforces bounded reads, safe regular files and results", () =
   const rust = read("src-tauri/src/pages.rs");
   assert.match(rust, /pub fn search_project_pages\(/);
   assert.match(rust, /search_pages_at\(&folder\(&app, &project_id\)\?, &query\)/);
-  assert.match(rust, /meta\.file_type\(\)\.is_file\(\)/);
-  assert.match(rust, /scanned_bytes\.saturating_add\(meta\.len\(\)\) <= 20_000_000/);
+  assert.match(rust, /meta\.is_file\(\)/);
+  assert.match(rust, /fs::symlink_metadata\(path\)/);
+  assert.match(rust, /used_bytes\.saturating_add\(meta\.bytes\)<=20_000_000/);
+  assert.match(rust, /source_stamps\(dir,&manifest\)/);
   assert.match(rust, /take\(40\)/);
   assert.match(rust, /fn full_text_search_matches_private_local_markdown_without_exposing_filesystem_paths\(/);
 });
@@ -19,7 +21,8 @@ test("finder debounces content search and keeps native project quick finder sepa
   assert.match(finder, /180\)/);
   assert.match(finder, /if \(active\) setHits\(result\)/);
   assert.match(finder, /projectId \? "Search pages and content/);
-  assert.match(finder, /match\.isPublic \? "" : "Private/);
+  assert.match(finder, /hit\.isPublic \? "" : "Private/);
+  assert.match(finder, /return hits\.flatMap\(hit =>/);
   const app = read("src/App.tsx");
   assert.match(app, /projectId=\{document\.project\.id\} shortcut=\{findShortcut\}/);
   assert.match(read("src-tauri/src/lib.rs"), /pages::search_project_pages/);
