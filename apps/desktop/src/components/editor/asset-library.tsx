@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, Image as ImageIcon, ImagePlus, LoaderCircle, Upload } from "lucide-react";
+import { Check, Copy, Image as ImageIcon, ImagePlus, LoaderCircle, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { defaultImageAlt, imageMarkdown } from "@/lib/image-markdown";
 import { filterSiteAssets, IMAGE_GALLERY_PAGE_SIZE, INLINE_THUMBNAIL_LIMIT } from "@/lib/asset-gallery";
 import { importSiteAsset, listSiteAssets, previewSiteAsset, type SiteAsset } from "@/lib/site";
@@ -31,7 +32,7 @@ function AssetTile({ asset, projectId, selected, onChoose }: {
       {thumbnail ? <img src={thumbnail} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
         : <ImageIcon className="size-6 text-muted-foreground" aria-hidden="true" />}
     </span>
-    <span className="block truncate font-medium" title={asset.url.slice(7)}>{asset.url.slice(7)}</span>
+    <span className="block truncate font-medium">{asset.url.slice(7)}</span>
     <span className="text-muted-foreground">{Math.ceil(asset.bytes / 1024)} KiB · {asset.mime.slice(6).toUpperCase()}</span>
   </button>;
 }
@@ -118,16 +119,22 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
   const visibleAssets = matchingAssets.slice(0, visibleLimit);
 
   return (
-    <Dialog open={open} onOpenChange={value => { if (!uploading) setOpen(value); }}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm" title="Browse local images"><ImagePlus /> Images</Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Local images</DialogTitle>
-          <DialogDescription>Images stay inside this project. Only images referenced by public pages or the site logo are exported.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
+    <Drawer direction="right" open={open} onOpenChange={value => { if (!uploading) setOpen(value); }}>
+      <DrawerTrigger asChild>
+        <Button type="button" variant="outline" size="sm" aria-label="Browse project media"><ImagePlus /> Images</Button>
+      </DrawerTrigger>
+      <DrawerContent className="h-dvh w-[min(96vw,900px)] max-w-[96vw] overflow-hidden sm:max-w-[min(95vw,900px)]">
+        <DrawerHeader className="shrink-0 border-b border-border px-5 py-4 pr-14">
+          <div className="flex items-center gap-2">
+            <DrawerTitle>Project media</DrawerTitle>
+            <Badge variant="secondary">{assets.length} images</Badge>
+          </div>
+          <DrawerDescription>Browse and reuse images stored locally with this project. Only images referenced by public content or the logo are exported.</DrawerDescription>
+        </DrawerHeader>
+        <DrawerClose asChild>
+          <Button variant="ghost" size="icon-sm" className="absolute right-4 top-4 z-10" aria-label="Close media manager"><X className="size-4" /></Button>
+        </DrawerClose>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
           <div className="space-y-2">
             <Label htmlFor="paglora-image-upload">Import PNG, JPEG, WebP or GIF (up to 5 MiB)</Label>
             <Input id="paglora-image-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
@@ -148,7 +155,7 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
               Showing {visibleAssets.length} of {matchingAssets.length} matching images
             </p>
             {matchingAssets.length === 0 && <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">No images match this filename.</p>}
-            <div role="group" aria-label="Project images" className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
+            <div role="group" aria-label="Project images" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
               {visibleAssets.map(asset => <AssetTile key={asset.url} asset={asset} projectId={projectId}
                 selected={selected === asset.url} onChoose={() => choose(asset.url)} />)}
             </div>
@@ -157,9 +164,9 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
               Show more images ({matchingAssets.length - visibleLimit} remaining)
             </Button>}
           </div>}
-          {selected && <section aria-label="Selected image" className="space-y-3 border-t pt-4">
+          {selected && <section aria-label="Selected image" className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
             <div className="flex min-h-32 items-center justify-center rounded-md bg-muted/50 p-3">
-              {preview ? <img src={preview} alt={alt || "Selected image"} className="max-h-52 max-w-full object-contain" /> : previewLoading ? <LoaderCircle className="size-4 animate-spin" aria-label="Loading image preview" /> : <p className="text-sm text-muted-foreground">Preview unavailable.</p>}
+              {preview ? <img src={preview} alt={alt || "Selected image"} className="max-h-72 max-w-full object-contain" /> : previewLoading ? <LoaderCircle className="size-4 animate-spin" aria-label="Loading image preview" /> : <p className="text-sm text-muted-foreground">Preview unavailable.</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="paglora-image-alt">Alternative text</Label>
@@ -177,7 +184,7 @@ export function AssetLibrary({ projectId, canInsert, onInsertImage }: {
             {!canInsert && <p className="text-xs text-muted-foreground">Switch to Edit or Split view to insert at the cursor. Copy Markdown is always available.</p>}
           </section>}
         </div>
-      </DialogContent>
-    </Dialog>
+      </DrawerContent>
+    </Drawer>
   );
 }
