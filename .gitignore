@@ -14,12 +14,28 @@ coverage/
 **/src-tauri/gen/schemas/
 **/target/
 
-# Local secrets and environment
+# Local secrets, credentials, and signing keys (never commit these)
 .env
 .env.*
 !.env.example
-*.pem
+# Tauri signing keys (.key + .key.pub) and other exported public/private keys
 *.key
+*.pub
+*.pem
+*.p8
+*.p12
+*.pfx
+*.p7b
+*.jks
+*.keystore
+*.asc
+*.gpg
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+# Portable project backups can contain private Markdown pages and assets
+*.paglora
 
 # Editors and operating systems
 .vscode/*
