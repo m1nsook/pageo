@@ -65,7 +65,7 @@ fn read_style(path: &Path) -> Result<Option<String>, String> {
     if text.as_bytes().contains(&0){return Err("NUL bytes are not allowed in CSS".into());}
     Ok(Some(text))
 }
-fn style_order(dir: &Path)->Result<Vec<String>,String>{
+pub(crate) fn style_order(dir: &Path)->Result<Vec<String>,String>{
     let path=dir.join(ORDER_MANIFEST);
     if !path.exists(){return Ok(Vec::new())}
     if !fs::symlink_metadata(&path).map_err(|e|e.to_string())?.file_type().is_file(){
@@ -119,6 +119,31 @@ fn write_style_order(dir:&Path, files:&[String])->Result<(),String>{
     })();
     if write.is_err(){let _=fs::remove_file(tmp);}
     write
+}
+/// Return every active portable theme file for project backup, in the same
+/// validated order consumed by preview and static export. The manifest itself
+/// must be archived so that restored styles retain their precedence.
+pub(crate) fn portable_theme_files(project: &Path) -> Result<Vec<String>, String> {
+    let dir=check_theme_dir(project)?;
+    let extras=style_order(&dir)?;
+    let mut files=Vec::new();
+    if dir.join(ORDER_MANIFEST).exists() {
+        files.push(format!("theme/{ORDER_MANIFEST}"));
+    }
+    for name in extras { files.push(format!("theme/{name}")); }
+    // Fail rather than silently omitting an authored CSS file from a backup.
+    // Transient .tmp/.previous files are deliberately not source files.
+    if dir.exists() {
+        for entry in fs::read_dir(&dir).map_err(|e|e.to_string())? {
+            let entry=entry.map_err(|e|e.to_string())?;
+            let name=entry.file_name().to_string_lossy().into_owned();
+            if name.ends_with(".css") && name!="custom.css" &&
+                !files.iter().any(|path|path==&format!("theme/{name}")) {
+                return Err(format!("Unregistered CSS file in theme/: {name}. Add it to the theme order before backup."));
+            }
+        }
+    }
+    Ok(files)
 }
 pub fn site_css(project: &Path)->Result<Option<String>,String>{
     let dir=check_theme_dir(project)?;
