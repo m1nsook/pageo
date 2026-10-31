@@ -58,7 +58,14 @@ export function InlineSitePreview({
   canInlineTextEdit: (selected: CanvasBlockSelection) => boolean;
   onApplyInlineText: (selected: CanvasBlockSelection, text: string) => boolean;
 }) {
-  const [html, setHtml] = useState("");
+  // Two persistent frames: render the next srcDoc behind the visible frame and
+  // swap only after its load event. Editing must never blank the current canvas.
+  type FrameSnapshot = { revision: number; html: string };
+  const [frames, setFrames] = useState<[FrameSnapshot, FrameSnapshot]>([{ revision: 0, html: "" }, { revision: 0, html: "" }]);
+  const [visibleSlot, setVisibleSlot] = useState<0 | 1>(0);
+  const visibleSlotRef = useRef<0 | 1>(0);
+  const pendingFrame = useRef<{ revision: number; slot: 0 | 1 } | null>(null);
+  const previewRequest = useRef(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
@@ -81,7 +88,7 @@ export function InlineSitePreview({
   const [space, setSpace] = useState({ width: 1000, height: 700 });
   const previewPageId = page.isPublic ? page.id : "index";
   const previewIdentity = JSON.stringify([projectId, previewPageId]);
-  const lastPreviewIdentity = useRef("");
+
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -122,19 +129,27 @@ export function InlineSitePreview({
 
   useEffect(() => {
     let active = true;
-    // Do not display the previous project/page in the design canvas while
-    // the new script-disabled preview is still being generated. Ordinary
-    // same-page saves retain their current preview until the refresh lands.
-    if (lastPreviewIdentity.current !== previewIdentity) {
-      lastPreviewIdentity.current = previewIdentity;
-      setHtml("");
-    }
+    const revision = ++previewRequest.current;
+    pendingFrame.current = null;
     setBusy(true);
     setError("");
     void previewPublicPage(projectId, previewPageId)
-      .then(result => { if (active) setHtml(result); })
-      .catch(cause => { if (active) { setError(describeError(cause)); setHtml(""); } })
-      .finally(() => { if (active) setBusy(false); });
+      .then(result => {
+        if (!active || revision !== previewRequest.current) return;
+        const slot: 0 | 1 = visibleSlotRef.current === 0 ? 1 : 0;
+        pendingFrame.current = { revision, slot };
+        setFrames(previous => {
+          const updated: [FrameSnapshot, FrameSnapshot] = [...previous];
+          updated[slot] = { revision, html: result };
+          return updated;
+        });
+      })
+      .catch(cause => {
+        if (active && revision === previewRequest.current) {
+          setError(describeError(cause));
+          setBusy(false);
+        }
+      });
     return () => { active = false; };
   }, [projectId, previewPageId, previewIdentity, savedVersion, reload, page.layout, page.title, page.isPublic, page.navGroup, pages]);
 
@@ -153,7 +168,7 @@ export function InlineSitePreview({
   useEffect(() => {
     const doc = iframeRef.current?.contentDocument;
     if (doc) paintSelection(doc, selectedBlock);
-  }, [selectedBlock, html]);
+  }, [selectedBlock, visibleSlot]);
 
   const onFrameLoad = useCallback((event: SyntheticEvent<HTMLIFrameElement>) => {
     const doc = event.currentTarget.contentDocument;
@@ -295,6 +310,17 @@ export function InlineSitePreview({
     });
   }, [onNavigate, pages, page.id, page.isPublic, onBlockSelect, onBlockEdit, canInlineTextEdit, onApplyInlineText]);
 
+  const frameReady = (event: SyntheticEvent<HTMLIFrameElement>, slot: 0 | 1, revision: number) => {
+    if (pendingFrame.current?.revision !== revision || pendingFrame.current.slot !== slot) return;
+    iframeRef.current = event.currentTarget;
+    // Attach selection and edit listeners only to a fully loaded document.
+    onFrameLoad(event);
+    pendingFrame.current = null;
+    visibleSlotRef.current = slot;
+    setVisibleSlot(slot);
+    setBusy(false);
+  };
+
   const frameWidth = deviceWidths[device];
   const frameHeight = deviceHeights[device];
   // Fit considers both dimensions: the site itself scrolls inside its iframe,
@@ -376,17 +402,30 @@ export function InlineSitePreview({
         className="min-h-0 flex-1 overflow-auto bg-muted/40 p-6 focus-visible:outline-2 focus-visible:outline-ring"
         style={{ backgroundImage: "radial-gradient(circle, var(--border) 1px, transparent 1px)", backgroundSize: "22px 22px" }}
       >
-        {html ? (
+        {frames.some(frame => frame.html) ? (
           <div data-canvas-artboard className="relative mx-auto shrink-0" style={{ width: frameWidth * scale, height: frameHeight * scale }}>
-            <iframe
-              ref={iframeRef}
-              title={`Paglora ${deviceNames[device].toLowerCase()} website preview`}
-              sandbox="allow-same-origin"
-              srcDoc={html}
-              onLoad={onFrameLoad}
-              style={{ width: frameWidth, height: frameHeight, transform: `scale(${scale})`, transformOrigin: "top left" }}
-              className="absolute left-0 top-0 block rounded-md border border-border bg-white shadow-xl"
-            />
+            {frames.map((frame, index) => frame.html ? (
+              <iframe
+                key={`${index}-${frame.revision}`}
+                title={`Paglora ${deviceNames[device].toLowerCase()} website preview`}
+                sandbox="allow-same-origin"
+                srcDoc={frame.html}
+                onLoad={event => frameReady(event, index as 0 | 1, frame.revision)}
+                aria-hidden={visibleSlot !== index}
+                tabIndex={visibleSlot === index ? 0 : -1}
+                style={{
+                  width: frameWidth, height: frameHeight,
+                  transform: `scale(${scale})`, transformOrigin: "top left",
+                  zIndex: visibleSlot === index ? 2 : 1,
+                  opacity: visibleSlot === index ? 1 : 0,
+                  pointerEvents: visibleSlot === index && !busy ? "auto" : "none",
+                }}
+                className="absolute left-0 top-0 block rounded-md border border-border bg-white shadow-xl"
+              />
+            ) : null)}
+            {busy && !frames[visibleSlot].html && <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <LoaderCircle className="size-4 animate-spin" /> Rendering website…
+            </div>}
           </div>
         ) : !error && <div className="flex h-full min-h-64 items-center justify-center gap-2 text-sm text-muted-foreground">
           <LoaderCircle className="size-4 animate-spin" /> Rendering website…
