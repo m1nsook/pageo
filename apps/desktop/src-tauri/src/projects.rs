@@ -43,9 +43,7 @@ fn now() -> Result<u64, String> {
 }
 
 fn root(app: &AppHandle) -> Result<PathBuf, String> {
-    let path = app.path().app_data_dir().map_err(|e| e.to_string())?.join("projects");
-    fs::create_dir_all(&path).map_err(|e| format!("Unable to access project storage: {e}"))?;
-    Ok(path)
+    crate::storage::projects_root(app)
 }
 
 fn check_id(id: &str) -> Result<(), String> {
@@ -140,6 +138,44 @@ pub fn create_project(app: AppHandle, name: String) -> Result<ProjectDocument, S
     Ok(ProjectDocument { project: config.into(), markdown })
 }
 
+/** Move a validated project out of the active workspace without deleting its files.
+ * The destination stays inside Paglora application data, to allow manual recovery.
+ */
+fn move_project_to_trash(projects: &Path, trash: &Path, id: &str) -> Result<PathBuf, String> {
+    check_id(id)?;
+    let folder = projects.join(id);
+    let meta = fs::symlink_metadata(&folder).map_err(|e| e.to_string())?;
+    if !meta.file_type().is_dir() {
+        return Err("Unsafe project folder (expected a real directory).".into());
+    }
+    let config = read_config(&folder)?;
+    if config.id != id {
+        return Err("Project configuration does not match its folder.".into());
+    }
+    if trash.exists() {
+        if !fs::symlink_metadata(trash).map_err(|e| e.to_string())?.file_type().is_dir() {
+            return Err("Unsafe trash folder.".into());
+        }
+    } else {
+        fs::create_dir(trash).map_err(|e| format!("Unable to create project trash: {e}"))?;
+    }
+    let stamp = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
+    for attempt in 0..100 {
+        let destination = trash.join(format!("{id}-{stamp}-{attempt}"));
+        if destination.exists() { continue; }
+        fs::rename(&folder, &destination).map_err(|e| format!("Unable to move project to trash: {e}"))?;
+        return Ok(destination);
+    }
+    Err("Could not allocate a unique trash location.".into())
+}
+
+#[tauri::command]
+pub fn trash_project(app: AppHandle, id: String) -> Result<String, String> {
+    let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let destination = move_project_to_trash(&root(&app)?, &base.join("trash"), &id)?;
+    Ok(destination.display().to_string())
+}
+
 #[tauri::command]
 pub fn load_project(app: AppHandle, id: String) -> Result<ProjectDocument, String> {
     check_id(&id)?;
@@ -167,6 +203,42 @@ pub fn save_document(app: AppHandle, id: String, markdown: String) -> Result<Pro
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn trash_moves_only_valid_project_folder_and_preserves_contents() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let temp = std::env::temp_dir().join(format!("paglora-project-trash-{}-{nonce}", std::process::id()));
+        let projects = temp.join("projects");
+        let trash = temp.join("trash");
+        fs::create_dir_all(projects.join("test-docs")).unwrap();
+        let config = ProjectConfig {
+            format_version: FORMAT_VERSION, id: "test-docs".into(), name: "Test".into(),
+            created_at: 1, updated_at: 1,
+        };
+        write_config(&projects.join("test-docs"), &config).unwrap();
+        fs::write(projects.join("test-docs").join("user-content.md"), "keep my text").unwrap();
+        assert!(move_project_to_trash(&projects, &trash, "../evil").is_err());
+        let destination = move_project_to_trash(&projects, &trash, "test-docs").unwrap();
+        assert!(!projects.join("test-docs").exists());
+        assert_eq!(fs::read_to_string(destination.join("user-content.md")).unwrap(), "keep my text");
+        fs::remove_dir_all(&temp).unwrap();
+    }
+
+    #[test]
+    fn trash_rejects_a_project_with_mismatched_manifest() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let temp = std::env::temp_dir().join(format!("paglora-trash-manifest-{}-{nonce}", std::process::id()));
+        let projects = temp.join("projects");
+        fs::create_dir_all(projects.join("test-docs")).unwrap();
+        let config = ProjectConfig {
+            format_version: FORMAT_VERSION, id: "another-project".into(), name: "Test".into(),
+            created_at: 1, updated_at: 1,
+        };
+        write_config(&projects.join("test-docs"), &config).unwrap();
+        assert!(move_project_to_trash(&projects, &temp.join("trash"), "test-docs").is_err());
+        assert!(projects.join("test-docs").is_dir());
+        fs::remove_dir_all(&temp).unwrap();
+    }
+
     #[test]
     fn project_manifest_uses_paglora_filename() {
         assert_eq!(CONFIG_FILE, "paglora.json");

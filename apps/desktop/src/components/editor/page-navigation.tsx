@@ -90,18 +90,24 @@ function PageRow({ page, selected, disabled, dragged, dropTarget, canMoveUp, can
         role="button" tabIndex={-1}
         aria-label={t("studio.pages.dragToReorder", { title: page.title })}
         onPointerDown={(event) => onStartDrag(event, page.id)}
-        title={page.id === "index" ? t("studio.pages.overviewFirst") : t("studio.pages.holdToDrag")}
+        aria-description={page.id === "index" ? t("studio.pages.overviewFirst") : t("studio.pages.holdToDrag")}
         className={cn(
           "flex size-7 shrink-0 items-center justify-center text-muted-foreground/50 touch-none select-none",
           page.id !== "index" && !disabled ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-40",
         )}>
         <GripVertical className="size-3.5" />
       </span>
-      <button type="button" disabled={disabled} aria-current={selected ? "page" : undefined} onClick={onNavigate}
-        className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
-        <FileText className="size-4 shrink-0 text-muted-foreground" />
-        <span className="truncate">{page.title}</span>{page.isPublic ? null : <EyeOff className="size-3 shrink-0 text-muted-foreground" aria-label={t("studio.pages.privatePage")} />}
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" disabled={disabled} aria-current={selected ? "page" : undefined} onClick={onNavigate}
+            className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
+            <FileText className="size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-left">{page.title}</span>
+            {!page.isPublic && <EyeOff className="size-3 shrink-0 text-muted-foreground" aria-label={t("studio.pages.privatePage")} />}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="max-w-[360px] break-words">{page.title}</TooltipContent>
+      </Tooltip>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon-xs" aria-label={t("studio.pages.actionsFor", { title: page.title })} disabled={disabled}
@@ -275,7 +281,7 @@ export function PageNavigation({ pages, currentId, busy, onNavigate, onAction }:
                   aria-expanded={!collapsedGroups.has(page.navGroup)}
                   onClick={() => toggleGroup(page.navGroup)}
                   className="flex w-full items-center gap-2 rounded-md px-2 pb-1 pt-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                  title={collapsedGroups.has(page.navGroup) ? t("studio.pages.expandGroup", { group: page.navGroup }) : t("studio.pages.collapseGroup", { group: page.navGroup })}
+                  aria-label={collapsedGroups.has(page.navGroup) ? t("studio.pages.expandGroup", { group: page.navGroup }) : t("studio.pages.collapseGroup", { group: page.navGroup })}
                 >
                   <ChevronDown aria-hidden className={`size-3 shrink-0 transition-transform ${collapsedGroups.has(page.navGroup) ? "-rotate-90" : ""}`} />
                   <span className="min-w-0 flex-1 truncate">{page.navGroup}</span>

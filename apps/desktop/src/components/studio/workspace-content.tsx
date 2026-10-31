@@ -1,12 +1,18 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { ProjectSummary } from "@paglora/core";
-import { Archive, ArrowRight, BookOpen, ChevronRight, Clock3, Copy, FolderOpen, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { Archive, ChevronRight, Clock3, Copy, ExternalLink, FolderOpen, LoaderCircle, Plus, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { ArrowRightIcon, BookOpenIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { StudioShortcutSettings } from "@/components/studio/studio-shortcut-settings";
+import type { ShortcutBindings, StudioCommand } from "@/lib/studio-shortcuts";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,17 +41,19 @@ function WorkspaceHeader({ section }: { section: string }) {
   );
 }
 
-function ProjectCard({ project, onOpen, onExportBackup }: { project: ProjectSummary; onOpen: () => void; onExportBackup: () => void }) {
+function ProjectCard({ project, onOpen, onExportBackup, onTrash }: { project: ProjectSummary; onOpen: () => void; onExportBackup: () => void; onTrash: () => void }) {
   const { t } = useTranslation();
+  const [confirmTrash, setConfirmTrash] = useState(false);
   return (
+    <>
     <ContextMenu>
       <ContextMenuTrigger asChild>
-    <Card className="group gap-0 py-0 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-lg">
-      <button className="flex h-full min-h-48 flex-col rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
+    <Card className="group gap-0 py-0 transition-[background-color,border-color,box-shadow] duration-150 hover:bg-muted/50 hover:ring-primary/45">
+      <button className="flex h-full min-h-48 flex-col rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
         <CardHeader className="w-full pt-5">
           <div className="flex items-center justify-between">
-            <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><BookOpen className="size-5" /></span>
-            <ArrowRight className="size-4 text-muted-foreground transition-transform duration-150 group-hover:translate-x-1" />
+            <span className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary"><BookOpenIcon weight="bold" className="size-5" /></span>
+            <ArrowRightIcon weight="bold" className="size-4 text-muted-foreground transition-transform duration-150 group-hover:translate-x-1" />
           </div>
         </CardHeader>
         <CardContent className="w-full flex-1 py-3">
@@ -59,7 +67,7 @@ function ProjectCard({ project, onOpen, onExportBackup }: { project: ProjectSumm
     </Card>
       </ContextMenuTrigger>
       <ContextMenuContent className="min-w-48">
-        <ContextMenuItem onSelect={onOpen}><BookOpen /> Open project</ContextMenuItem>
+        <ContextMenuItem onSelect={onOpen}><BookOpenIcon weight="bold" /> Open project</ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={onExportBackup}><Archive /> {t("studio.backup.export")}</ContextMenuItem>
         <ContextMenuItem onSelect={() => {
@@ -69,14 +77,32 @@ function ProjectCard({ project, onOpen, onExportBackup }: { project: ProjectSumm
             });
           }
         }}><Copy /> Copy project name</ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onSelect={() => setConfirmTrash(true)}><Trash2 /> Remove project…</ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
+    <AlertDialog open={confirmTrash} onOpenChange={setConfirmTrash}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove “{project.name}” from Paglora?</AlertDialogTitle>
+          <AlertDialogDescription>
+            The project and its pages will disappear from your workspace. All files are moved
+            into Paglora’s local trash folder for manual recovery, not permanently deleted.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep project</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onTrash}>Move to trash</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
-export function Dashboard({ projects, openCreate, openProject, onExportBackup, onImportBackup, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
+export function Dashboard({ projects, openCreate, openProject, onExportBackup, onImportBackup, onTrashProject, backupNotice, backupPath, view, loading, search, setSearch, desktop, error }: {
   projects: ProjectSummary[]; openCreate: () => void; openProject: (id: string) => void;
-  onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; backupNotice: string; backupPath: string;
+  onExportBackup: (id: string) => void; onImportBackup: (file: File) => void; onTrashProject: (id: string) => void; backupNotice: string; backupPath: string;
   view: WorkspaceView; loading: boolean; search: string; setSearch: (value: string) => void; desktop: boolean; error: string;
 }) {
   const { t } = useTranslation();
@@ -89,20 +115,20 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl animate-in fade-in-0 px-5 py-8 duration-200 lg:px-10 lg:py-10">
           {view === "home" && (
-            <Card className="relative mb-9 overflow-hidden border-0 bg-gradient-to-br from-muted via-card to-card py-0 ring-1 ring-border">
+            <Card className="relative mb-9 overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/50 py-0 ring-1 ring-border">
               <CardContent className="relative min-h-56 px-7 py-8 sm:px-9">
                 <div className="relative z-10 max-w-xl">
-                  <Badge variant="outline" className="mb-5 gap-1.5 bg-background/80"><Sparkles className="size-3.5" /> Your documentation studio</Badge>
-                  <h1 className="max-w-lg text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">Create documentation you'll be proud to share.</h1>
+                  <Badge variant="outline" className="mb-5 gap-1.5 bg-background/80"><SparkleIcon weight="fill" className="size-3.5" /> Your documentation studio</Badge>
+                  <h1 className="font-display max-w-lg text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl">Create documentation you'll be proud to share.</h1>
                   <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">Write, organize, and design documentation locally. Your files always belong to you.</p>
                   <Button className="mt-6" onClick={openCreate}><Plus /> New project</Button>
                 </div>
-                <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-40 size-96 rounded-full border-[54px] border-primary/5" />
+                <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-primary/7 via-transparent to-transparent" />
               </CardContent>
             </Card>
           )}
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <div><h2 className="text-xl font-semibold tracking-tight">{heading}</h2><p className="mt-1 text-sm text-muted-foreground">Continue working or start something new.</p></div>
+            <div><h2 className="font-display text-xl font-extrabold tracking-tight">{heading}</h2><p className="mt-1 text-sm text-muted-foreground">Continue working or start something new.</p></div>
             <div className="flex items-center gap-2">
               <input ref={backupInput} type="file" accept=".paglora" className="hidden" aria-label={t("studio.backup.import")}
                 onChange={event => {
@@ -130,7 +156,7 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
               {[0, 1, 2].map(n => <Card key={n} className="min-h-48"><CardHeader><Skeleton className="size-10" /></CardHeader><CardContent className="space-y-2"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-3 w-1/2" /></CardContent></Card>)}
             </div>
           ) : visible.length > 0 ? (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(p => <ProjectCard key={p.id} project={p} onOpen={() => openProject(p.id)} onExportBackup={() => onExportBackup(p.id)} />)}</div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(p => <ProjectCard key={p.id} project={p} onOpen={() => openProject(p.id)} onExportBackup={() => onExportBackup(p.id)} onTrash={() => onTrashProject(p.id)} />)}</div>
           ) : (
             <Empty className="mt-6 min-h-64 border border-dashed border-border bg-card">
               <EmptyHeader>
@@ -149,57 +175,107 @@ export function Dashboard({ projects, openCreate, openProject, onExportBackup, o
   );
 }
 
-export function Settings({ location, desktop, updater, onOpenReleaseNotes }: { location: string; desktop: boolean; updater: StudioUpdaterControls; onOpenReleaseNotes: () => void }) {
+export function Settings({ location, desktop, updater, onOpenReleaseNotes, shortcuts, onAssignShortcut, onResetShortcuts, onMigrateStorage, storageMigrating, storageError }: { location: string; desktop: boolean; updater: StudioUpdaterControls; onOpenReleaseNotes: () => void; shortcuts: ShortcutBindings; onAssignShortcut: (command: StudioCommand, stroke: string) => string | null; onResetShortcuts: () => void; onMigrateStorage: (destination: string) => Promise<void>; storageMigrating: boolean; storageError: string }) {
   const { locale, setLocale, t } = useTranslation();
+  const [storageDestination, setStorageDestination] = useState("");
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden">
       <WorkspaceHeader section={t("studio.nav.settings")} />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl animate-in fade-in-0 space-y-5 px-5 py-10 duration-200 lg:px-10">
-          <div className="mb-8"><h1 className="text-2xl font-semibold tracking-tight">{t("studio.settings.title")}</h1><p className="mt-1 text-sm text-muted-foreground">{t("studio.settings.description")}</p></div>
-          <Card>
-            <CardHeader><CardTitle>{t("studio.settings.appearance")}</CardTitle><CardDescription>{t("studio.settings.appearanceDescription")}</CardDescription></CardHeader>
-            <CardContent><ThemeSwitcher showLabel /></CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("studio.settings.language")}</CardTitle>
-              <CardDescription>{t("studio.settings.languageDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Select value={locale} onValueChange={setLocale}>
-                <SelectTrigger className="w-full max-w-xs" aria-label={t("studio.settings.language")}><SelectValue /></SelectTrigger>
-                <SelectContent>{LANGUAGES.map(item => (
-                  <SelectItem key={item.locale} value={item.locale}>{item.nativeName} ({item.englishName})</SelectItem>
-                ))}</SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">{t("studio.settings.languagePartial")}</p>
-            </CardContent>
-          </Card>
-          <Card><CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="size-4" /> {t("studio.settings.localStorage")}</CardTitle><CardDescription>{t("studio.settings.storageDescription")}</CardDescription></CardHeader>
-            <CardContent><div className="break-all rounded-md bg-muted p-3 font-mono text-xs text-foreground">{desktop ? location || t("studio.settings.storagePending") : t("studio.settings.desktopOnly")}</div><p className="mt-4 text-xs text-muted-foreground">{t("studio.settings.storageFuture")}</p></CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("studio.updater.stableTitle")}</CardTitle>
-              <CardDescription>{t("studio.updater.stableDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="outline" disabled={!desktop || updater.checking || updater.installing} onClick={() => void updater.check(true)}>
-                {updater.checking ? t("studio.updater.checking") : t("studio.updater.check")}
-              </Button>
-              {updater.message && <p role="status" className="text-sm text-muted-foreground">{updater.message}</p>}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("studio.settings.about")}</CardTitle>
-              <CardDescription>{t("studio.settings.aboutDescription")} · Studio v{STUDIO_VERSION}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" onClick={onOpenReleaseNotes}>{t("studio.release.open")}</Button>
-            </CardContent>
-          </Card>
+        <div className="mx-auto max-w-5xl animate-in fade-in-0 space-y-4 px-5 py-6 duration-200 lg:px-10">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div><h1 className="font-display text-2xl font-extrabold tracking-tight">{t("studio.settings.title")}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{t("studio.settings.description")}</p></div>
+            <Badge variant="outline" className="shrink-0 font-mono">v{STUDIO_VERSION}</Badge>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="gap-3">
+              <CardHeader><CardTitle>{t("studio.settings.appearance")}</CardTitle><CardDescription>{t("studio.settings.appearanceDescription")}</CardDescription></CardHeader>
+              <CardContent><ThemeSwitcher showLabel /></CardContent>
+            </Card>
+            <Card className="gap-3">
+              <CardHeader><CardTitle>{t("studio.settings.language")}</CardTitle><CardDescription>{t("studio.settings.languageDescription")}</CardDescription></CardHeader>
+              <CardContent className="space-y-2">
+                <Select value={locale} onValueChange={setLocale}>
+                  <SelectTrigger className="w-full max-w-xs" aria-label={t("studio.settings.language")}><SelectValue /></SelectTrigger>
+                  <SelectContent>{LANGUAGES.map(item => (
+                    <SelectItem key={item.locale} value={item.locale}>{item.nativeName} ({item.englishName})</SelectItem>
+                  ))}</SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t("studio.settings.languagePartial")}</p>
+              </CardContent>
+            </Card>
+            <Card className="gap-3 md:col-span-2">
+              <CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="size-4" /> {t("studio.settings.localStorage")}</CardTitle>
+                <CardDescription>{t("studio.settings.storageDescription")}</CardDescription></CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 p-2">
+                  <code className="min-w-0 flex-1 break-all px-1 font-mono text-xs">{desktop ? location || t("studio.settings.storagePending") : t("studio.settings.desktopOnly")}</code>
+                  <Button variant="outline" size="sm" disabled={!desktop || !location}
+                    onClick={() => {
+                      if (!navigator.clipboard?.writeText) return;
+                      void navigator.clipboard.writeText(location).catch(error => console.warn("Could not copy local storage path", error));
+                    }}><Copy className="size-3.5" /> Copy path</Button>
+                </div>
+                <form className="flex flex-wrap items-end gap-2 pt-1" onSubmit={event => {
+                  event.preventDefault();
+                  if (!storageDestination.trim() || storageMigrating) return;
+                  void onMigrateStorage(storageDestination.trim()).then(() => setStorageDestination("")).catch(() => undefined);
+                }}>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <Label htmlFor="storage-new-folder">Move projects to a new folder</Label>
+                    <Input id="storage-new-folder" placeholder="D:\\Paglora Projects" value={storageDestination}
+                      onChange={event => setStorageDestination(event.target.value)}
+                      disabled={!desktop || storageMigrating} autoComplete="off" />
+                  </div>
+                  <Button variant="outline" type="submit" disabled={!desktop || storageMigrating || !storageDestination.trim()}>
+                    {storageMigrating ? <LoaderCircle className="size-4 animate-spin" /> : <FolderOpen className="size-4" />}
+                    {storageMigrating ? "Copying and verifying…" : "Move projects"}
+                  </Button>
+                </form>
+                {storageError && <p role="alert" className="text-xs text-destructive">{storageError}</p>}
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Enter an absolute path for a <strong>new folder that does not exist yet</strong> (its parent must exist).
+                  Paglora copies and verifies every file before changing its active location. Originals remain in the previous
+                  folder as a recovery copy; backups remain in Paglora app data.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="gap-0 md:col-span-2">
+              <Accordion type="single" collapsible defaultValue="shortcuts">
+                <AccordionItem value="shortcuts" className="border-0">
+                  <CardHeader>
+                    <AccordionTrigger className="w-full py-0 hover:no-underline">
+                      <span className="text-left"><CardTitle>Keyboard shortcuts</CardTitle>
+                        <CardDescription className="mt-1">Customize Studio commands. Conflicts and reserved keys are checked automatically.</CardDescription></span>
+                    </AccordionTrigger>
+                  </CardHeader>
+                  <AccordionContent className="px-4 pb-3">
+                    <StudioShortcutSettings bindings={shortcuts} onAssign={onAssignShortcut} onReset={onResetShortcuts} />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </Card>
+            <Card className="gap-3">
+              <CardHeader><CardTitle>{t("studio.updater.stableTitle")}</CardTitle><CardDescription>{t("studio.updater.stableDescription")}</CardDescription></CardHeader>
+              <CardContent className="space-y-2">
+                <Button variant="outline" disabled={!desktop || updater.checking || updater.installing} onClick={() => void updater.check(true)}>
+                  {updater.checking ? t("studio.updater.checking") : t("studio.updater.check")}
+                </Button>
+                {updater.message && <p role="status" className="text-xs text-muted-foreground">{updater.message}</p>}
+              </CardContent>
+            </Card>
+            <Card className="gap-3">
+              <CardHeader><CardTitle>{t("studio.settings.about")}</CardTitle>
+                <CardDescription>Paglora Studio v{STUDIO_VERSION} · local-first documentation builder</CardDescription></CardHeader>
+              <CardContent className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={onOpenReleaseNotes}>{t("studio.release.open")}</Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://m1nsook.github.io/paglora-docs/" target="_blank" rel="noopener noreferrer"><ExternalLink className="size-3.5" /> Documentation</a>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </main>

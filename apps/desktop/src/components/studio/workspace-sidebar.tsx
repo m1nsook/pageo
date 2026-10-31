@@ -1,4 +1,4 @@
-import { FolderOpen, Home, LayoutTemplate, Settings2, ShieldCheck } from "lucide-react";
+import { FolderOpenIcon, HouseIcon, GearSixIcon, SquaresFourIcon, ShieldCheckIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { ThemeSwitcher } from "@/components/studio/theme-switcher";
 import { useTranslation } from "@/i18n";
@@ -11,9 +11,9 @@ import {
 export type WorkspaceView = "home" | "projects" | "settings";
 
 const destinations = [
-  { id: "home", label: "studio.nav.home", icon: Home },
-  { id: "projects", label: "studio.nav.projects", icon: FolderOpen },
-  { id: "settings", label: "studio.nav.settings", icon: Settings2 },
+  { id: "home", label: "studio.nav.home", icon: HouseIcon },
+  { id: "projects", label: "studio.nav.projects", icon: FolderOpenIcon },
+  { id: "settings", label: "studio.nav.settings", icon: GearSixIcon },
 ] as const;
 
 export function WorkspaceSidebar({ view, onNavigate, editing }: {
@@ -29,7 +29,7 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
           <span className="flex size-9 shrink-0 items-center justify-center">
             <img src="/paglora.svg" className="size-9 object-contain" alt="Paglora logo" />
           </span>
-          <span className="truncate text-lg font-semibold tracking-tight group-data-[collapsible=icon]:hidden">paglora<span className="text-muted-foreground">.</span></span>
+          <span className="font-display truncate text-lg font-extrabold tracking-tight group-data-[collapsible=icon]:hidden">paglora<span className="text-muted-foreground">.</span></span>
         </div>
       </SidebarHeader>
       <SidebarContent className="overflow-x-hidden overflow-y-auto">
@@ -46,7 +46,7 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
                     onClick={() => onNavigate(id)}
                     className="transition-colors"
                   >
-                    <Icon /> <span>{t(label)}</span>
+                    <Icon weight={view === id && !editing ? "fill" : "bold"} /> <span>{t(label)}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -60,7 +60,7 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton disabled tooltip="Templates are planned">
-                  <LayoutTemplate /><span>{t("studio.nav.templates")}</span>
+                  <SquaresFourIcon weight="bold" /><span>{t("studio.nav.templates")}</span>
                   <Badge variant="secondary" className="ml-auto text-[10px] group-data-[collapsible=icon]:hidden">{t("studio.nav.soon")}</Badge>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -69,8 +69,8 @@ export function WorkspaceSidebar({ view, onNavigate, editing }: {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="gap-3 p-3">
-        <div className="rounded-lg bg-muted/70 p-3 group-data-[collapsible=icon]:hidden">
-          <div className="flex items-center gap-2 text-xs font-medium"><ShieldCheck className="size-4" /> {t("studio.nav.privateByDesign")}</div>
+        <div className="rounded-md border border-sidebar-border bg-card/60 p-3 group-data-[collapsible=icon]:hidden">
+          <div className="flex items-center gap-2 text-xs font-medium"><ShieldCheckIcon weight="bold" className="size-4" /> {t("studio.nav.privateByDesign")}</div>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t("studio.nav.privateDescription")}</p>
         </div>
         <div className="flex items-center justify-between gap-2 px-2 text-[11px] text-muted-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
