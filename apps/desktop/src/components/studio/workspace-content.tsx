@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import type { ProjectSummary, ProjectVisual } from "@paglora/core";
-import { Archive, ChevronRight, Clock3, Copy, ExternalLink, FolderOpen, LoaderCircle, Plus, Search, Settings2, ShieldCheck, Trash2 } from "lucide-react";
+import { Archive, ArrowUpRight, ChevronRight, Clock3, Copy, ExternalLink, FolderOpen, LoaderCircle, Plus, Search, Settings2, ShieldCheck, Trash2 } from "lucide-react";
 import { BookOpenIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { ProjectTrashPanel } from "@/components/studio/project-trash-panel";
@@ -53,23 +53,25 @@ function ProjectCard({ project, onOpen, onExportBackup, onTrash, onVisualSave }:
     <>
     <ContextMenu>
       <ContextMenuTrigger asChild>
-    <Card className="group relative gap-0 py-0 transition-[background-color,border-color,box-shadow] duration-150 hover:bg-muted/50 hover:ring-primary/45">
-      <button className="flex h-full min-h-48 flex-col rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
-        <CardHeader className="w-full pt-5">
+    <Card className="studio-library-card group relative gap-0 overflow-hidden border-border bg-card py-0 shadow-none transition-[border-color,background-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-lg hover:shadow-black/10">
+      <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-[3px] opacity-80 ${(PROJECT_ACCENTS[project.visual?.accent ?? "blue"] ?? PROJECT_ACCENTS.blue).dot}`} />
+      <button className="flex h-full min-h-44 w-full flex-col rounded-md py-1 pl-2 pr-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
+        <CardHeader className="w-full pb-0 pt-5">
           <div className="flex items-center justify-between">
-            <ProjectIcon visual={project.visual} />
-            <span aria-hidden="true" className="size-5" />
+            <ProjectIcon visual={project.visual} className="size-11 ring-0" />
+            <ArrowUpRight aria-hidden="true" className="mr-1 size-4 text-muted-foreground/40 transition-colors group-hover:text-primary" />
           </div>
         </CardHeader>
-        <CardContent className="w-full flex-1 py-3">
-          <StudioTooltip label={project.name}><span className="block min-w-0"><CardTitle className="truncate">{project.name}</CardTitle></span></StudioTooltip>
-          <CardDescription className="mt-1 truncate">{project.visual?.category || "Documentation project"}</CardDescription>
+        <CardContent className="w-full flex-1 py-4">
+          <StudioTooltip label={project.name}><span className="block min-w-0"><CardTitle className="truncate font-display text-[16px] font-extrabold tracking-tight">{project.name}</CardTitle></span></StudioTooltip>
+          <CardDescription className="mt-1 truncate text-xs">{project.visual?.category || "Documentation project"}</CardDescription>
         </CardContent>
-        <CardFooter className="w-full gap-2 border-t border-border/70 py-3 text-xs text-muted-foreground">
-          <Clock3 className="size-3.5" /> Updated {displayDate(project.updatedAt)}
+        <CardFooter className="w-full gap-2 border-t border-border/70 py-3 text-[11px] text-muted-foreground">
+          <Clock3 className="size-3.5" /> {displayDate(project.updatedAt)}
+          <span className="ml-auto inline-flex items-center font-bold text-foreground/65 transition-colors group-hover:text-primary">OPEN <ChevronRight className="ml-0.5 size-3.5" /></span>
         </CardFooter>
       </button>
-      <Button type="button" variant="ghost" size="icon-sm" className="absolute right-3 top-4 z-10" aria-label={`Customize ${project.name}`} onClick={() => setAppearanceOpen(true)}><Settings2 className="size-4" /></Button>
+      <Button type="button" variant="ghost" size="icon-sm" className="absolute right-11 top-5 z-10 opacity-65 transition-opacity hover:opacity-100 focus-visible:opacity-100" aria-label={`Customize ${project.name}`} onClick={() => setAppearanceOpen(true)}><Settings2 className="size-4" /></Button>
     </Card>
       </ContextMenuTrigger>
       <ContextMenuContent className="min-w-48">
@@ -132,27 +134,56 @@ export function Dashboard({ projects, trashItems, restoringTrashId, onRestorePro
       return a.localeCompare(b);
     });
   }, [visible]);
-  const heading = view === "home" ? "Your projects" : "All projects";
+  const heading = view === "home" ? "Your library" : "All projects";
+  const latestProject = useMemo(() => [...projects].sort((a, b) => b.updatedAt - a.updatedAt)[0], [projects]);
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden">
       <WorkspaceHeader section={view === "home" ? "Home" : "Projects"} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl animate-in fade-in-0 px-5 py-8 duration-200 lg:px-10 lg:py-10">
           {view === "home" && (
-            <Card className="relative mb-9 overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/50 py-0 ring-1 ring-border">
-              <CardContent className="relative min-h-56 px-7 py-8 sm:px-9">
-                <div className="relative z-10 max-w-xl">
-                  <Badge variant="outline" className="mb-5 gap-1.5 bg-background/80"><SparkleIcon weight="fill" className="size-3.5" /> Your documentation studio</Badge>
-                  <h1 className="font-display max-w-lg text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl">Create documentation you'll be proud to share.</h1>
-                  <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">Write, organize, and design documentation locally. Your files always belong to you.</p>
-                  <Button className="mt-6" onClick={openCreate}><Plus /> New project</Button>
+            <div className="studio-home-overview mb-9 grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(260px,1fr)]">
+              <section className="studio-home-feature relative flex min-h-64 flex-col overflow-hidden rounded-lg border border-border px-7 py-7 sm:px-9 sm:py-8" aria-label="Workspace overview">
+                <span aria-hidden="true" className="pointer-events-none absolute -right-20 -top-32 size-80 rounded-full border border-primary/15" />
+                <span aria-hidden="true" className="pointer-events-none absolute -right-12 -top-24 size-64 rounded-full border border-primary/15" />
+                <div className="relative z-10">
+                  <p className="mb-5 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[.18em] text-primary"><span className="size-1.5 bg-primary" /> PAGLORA / WORKSPACE</p>
+                  <h1 className="font-display max-w-xl text-3xl font-extrabold leading-[1.08] tracking-[-.055em] text-foreground sm:text-[38px]">Your documentation.<br /><span className="text-primary">Your workspace.</span></h1>
+                  <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">Create, design, and publish from one local Studio. Pick up a project or start something new.</p>
+                  <div className="mt-6 flex flex-wrap gap-2.5">
+                    <Button onClick={openCreate} className="gap-2 px-4"><Plus className="size-4" /> New project</Button>
+                    <Button variant="outline" disabled={!desktop} onClick={() => backupInput.current?.click()} className="gap-2 border-border bg-card/70"><Archive className="size-4" /> Import backup</Button>
+                  </div>
                 </div>
-                <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-primary/7 via-transparent to-transparent" />
-              </CardContent>
-            </Card>
+                <div className="relative z-10 mt-auto flex items-center gap-2 pt-7 text-[10px] font-bold uppercase tracking-[.13em] text-muted-foreground"><ShieldCheck className="size-3.5 text-emerald-500" /> LOCAL FIRST <span className="mx-1 text-border">/</span> PRIVATE BY DESIGN</div>
+              </section>
+              <section className="studio-home-recent flex min-h-64 flex-col rounded-lg border border-border bg-card p-6" aria-label="Continue working">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-muted-foreground">Continue working</p>
+                  <Badge variant="outline" className="font-mono text-[10px] tabular-nums">{projects.length} PROJECTS</Badge>
+                </div>
+                {latestProject ? (
+                  <>
+                    <div className="mt-7 flex items-center gap-3">
+                      <ProjectIcon visual={latestProject.visual} className="size-12" />
+                      <div className="min-w-0"><p className="font-display truncate text-xl font-extrabold tracking-tight">{latestProject.name}</p><p className="mt-1 truncate text-xs text-muted-foreground">{latestProject.visual?.category || "Documentation project"}</p></div>
+                    </div>
+                    <div className="mt-5 flex items-center gap-2 border-t border-border pt-4 text-xs text-muted-foreground"><Clock3 className="size-3.5" /> Updated {displayDate(latestProject.updatedAt)}</div>
+                    <Button variant="secondary" className="mt-auto w-full justify-between px-4 font-bold" onClick={() => openProject(latestProject.id)}>Open project <ArrowUpRight className="size-4" /></Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-8 flex size-12 items-center justify-center rounded-lg bg-primary/10 text-primary"><FolderOpen className="size-6" /></div>
+                    <p className="mt-4 font-display text-lg font-extrabold">Ready when you are.</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Your next documentation project will appear here for quick access.</p>
+                    <Button variant="secondary" className="mt-auto w-full justify-between" onClick={openCreate}>Create first project <ArrowUpRight className="size-4" /></Button>
+                  </>
+                )}
+              </section>
+            </div>
           )}
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <div><h2 className="font-display text-xl font-extrabold tracking-tight">{heading}</h2><p className="mt-1 text-sm text-muted-foreground">Continue working or start something new.</p></div>
+            <div><div className="flex items-center gap-2"><h2 className="font-display text-xl font-extrabold tracking-tight">{heading}</h2><Badge variant="secondary" className="font-mono tabular-nums">{visible.length}</Badge></div><p className="mt-1 text-sm text-muted-foreground">Browse and organize documentation on this computer.</p></div>
             <div className="flex items-center gap-2">
               <input ref={backupInput} type="file" accept=".paglora" className="hidden" aria-label={t("studio.backup.import")}
                 onChange={event => {
@@ -176,7 +207,7 @@ export function Dashboard({ projects, trashItems, restoringTrashId, onRestorePro
               onClick={() => { if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(backupPath); }}><Copy /></Button>}
           </div>}
           {loading ? (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Loading projects">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 2xl:grid-cols-3" aria-label="Loading projects">
               {[0, 1, 2].map(n => <Card key={n} className="min-h-48"><CardHeader><Skeleton className="size-10" /></CardHeader><CardContent className="space-y-2"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-3 w-1/2" /></CardContent></Card>)}
             </div>
           ) : visible.length > 0 ? (
@@ -190,7 +221,7 @@ export function Dashboard({ projects, trashItems, restoringTrashId, onRestorePro
                       <h3 className="text-sm font-semibold">{groupName}</h3>
                       <Badge variant="secondary">{items.length}</Badge>
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
                       {items.map(p => <ProjectCard key={p.id} project={p} onOpen={() => openProject(p.id)}
                         onExportBackup={() => onExportBackup(p.id)} onTrash={() => onTrashProject(p.id)}
                         onVisualSave={visual => onUpdateVisual(p.id, visual)} />)}
